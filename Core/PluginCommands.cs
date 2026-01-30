@@ -418,4 +418,223 @@ public class PluginCommands
     }
 
     #endregion
+
+    #region 玩家技能命令
+
+    public void CommandSkillEnable(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        if (_plugin.SkillManager.IsEnabled)
+        {
+            commandInfo.ReplyToCommand("玩家技能系统已经是启用状态！");
+            return;
+        }
+
+        _plugin.SkillManager.IsEnabled = true;
+        string message = "✅ 玩家技能系统已启用！下一回合每个玩家将获得随机技能。";
+
+        if (player == null)
+        {
+            Console.WriteLine("[玩家技能系统] " + message);
+            commandInfo.ReplyToCommand(message);
+        }
+        else
+        {
+            player.PrintToChat("[技能系统] " + message);
+            Console.WriteLine("[玩家技能系统] " + player.PlayerName + " 启用了技能系统");
+        }
+
+        foreach (var p in Utilities.GetPlayers())
+        {
+            if (p.IsValid && p != player)
+            {
+                p.PrintToChat("💫 玩家技能系统已启用！");
+            }
+        }
+    }
+
+    public void CommandSkillDisable(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        if (!_plugin.SkillManager.IsEnabled)
+        {
+            commandInfo.ReplyToCommand("玩家技能系统已经是禁用状态！");
+            return;
+        }
+
+        _plugin.SkillManager.IsEnabled = false;
+
+        string message = "❌ 玩家技能系统已禁用！";
+
+        if (player == null)
+        {
+            Console.WriteLine("[玩家技能系统] " + message);
+            commandInfo.ReplyToCommand(message);
+        }
+        else
+        {
+            player.PrintToChat("[技能系统] " + message);
+            Console.WriteLine("[玩家技能系统] " + player.PlayerName + " 禁用了技能系统");
+        }
+
+        foreach (var p in Utilities.GetPlayers())
+        {
+            if (p.IsValid && p != player)
+            {
+                p.PrintToChat("💫 玩家技能系统已禁用！");
+            }
+        }
+    }
+
+    public void CommandSkillStatus(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        string status = _plugin.SkillManager.IsEnabled ? "✅ 启用" : "❌ 禁用";
+
+        if (player == null)
+        {
+            commandInfo.ReplyToCommand("=== 玩家技能系统状态 ===");
+            commandInfo.ReplyToCommand("状态: " + status);
+            commandInfo.ReplyToCommand("已注册技能数: " + _plugin.SkillManager.GetSkillCount());
+        }
+        else
+        {
+            player.PrintToChat("=== 玩家技能系统状态 ===");
+            player.PrintToChat("状态: " + status);
+            player.PrintToChat("已注册技能数: " + _plugin.SkillManager.GetSkillCount());
+
+            // 显示玩家当前技能
+            var currentSkill = _plugin.SkillManager.GetPlayerSkill(player);
+            if (currentSkill != null)
+            {
+                player.PrintToChat("💫 你的当前技能: " + currentSkill.DisplayName);
+                player.PrintToChat("📝 " + currentSkill.Description);
+            }
+            else
+            {
+                player.PrintToChat("💫 你当前没有技能");
+            }
+        }
+    }
+
+    public void CommandSkillList(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        var skills = _plugin.SkillManager.GetAllSkillNames();
+
+        if (player == null)
+        {
+            commandInfo.ReplyToCommand("=== 可用技能列表 ===");
+            foreach (var skillName in skills)
+            {
+                var skill = _plugin.SkillManager.GetSkill(skillName);
+                if (skill != null)
+                {
+                    commandInfo.ReplyToCommand($"{skill.DisplayName} (权重: {skill.Weight})");
+                }
+            }
+        }
+        else
+        {
+            player.PrintToChat("=== 可用技能列表 ===");
+            foreach (var skillName in skills)
+            {
+                var skill = _plugin.SkillManager.GetSkill(skillName);
+                if (skill != null)
+                {
+                    player.PrintToChat($"{skill.DisplayName} (权重: {skill.Weight})");
+                }
+            }
+        }
+    }
+
+    public void CommandSkillWeight(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        if (commandInfo.ArgCount < 2)
+        {
+            commandInfo.ReplyToCommand("用法: css_skill_weight <技能名称> [权重]");
+            return;
+        }
+
+        string skillName = commandInfo.ArgByIndex(1);
+        var skill = _plugin.SkillManager.GetSkill(skillName);
+
+        if (skill == null)
+        {
+            commandInfo.ReplyToCommand($"错误：找不到技能 '{skillName}'");
+            return;
+        }
+
+        // 如果只有技能名称，显示当前权重
+        if (commandInfo.ArgCount == 2)
+        {
+            string message = $"技能 '{skill.DisplayName}' 当前权重: {skill.Weight}";
+            if (player == null)
+            {
+                commandInfo.ReplyToCommand(message);
+            }
+            else
+            {
+                player.PrintToChat(message);
+            }
+            return;
+        }
+
+        // 设置新权重
+        if (!int.TryParse(commandInfo.ArgByIndex(2), out int newWeight) || newWeight < 0)
+        {
+            commandInfo.ReplyToCommand("错误：权重必须是非负整数");
+            return;
+        }
+
+        _plugin.SkillManager.SetSkillWeight(skillName, newWeight);
+        string successMessage = $"✅ 技能 '{skill.DisplayName}' 权重已设置为: {newWeight}";
+
+        if (player == null)
+        {
+            Console.WriteLine("[玩家技能系统] " + successMessage);
+            commandInfo.ReplyToCommand(successMessage);
+        }
+        else
+        {
+            player.PrintToChat(successMessage);
+        }
+    }
+
+    public void CommandSkillWeights(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        var weights = _plugin.SkillManager.GetAllSkillWeights();
+
+        if (player == null)
+        {
+            commandInfo.ReplyToCommand("=== 所有技能权重 ===");
+            foreach (var kvp in weights.OrderBy(x => x.Key))
+            {
+                commandInfo.ReplyToCommand($"{kvp.Key}: {kvp.Value}");
+            }
+        }
+        else
+        {
+            player.PrintToChat("=== 所有技能权重 ===");
+            foreach (var kvp in weights.OrderBy(x => x.Key))
+            {
+                player.PrintToChat($"{kvp.Key}: {kvp.Value}");
+            }
+        }
+    }
+
+    public void CommandUseSkill(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        if (player == null)
+        {
+            commandInfo.ReplyToCommand("此命令只能由玩家使用！");
+            return;
+        }
+
+        if (!_plugin.SkillManager.IsEnabled)
+        {
+            player.PrintToChat("💫 技能系统未启用！");
+            return;
+        }
+
+        _plugin.SkillManager.UsePlayerSkill(player);
+    }
+
+    #endregion
 }

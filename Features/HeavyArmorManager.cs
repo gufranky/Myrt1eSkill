@@ -98,24 +98,23 @@ public class HeavyArmorManager
 
     /// <summary>
     /// 处理重甲战士受到伤害（减伤）
+    /// 返回伤害倍数，由调用方统一应用
     /// </summary>
-    public bool HandleDamage(CCSPlayerPawn player, CTakeDamageInfo info)
+    public float? HandleDamage(CCSPlayerPawn player, CTakeDamageInfo info)
     {
         var controller = player.Controller.Value;
         if (controller == null || !controller.IsValid)
-            return false;
+            return null;
 
         if (controller != _currentHeavyArmorPlayer)
-            return false;
+            return null;
 
         const float damageReduction = 0.6f;
-        float originalDamage = info.Damage;
-        float newDamage = originalDamage * (1.0f - damageReduction);
-        info.Damage = newDamage;
+        float multiplier = 1.0f - damageReduction; // 0.4倍伤害
 
-        Console.WriteLine("[减伤] 玩家: " + controller.PlayerName + " | 原始伤害: " + originalDamage + " | 减免后: " + newDamage + " | 减免: " + (originalDamage - newDamage));
+        Console.WriteLine("[减伤] 玩家: " + controller.PlayerName + " | 伤害倍数: " + multiplier + " (减免" + damageReduction * 100 + "%)");
 
-        return true;
+        return multiplier;
     }
 
     /// <summary>

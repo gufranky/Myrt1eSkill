@@ -1,9 +1,12 @@
+using System;
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
+using CounterStrikeSharp.API.Modules.Cvars;
 using CounterStrikeSharp.API.Modules.Commands;
 using CounterStrikeSharp.API.Modules.Utils;
 using HelloWorldPlugin.Core;
 using HelloWorldPlugin.Features;
+using HelloWorldPlugin.Skills;
 
 namespace HelloWorldPlugin;
 
@@ -23,11 +26,18 @@ public class HelloWorldPlugin : BasePlugin, IPluginConfig<EventWeightsConfig>
     public HeavyArmorManager HeavyArmorManager { get; private set; } = null!;
     public BombPlantManager BombPlantManager { get; private set; } = null!;
     public EntertainmentEventManager EventManager { get; private set; } = null!;
+    public PlayerSkillManager SkillManager { get; private set; } = null!;
     private PluginCommands _commands = null!;
 
     // 事件状态
     public EntertainmentEvent? CurrentEvent { get; set; }
     public EntertainmentEvent? PreviousEvent { get; set; }
+
+    // 技能系统控制
+    public bool DisableSkillsThisRound { get; set; } = false;
+
+    // 友军伤害踢人保护
+    private bool _originalAutoKickValue = false;
 
     public void OnConfigParsed(EventWeightsConfig config)
     {
@@ -38,10 +48,15 @@ public class HelloWorldPlugin : BasePlugin, IPluginConfig<EventWeightsConfig>
 
     public override void Load(bool hotReload)
     {
+        // 禁用友军伤害自动踢人并启用派对模式
+        DisableFriendlyFireKick();
+        EnablePartyMode();
+
         // 初始化管理器
         HeavyArmorManager = new HeavyArmorManager(this);
         BombPlantManager = new BombPlantManager();
         EventManager = new EntertainmentEventManager(this);
+        SkillManager = new PlayerSkillManager(this);
         _commands = new PluginCommands(this);
 
         // 注册事件处理器
@@ -64,8 +79,11 @@ public class HelloWorldPlugin : BasePlugin, IPluginConfig<EventWeightsConfig>
 
         Console.WriteLine("[娱乐事件插件] v1.3.0 已加载！");
         Console.WriteLine("[娱乐事件系统] 已初始化，共加载 " + EventManager.GetEventCount() + " 个事件");
+        Console.WriteLine("[玩家技能系统] 已初始化，共加载 " + SkillManager.GetSkillCount() + " 个技能");
         Console.WriteLine("[任意下包功能] 状态: " + (BombPlantManager.AllowAnywherePlant ? "✅ 启用" : "❌ 禁用"));
         Console.WriteLine("[炸弹时间设置] 当前时间: " + BombPlantManager.BombTimer + " 秒");
+        Console.WriteLine("[友军伤害保护] 已禁用自动踢人功能");
+        Console.WriteLine("[派对模式] 🎉 已启用派对模式！");
     }
 
     #region 事件处理
@@ -80,7 +98,10 @@ public class HelloWorldPlugin : BasePlugin, IPluginConfig<EventWeightsConfig>
             PreviousEvent = null;
         }
 
-        // 选择并应用新事件
+        // 1. 处理重甲战士（第一优先级）
+        HeavyArmorManager.OnRoundStart();
+
+        // 2. 选择并应用新事件（第二优先级）
         if (EventManager.IsEnabled)
         {
             CurrentEvent = EventManager.SelectRandomEvent();
@@ -113,8 +134,18 @@ public class HelloWorldPlugin : BasePlugin, IPluginConfig<EventWeightsConfig>
             }
         }
 
-        // 处理重甲战士
-        HeavyArmorManager.OnRoundStart();
+        // 3. 为所有玩家应用技能（第三优先级，延迟1秒确保事件已完全应用）
+        if (SkillManager.IsEnabled && !DisableSkillsThisRound)
+        {
+            AddTimer(1.0f, () =>
+            {
+                SkillManager.ApplySkillsToAllPlayers();
+            });
+        }
+        else if (DisableSkillsThisRound)
+        {
+            Console.WriteLine("[技能系统] 本回合技能已被事件禁用");
+        }
 
         return HookResult.Continue;
     }
@@ -128,6 +159,15 @@ public class HelloWorldPlugin : BasePlugin, IPluginConfig<EventWeightsConfig>
             CurrentEvent = null;
         }
 
+        // 重置技能禁用标志
+        DisableSkillsThisRound = false;
+
+        // 移除所有玩家技能
+        if (SkillManager.IsEnabled)
+        {
+            SkillManager.RemoveAllPlayerSkills();
+        }
+
         // 清理重甲战士
         HeavyArmorManager.OnRoundEnd();
 
@@ -136,14 +176,33 @@ public class HelloWorldPlugin : BasePlugin, IPluginConfig<EventWeightsConfig>
 
     private HookResult OnPlayerTakeDamagePre(CCSPlayerPawn player, CTakeDamageInfo info)
     {
-        // 处理 SmallAndDeadly 事件（伤害翻倍）
-        if (CurrentEvent is SmallAndDeadlyEvent smallAndDeadlyEvent)
+        // 收集所有伤害倍数修正器
+        float totalMultiplier = 1.0f;
+
+        // 处理重甲战士减伤（返回伤害倍数）
+        float? heavyArmorMultiplier = HeavyArmorManager.HandleDamage(player, info);
+        if (heavyArmorMultiplier.HasValue)
         {
-            smallAndDeadlyEvent.HandleDamage(info);
+            totalMultiplier *= heavyArmorMultiplier.Value;
         }
 
-        // 处理重甲战士减伤
-        HeavyArmorManager.HandleDamage(player, info);
+        // 处理苦命鸳鸯配对伤害加成
+        if (CurrentEvent is UnluckyCouplesEvent couplesEvent)
+        {
+            float? couplesMultiplier = couplesEvent.HandleDamagePre(player, info);
+            if (couplesMultiplier.HasValue)
+            {
+                totalMultiplier *= couplesMultiplier.Value;
+            }
+        }
+
+        // 应用累积的倍数
+        if (totalMultiplier != 1.0f)
+        {
+            float originalDamage = info.Damage;
+            info.Damage *= totalMultiplier;
+            Console.WriteLine($"[伤害结算] 原始: {originalDamage}, 总倍数: {totalMultiplier:F2}, 最终: {info.Damage}");
+        }
 
         return HookResult.Continue;
     }
@@ -343,6 +402,15 @@ public class HelloWorldPlugin : BasePlugin, IPluginConfig<EventWeightsConfig>
         AddCommand("css_event_weight", "查看/设置事件权重", _commands.CommandEventWeight);
         AddCommand("css_event_weights", "查看所有事件权重", _commands.CommandEventWeights);
 
+        // 玩家技能命令
+        AddCommand("css_skill_enable", "启用玩家技能系统", _commands.CommandSkillEnable);
+        AddCommand("css_skill_disable", "禁用玩家技能系统", _commands.CommandSkillDisable);
+        AddCommand("css_skill_status", "查看技能系统状态", _commands.CommandSkillStatus);
+        AddCommand("css_skill_list", "列出所有可用技能", _commands.CommandSkillList);
+        AddCommand("css_skill_weight", "查看/设置技能权重", _commands.CommandSkillWeight);
+        AddCommand("css_skill_weights", "查看所有技能权重", _commands.CommandSkillWeights);
+        AddCommand("css_useskill", "使用/激活你的技能", _commands.CommandUseSkill);
+
         // 炸弹相关命令
         AddCommand("css_allowanywhereplant_enable", "启用任意下包功能", _commands.CommandEnableAllowAnywherePlant);
         AddCommand("css_allowanywhereplant_disable", "禁用任意下包功能", _commands.CommandDisableAllowAnywherePlant);
@@ -350,6 +418,91 @@ public class HelloWorldPlugin : BasePlugin, IPluginConfig<EventWeightsConfig>
         AddCommand("css_bombtimer_set", "设置炸弹爆炸时间（秒）", _commands.CommandSetBombTimer);
         AddCommand("css_bombtimer_status", "查看炸弹爆炸时间", _commands.CommandBombTimerStatus);
     }
+
+    #region 友军伤害保护
+
+    /// <summary>
+    /// 禁用友军伤害自动踢人功能
+    /// </summary>
+    private void DisableFriendlyFireKick()
+    {
+        try
+        {
+            // 获取当前的 mp_autokick 值
+            var autoKickConVar = ConVar.Find("mp_autokick");
+            if (autoKickConVar != null)
+            {
+                _originalAutoKickValue = autoKickConVar.GetPrimitiveValue<bool>();
+
+                // 禁用自动踢人
+                autoKickConVar.SetValue(false);
+                Console.WriteLine($"[友军伤害保护] 已禁用 mp_autokick (原始值: {_originalAutoKickValue})");
+            }
+            else
+            {
+                Console.WriteLine("[友军伤害保护] 警告：无法找到 mp_autokick ConVar");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[友军伤害保护] 错误：{ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 启用派对模式
+    /// </summary>
+    private void EnablePartyMode()
+    {
+        try
+        {
+            var partyModeConVar = ConVar.Find("sv_partymode");
+            if (partyModeConVar != null)
+            {
+                partyModeConVar.SetValue(true);
+                Console.WriteLine("[派对模式] 已启用 sv_partymode");
+            }
+            else
+            {
+                Console.WriteLine("[派对模式] 警告：无法找到 sv_partymode ConVar");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[派对模式] 错误：{ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 恢复友军伤害自动踢人功能
+    /// </summary>
+    private void RestoreFriendlyFireKick()
+    {
+        try
+        {
+            var autoKickConVar = ConVar.Find("mp_autokick");
+            if (autoKickConVar != null)
+            {
+                autoKickConVar.SetValue(_originalAutoKickValue);
+                Console.WriteLine($"[友军伤害保护] 已恢复 mp_autokick 为 {_originalAutoKickValue}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[友军伤害保护] 错误：{ex.Message}");
+        }
+    }
+
+    public override void Unload(bool hotReload)
+    {
+        // 恢复友军伤害自动踢人功能
+        RestoreFriendlyFireKick();
+
+        base.Unload(hotReload);
+        Console.WriteLine("[娱乐事件插件] 已卸载，友军伤害保护已移除");
+    }
+
+    #endregion
 
     #endregion
 }

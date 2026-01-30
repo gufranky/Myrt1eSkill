@@ -50,6 +50,24 @@ public class EntertainmentEventManager
         RegisterEvent(new InfiniteAmmoEvent());
         RegisterEvent(new SwapOnHitEvent());
         RegisterEvent(new SmallAndDeadlyEvent());
+        RegisterEvent(new BlitzkriegEvent());
+        RegisterEvent(new DecoyTeleportEvent());
+        RegisterEvent(new XrayEvent());
+        RegisterEvent(new SuperpowerXrayEvent());
+        RegisterEvent(new ChickenModeEvent());
+        RegisterEvent(new TopTierPartyEvent());
+        RegisterEvent(new TopTierPartyPlusPlusEvent());
+        RegisterEvent(new StayQuietEvent());
+        RegisterEvent(new RainyDayEvent());
+        RegisterEvent(new ScreamingRabbitEvent());
+        RegisterEvent(new HeadshotOnlyEvent());
+        RegisterEvent(new OneShotEvent());
+        RegisterEvent(new DeadlyGrenadesEvent());
+        RegisterEvent(new UnluckyCouplesEvent());
+        RegisterEvent(new StrangersEvent());
+        RegisterEvent(new AutoBhopEvent());
+        RegisterEvent(new SlowMotionEvent());
+        RegisterEvent(new NoSkillEvent());
 
         Console.WriteLine("[事件管理器] 已注册 " + _events.Count + " 个娱乐事件");
     }
