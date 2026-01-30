@@ -34,8 +34,11 @@ project.nuget.cache
 *.userosscache
 *.sln.docstates
 
-# Serena cache
-.serena/cache/
+# Serena
+.serena/
+
+# Backup files
+*.backup
 
 # OS files
 .DS_Store

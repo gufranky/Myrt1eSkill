@@ -1,0 +1,421 @@
+using CounterStrikeSharp.API;
+using CounterStrikeSharp.API.Core;
+using CounterStrikeSharp.API.Modules.Commands;
+
+namespace HelloWorldPlugin.Core;
+
+/// <summary>
+/// 插件命令处理类
+/// 负责处理所有控制台命令
+/// </summary>
+public class PluginCommands
+{
+    private readonly HelloWorldPlugin _plugin;
+
+    public PluginCommands(HelloWorldPlugin plugin)
+    {
+        _plugin = plugin;
+    }
+
+    #region 重甲战士命令
+
+    public void CommandEnableHeavyArmor(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        if (_plugin.HeavyArmorManager.IsEnabled)
+        {
+            commandInfo.ReplyToCommand("重甲战士模式已经是启用状态！");
+            return;
+        }
+
+        _plugin.HeavyArmorManager.IsEnabled = true;
+        string message = "✅ 重甲战士模式已启用！下一回合将随机选择重甲战士。";
+
+        if (player == null)
+        {
+            Console.WriteLine("[重甲幸运玩家插件] " + message);
+            commandInfo.ReplyToCommand(message);
+        }
+        else
+        {
+            player.PrintToChat("[重甲战士] " + message);
+            Console.WriteLine("[重甲幸运玩家插件] " + player.PlayerName + " 启用了重甲战士模式");
+        }
+
+        foreach (var p in Utilities.GetPlayers())
+        {
+            if (p.IsValid && p != player)
+            {
+                p.PrintToChat("🎮 重甲战士模式已启用！");
+            }
+        }
+    }
+
+    public void CommandDisableHeavyArmor(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        if (!_plugin.HeavyArmorManager.IsEnabled)
+        {
+            commandInfo.ReplyToCommand("重甲战士模式已经是禁用状态！");
+            return;
+        }
+
+        _plugin.HeavyArmorManager.IsEnabled = false;
+
+        string message = "❌ 重甲战士模式已禁用！";
+
+        if (player == null)
+        {
+            Console.WriteLine("[重甲幸运玩家插件] " + message);
+            commandInfo.ReplyToCommand(message);
+        }
+        else
+        {
+            player.PrintToChat("[重甲战士] " + message);
+            Console.WriteLine("[重甲幸运玩家插件] " + player.PlayerName + " 禁用了重甲战士模式");
+        }
+
+        foreach (var p in Utilities.GetPlayers())
+        {
+            if (p.IsValid && p != player)
+            {
+                p.PrintToChat("🎮 重甲战士模式已禁用！");
+            }
+        }
+    }
+
+    public void CommandStatusHeavyArmor(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        string status = _plugin.HeavyArmorManager.IsEnabled ? "✅ 启用" : "❌ 禁用";
+        string currentWarrior = _plugin.HeavyArmorManager.CurrentPlayer != null && _plugin.HeavyArmorManager.CurrentPlayer.IsValid
+            ? "🛡️ 当前重甲战士: " + _plugin.HeavyArmorManager.CurrentPlayer.PlayerName
+            : "🛡️ 当前无重甲战士";
+
+        if (player == null)
+        {
+            commandInfo.ReplyToCommand("=== 重甲战士插件状态 ===");
+            commandInfo.ReplyToCommand("状态: " + status);
+            commandInfo.ReplyToCommand(currentWarrior);
+        }
+        else
+        {
+            player.PrintToChat("=== 重甲战士插件状态 ===");
+            player.PrintToChat("状态: " + status);
+            player.PrintToChat(currentWarrior);
+        }
+    }
+
+    #endregion
+
+    #region 娱乐事件命令
+
+    public void CommandEventEnable(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        if (_plugin.EventManager.IsEnabled)
+        {
+            commandInfo.ReplyToCommand("娱乐事件系统已经是启用状态！");
+            return;
+        }
+
+        _plugin.EventManager.IsEnabled = true;
+        string message = "🎲 娱乐事件系统已启用！下回合将开始随机事件。";
+
+        if (player == null)
+        {
+            Console.WriteLine("[娱乐事件] " + message);
+            commandInfo.ReplyToCommand(message);
+        }
+        else
+        {
+            player.PrintToChat("[娱乐事件] " + message);
+            Console.WriteLine("[娱乐事件] " + player.PlayerName + " 启用了娱乐事件系统");
+        }
+
+        foreach (var p in Utilities.GetPlayers())
+        {
+            if (p.IsValid && p != player)
+            {
+                p.PrintToChat("🎲 娱乐事件系统已启用！");
+            }
+        }
+    }
+
+    public void CommandEventDisable(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        if (!_plugin.EventManager.IsEnabled)
+        {
+            commandInfo.ReplyToCommand("娱乐事件系统已经是禁用状态！");
+            return;
+        }
+
+        _plugin.EventManager.IsEnabled = false;
+
+        if (_plugin.CurrentEvent != null)
+        {
+            _plugin.CurrentEvent.OnRevert();
+            _plugin.CurrentEvent = null;
+        }
+
+        string message = "🚫 娱乐事件系统已禁用！";
+
+        if (player == null)
+        {
+            Console.WriteLine("[娱乐事件] " + message);
+            commandInfo.ReplyToCommand(message);
+        }
+        else
+        {
+            player.PrintToChat("[娱乐事件] " + message);
+            Console.WriteLine("[娱乐事件] " + player.PlayerName + " 禁用了娱乐事件系统");
+        }
+
+        foreach (var p in Utilities.GetPlayers())
+        {
+            if (p.IsValid && p != player)
+            {
+                p.PrintToChat("🎲 娱乐事件系统已禁用！");
+            }
+        }
+    }
+
+    public void CommandEventStatus(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        string status = _plugin.EventManager.IsEnabled ? "✅ 启用" : "❌ 禁用";
+        string current = _plugin.CurrentEvent != null
+            ? "🎲 当前事件: " + _plugin.CurrentEvent.Name
+            : "🎲 当前无事件";
+        string previous = _plugin.PreviousEvent != null
+            ? "📜 上回合事件: " + _plugin.PreviousEvent.Name
+            : "📜 上回合无事件";
+
+        if (player == null)
+        {
+            commandInfo.ReplyToCommand("=== 娱乐事件系统状态 ===");
+            commandInfo.ReplyToCommand("系统状态: " + status);
+            commandInfo.ReplyToCommand(current);
+            commandInfo.ReplyToCommand(previous);
+        }
+        else
+        {
+            player.PrintToChat("=== 娱乐事件系统状态 ===");
+            player.PrintToChat("系统状态: " + status);
+            player.PrintToChat(current);
+            player.PrintToChat(previous);
+        }
+    }
+
+    public void CommandEventList(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        var events = _plugin.EventManager.GetAllEventNames();
+        if (player == null)
+        {
+            commandInfo.ReplyToCommand("=== 可用事件列表 (" + events.Count + "个) ===");
+            foreach (var eventName in events)
+            {
+                commandInfo.ReplyToCommand("  • " + eventName);
+            }
+        }
+        else
+        {
+            player.PrintToChat("=== 可用事件列表 (" + events.Count + "个) ===");
+            foreach (var eventName in events)
+            {
+                player.PrintToChat("  • " + eventName);
+            }
+        }
+    }
+
+    public void CommandEventWeights(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        var weights = _plugin.EventManager.GetAllEventWeights();
+        if (player == null)
+        {
+            commandInfo.ReplyToCommand("=== 事件权重列表 ===");
+            foreach (var kvp in weights)
+            {
+                commandInfo.ReplyToCommand("  " + kvp.Key + ": " + kvp.Value);
+            }
+        }
+        else
+        {
+            player.PrintToChat("=== 事件权重列表 ===");
+            foreach (var kvp in weights)
+            {
+                player.PrintToChat("  " + kvp.Key + ": " + kvp.Value);
+            }
+        }
+    }
+
+    public void CommandEventWeight(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        if (commandInfo.ArgCount < 1)
+        {
+            string message = "用法: css_event_weight <事件英文名称> [权重值]";
+            if (player == null)
+                commandInfo.ReplyToCommand(message);
+            else
+                player.PrintToChat(message);
+            return;
+        }
+
+        string eventName = commandInfo.GetArg(1);
+
+        if (commandInfo.ArgCount == 1)
+        {
+            int weight = _plugin.EventManager.GetEventWeight(eventName);
+            if (weight >= 0)
+            {
+                string message = "事件 '" + eventName + "' 的权重: " + weight;
+                if (player == null)
+                    commandInfo.ReplyToCommand(message);
+                else
+                    player.PrintToChat(message);
+            }
+            else
+            {
+                string message = "未找到事件: " + eventName;
+                if (player == null)
+                    commandInfo.ReplyToCommand(message);
+                else
+                    player.PrintToChat(message);
+            }
+            return;
+        }
+
+        if (!int.TryParse(commandInfo.GetArg(2), out int newWeight))
+        {
+            string message = "权重值必须是整数！";
+            if (player == null)
+                commandInfo.ReplyToCommand(message);
+            else
+                player.PrintToChat(message);
+            return;
+        }
+
+        if (newWeight < 0)
+        {
+            string message = "权重值不能小于0！";
+            if (player == null)
+                commandInfo.ReplyToCommand(message);
+            else
+                player.PrintToChat(message);
+            return;
+        }
+
+        bool success = _plugin.EventManager.SetEventWeight(eventName, newWeight);
+        string resultMessage;
+        if (success)
+        {
+            resultMessage = "✅ 事件 '" + eventName + "' 的权重已设置为 " + newWeight;
+            if (newWeight == 0)
+            {
+                resultMessage += " (事件已禁用)";
+            }
+        }
+        else
+        {
+            resultMessage = "❌ 未找到事件: " + eventName;
+        }
+
+        if (player == null)
+            commandInfo.ReplyToCommand(resultMessage);
+        else
+            player.PrintToChat(resultMessage);
+    }
+
+    #endregion
+
+    #region 炸弹相关命令
+
+    public void CommandEnableAllowAnywherePlant(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        _plugin.BombPlantManager.AllowAnywherePlant = true;
+        string message = "✅ 任意下包功能已启用！";
+        if (player == null)
+        {
+            Console.WriteLine(message);
+            commandInfo.ReplyToCommand(message);
+        }
+        else
+        {
+            player.PrintToChat(message);
+        }
+    }
+
+    public void CommandDisableAllowAnywherePlant(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        _plugin.BombPlantManager.AllowAnywherePlant = false;
+        string message = "❌ 任意下包功能已禁用！";
+        if (player == null)
+        {
+            Console.WriteLine(message);
+            commandInfo.ReplyToCommand(message);
+        }
+        else
+        {
+            player.PrintToChat(message);
+        }
+    }
+
+    public void CommandAllowAnywherePlantStatus(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        string status = _plugin.BombPlantManager.AllowAnywherePlant ? "✅ 启用" : "❌ 禁用";
+        string message = "任意下包功能状态: " + status;
+        if (player == null)
+        {
+            Console.WriteLine(message);
+            commandInfo.ReplyToCommand(message);
+        }
+        else
+        {
+            player.PrintToChat(message);
+        }
+    }
+
+    public void CommandSetBombTimer(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        if (commandInfo.ArgCount < 1)
+        {
+            commandInfo.ReplyToCommand("用法: css_bombtimer_set <时间（秒）>");
+            return;
+        }
+
+        if (!float.TryParse(commandInfo.GetArg(1), out float time))
+        {
+            commandInfo.ReplyToCommand("请输入有效的数字！");
+            return;
+        }
+
+        if (time < 5 || time > 300)
+        {
+            commandInfo.ReplyToCommand("时间范围必须在 5 到 300 秒之间！");
+            return;
+        }
+
+        _plugin.BombPlantManager.BombTimer = time;
+        string message = "✅ 炸弹爆炸时间已设置为 " + _plugin.BombPlantManager.BombTimer + " 秒";
+        if (player == null)
+        {
+            Console.WriteLine(message);
+            commandInfo.ReplyToCommand(message);
+        }
+        else
+        {
+            player.PrintToChat(message);
+        }
+    }
+
+    public void CommandBombTimerStatus(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        string message = "炸弹爆炸时间: " + _plugin.BombPlantManager.BombTimer + " 秒";
+        if (player == null)
+        {
+            Console.WriteLine(message);
+            commandInfo.ReplyToCommand(message);
+        }
+        else
+        {
+            player.PrintToChat(message);
+        }
+    }
+
+    #endregion
+}
