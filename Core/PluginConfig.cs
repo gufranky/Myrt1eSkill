@@ -50,7 +50,8 @@ public class EventWeightsConfig : BasePluginConfig
     {
         ["Teleport"] = 10,
         ["SpeedBoost"] = 10,
-        ["HighJump"] = 10
+        ["HighJump"] = 10,
+        ["Ninja"] = 10
     };
 
     [JsonPropertyName("Notes")]

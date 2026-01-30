@@ -46,6 +46,7 @@ public class PlayerSkillManager
         RegisterSkill(new TeleportSkill());      // 主动技能示例
         RegisterSkill(new SpeedBoostSkill());    // 被动技能示例
         RegisterSkill(new HighJumpSkill());      // 事件互斥示例
+        RegisterSkill(new NinjaSkill());           // 明刀技能
 
         Console.WriteLine("[技能管理器] 已注册 " + _skills.Count + " 个玩家技能");
     }

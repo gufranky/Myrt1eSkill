@@ -70,9 +70,10 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         RegisterEventHandler<EventWeaponhudSelection>(OnWeaponHudSelection, HookMode.Pre);
         RegisterEventHandler<EventBombAbortplant>(OnBombAbortPlant, HookMode.Pre);
         RegisterEventHandler<EventBombPlanted>(OnBombPlanted, HookMode.Post);
-        RegisterEventHandler<EventItemPickup>(OnItemPickup, HookMode.Pre);
+        RegisterEventHandler<Event<EventItemPickup>(OnItemPickup, HookMode.Pre);
         RegisterListener<Listeners.OnPlayerButtonsChanged>(OnPlayerButtonsChanged);
         RegisterListener<Listeners.OnServerPostEntityThink>(OnServerPostEntityThink);
+        RegisterEventHandler<EventPlayerJump>(OnPlayerJump, HookMode.Post);
 
         // 注册命令
         RegisterCommands();
@@ -179,6 +180,18 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 收集所有伤害倍数修正器
         float totalMultiplier = 1.0f;
 
+        // 处理 Ninja 技能的伤害保护
+        var skill = SkillManager.GetPlayerSkill(player.Controller);
+        if (skill?.Name == "Ninja")
+        {
+            var ninjaSkill = (Skills.NinjaSkill)skill;
+            float? ninjaMultiplier = ninjaSkill?.HandleDamagePre(player, info);
+            if (ninjaMultiplier.HasValue)
+            {
+                totalMultiplier *= ninjaMultiplier.Value;
+            }
+        }
+
         // 处理重甲战士减伤（返回伤害倍数）
         float? heavyArmorMultiplier = HeavyArmorManager.HandleDamage(player, info);
         if (heavyArmorMultiplier.HasValue)
@@ -246,6 +259,14 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
     private HookResult OnPlayerHurt(EventPlayerHurt @event, GameEventInfo info)
     {
+        // 处理 Ninja 技能（检测致命伤害）
+        var skill = SkillManager.GetPlayerSkill(@event.Userid);
+        if (skill?.Name == "Ninja")
+        {
+            var ninjaSkill = (Skills.NinjaSkill)skill;
+            ninjaSkill?.OnPlayerHurtSkill(@event.Userid, @event);
+        }
+
         // 处理 Vampire 事件
         if (CurrentEvent is VampireEvent vampireEvent)
         {
