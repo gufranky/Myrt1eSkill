@@ -2,7 +2,7 @@ using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Timers;
 
-namespace HelloWorldPlugin;
+namespace MyrtleSkill;
 
 /// <summary>
 /// 无限弹药事件 - 弹药永不耗尽

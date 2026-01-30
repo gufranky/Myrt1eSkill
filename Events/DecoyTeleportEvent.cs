@@ -2,9 +2,9 @@ using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Entities.Constants;
 using CounterStrikeSharp.API.Modules.Utils;
-using HelloWorldPlugin.ThirdParty;
+using MyrtleSkill.ThirdParty;
 
-namespace HelloWorldPlugin;
+namespace MyrtleSkill;
 
 /// <summary>
 /// 诱饵传送事件 - 玩家会传送到诱饵弹的落点

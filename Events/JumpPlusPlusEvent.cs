@@ -2,7 +2,7 @@ using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Cvars;
 
-namespace HelloWorldPlugin;
+namespace MyrtleSkill;
 
 /// <summary>
 /// 超级跳跃事件 - 开枪自动跳跃且无扩散，免疫落地伤害

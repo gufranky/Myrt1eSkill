@@ -3,9 +3,9 @@ using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Cvars;
 using CounterStrikeSharp.API.Modules.Entities.Constants;
 using CounterStrikeSharp.API.Modules.Utils;
-using HelloWorldPlugin.ThirdParty;
+using MyrtleSkill.ThirdParty;
 
-namespace HelloWorldPlugin;
+namespace MyrtleSkill;
 
 /// <summary>
 /// 不认识的人事件 - 所有人模型统一、可对友军造成伤害、不显示小地图、取消瞄准时显示名字

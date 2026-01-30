@@ -1,7 +1,7 @@
 using System.Text.Json.Serialization;
 using CounterStrikeSharp.API.Core;
 
-namespace HelloWorldPlugin.Core;
+namespace MyrtleSkill.Core;
 
 /// <summary>
 /// 插件配置（包含事件权重和技能权重）

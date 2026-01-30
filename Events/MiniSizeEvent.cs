@@ -1,7 +1,7 @@
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 
-namespace HelloWorldPlugin;
+namespace MyrtleSkill;
 
 /// <summary>
 /// 迷你尺寸事件 - 玩家模型缩小

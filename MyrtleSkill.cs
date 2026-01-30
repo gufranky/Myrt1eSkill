@@ -4,19 +4,19 @@ using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Cvars;
 using CounterStrikeSharp.API.Modules.Commands;
 using CounterStrikeSharp.API.Modules.Utils;
-using HelloWorldPlugin.Core;
-using HelloWorldPlugin.Features;
-using HelloWorldPlugin.Skills;
+using MyrtleSkill.Core;
+using MyrtleSkill.Features;
+using MyrtleSkill.Skills;
 
-namespace HelloWorldPlugin;
+namespace MyrtleSkill;
 
 /// <summary>
 /// CS2 娱乐事件插件主类
 /// </summary>
-public class HelloWorldPlugin : BasePlugin, IPluginConfig<EventWeightsConfig>
+public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 {
-    public override string ModuleName => "CS2 Entertainment Events Plugin";
-    public override string ModuleVersion => "1.3.0";
+    public override string ModuleName => "Myrtle Skill Plugin";
+    public override string ModuleVersion => "2.0.0";
 
     // 配置
     public EventWeightsConfig Config { get; set; } = null!;
@@ -77,7 +77,7 @@ public class HelloWorldPlugin : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 注册命令
         RegisterCommands();
 
-        Console.WriteLine("[娱乐事件插件] v1.3.0 已加载！");
+        Console.WriteLine("[Myrtle技能插件] v2.0.0 已加载！");
         Console.WriteLine("[娱乐事件系统] 已初始化，共加载 " + EventManager.GetEventCount() + " 个事件");
         Console.WriteLine("[玩家技能系统] 已初始化，共加载 " + SkillManager.GetSkillCount() + " 个技能");
         Console.WriteLine("[任意下包功能] 状态: " + (BombPlantManager.AllowAnywherePlant ? "✅ 启用" : "❌ 禁用"));
@@ -499,7 +499,7 @@ public class HelloWorldPlugin : BasePlugin, IPluginConfig<EventWeightsConfig>
         RestoreFriendlyFireKick();
 
         base.Unload(hotReload);
-        Console.WriteLine("[娱乐事件插件] 已卸载，友军伤害保护已移除");
+        Console.WriteLine("[Myrtle技能插件] 已卸载，友军伤害保护已移除");
     }
 
     #endregion

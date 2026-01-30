@@ -1,7 +1,7 @@
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 
-namespace HelloWorldPlugin.Skills;
+namespace MyrtleSkill.Skills;
 
 /// <summary>
 /// 高跳技能 - 被动技能

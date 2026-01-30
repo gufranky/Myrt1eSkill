@@ -1,6 +1,6 @@
 using CounterStrikeSharp.API;
 
-namespace HelloWorldPlugin;
+namespace MyrtleSkill;
 
 /// <summary>
 /// 闪击行动事件 - 游戏速度2倍

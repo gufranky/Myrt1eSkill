@@ -2,7 +2,7 @@ using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Commands;
 
-namespace HelloWorldPlugin.Core;
+namespace MyrtleSkill.Core;
 
 /// <summary>
 /// 插件命令处理类
@@ -10,9 +10,9 @@ namespace HelloWorldPlugin.Core;
 /// </summary>
 public class PluginCommands
 {
-    private readonly HelloWorldPlugin _plugin;
+    private readonly MyrtleSkill _plugin;
 
-    public PluginCommands(HelloWorldPlugin plugin)
+    public PluginCommands(MyrtleSkill plugin)
     {
         _plugin = plugin;
     }

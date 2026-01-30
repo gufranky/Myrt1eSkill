@@ -3,7 +3,7 @@ using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Timers;
 using CounterStrikeSharp.API.Modules.Utils;
 
-namespace HelloWorldPlugin.Features;
+namespace MyrtleSkill.Features;
 
 /// <summary>
 /// 重甲战士管理器
@@ -11,7 +11,7 @@ namespace HelloWorldPlugin.Features;
 /// </summary>
 public class HeavyArmorManager
 {
-    private readonly HelloWorldPlugin _plugin;
+    private readonly MyrtleSkill _plugin;
     private readonly Random _random = new();
     private CCSPlayerController? _currentHeavyArmorPlayer;
     private CounterStrikeSharp.API.Modules.Timers.Timer? _weaponCheckTimer;
@@ -19,7 +19,7 @@ public class HeavyArmorManager
     public bool IsEnabled { get; set; } = true;
     public CCSPlayerController? CurrentPlayer => _currentHeavyArmorPlayer;
 
-    public HeavyArmorManager(HelloWorldPlugin plugin)
+    public HeavyArmorManager(MyrtleSkill plugin)
     {
         _plugin = plugin;
     }

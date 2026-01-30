@@ -1,7 +1,7 @@
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 
-namespace HelloWorldPlugin;
+namespace MyrtleSkill;
 
 /// <summary>
 /// 娱乐事件基类
@@ -32,12 +32,12 @@ public abstract class EntertainmentEvent
     /// <summary>
     /// 插件引用
     /// </summary>
-    protected HelloWorldPlugin? Plugin { get; private set; }
+    protected MyrtleSkill? Plugin { get; private set; }
 
     /// <summary>
     /// 注册事件到插件
     /// </summary>
-    public virtual void Register(HelloWorldPlugin plugin)
+    public virtual void Register(MyrtleSkill plugin)
     {
         Plugin = plugin;
     }

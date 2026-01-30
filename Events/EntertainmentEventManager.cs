@@ -2,7 +2,7 @@ using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using System.Text.Json.Serialization;
 
-namespace HelloWorldPlugin;
+namespace MyrtleSkill;
 
 /// <summary>
 /// 娱乐事件管理器
@@ -10,7 +10,7 @@ namespace HelloWorldPlugin;
 /// </summary>
 public class EntertainmentEventManager
 {
-    private readonly HelloWorldPlugin _plugin;
+    private readonly MyrtleSkill _plugin;
     private readonly Dictionary<string, EntertainmentEvent> _events = new();
     private readonly Random _random = new();
 
@@ -19,7 +19,7 @@ public class EntertainmentEventManager
     /// </summary>
     public bool IsEnabled { get; set; } = false;
 
-    public EntertainmentEventManager(HelloWorldPlugin plugin)
+    public EntertainmentEventManager(MyrtleSkill plugin)
     {
         _plugin = plugin;
 

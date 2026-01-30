@@ -5,7 +5,7 @@ using CounterStrikeSharp.API.Modules.Entities;
 using CounterStrikeSharp.API.Modules.Timers;
 using CounterStrikeSharp.API.Modules.Utils;
 
-namespace HelloWorldPlugin;
+namespace MyrtleSkill;
 
 /// <summary>
 /// 更致命的手雷事件 - 无限高爆手雷、移除主副武器、禁用商店、手雷伤害和范围增加

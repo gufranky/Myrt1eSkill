@@ -1,6 +1,6 @@
 using CounterStrikeSharp.API.Core;
 
-namespace HelloWorldPlugin.Skills;
+namespace MyrtleSkill.Skills;
 
 /// <summary>
 /// 玩家技能基类
@@ -46,12 +46,12 @@ public abstract class PlayerSkill
     /// <summary>
     /// 插件引用
     /// </summary>
-    protected HelloWorldPlugin? Plugin { get; private set; }
+    protected MyrtleSkill? Plugin { get; private set; }
 
     /// <summary>
     /// 注册技能到插件
     /// </summary>
-    public void Register(HelloWorldPlugin plugin)
+    public void Register(MyrtleSkill plugin)
     {
         Plugin = plugin;
     }

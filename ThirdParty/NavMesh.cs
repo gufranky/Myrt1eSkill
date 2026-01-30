@@ -9,7 +9,7 @@ using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Memory.DynamicFunctions;
 using CounterStrikeSharp.API.Modules.Utils;
 
-namespace HelloWorldPlugin.ThirdParty;
+namespace MyrtleSkill.ThirdParty;
 
 // Thanks to 21Joakim for this class found @ https://gist.github.com/21Joakim/6a264623e4ac8ae217e0eb15fc43e3e5
 

@@ -2,7 +2,7 @@ using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Utils;
 
-namespace HelloWorldPlugin.Skills;
+namespace MyrtleSkill.Skills;
 
 /// <summary>
 /// 玩家技能管理器
@@ -10,7 +10,7 @@ namespace HelloWorldPlugin.Skills;
 /// </summary>
 public class PlayerSkillManager
 {
-    private readonly HelloWorldPlugin _plugin;
+    private readonly MyrtleSkill _plugin;
     private readonly Dictionary<string, PlayerSkill> _skills = new();
     private readonly Dictionary<int, PlayerSkill> _playerSkills = new(); // 玩家槽位 -> 当前技能
     private readonly Dictionary<int, DateTime> _playerCooldowns = new(); // 玩家槽位 -> 冷却结束时间
@@ -26,7 +26,7 @@ public class PlayerSkillManager
     /// </summary>
     public PlayerButtons SkillButton { get; set; } = PlayerButtons.Use;
 
-    public PlayerSkillManager(HelloWorldPlugin plugin)
+    public PlayerSkillManager(MyrtleSkill plugin)
     {
         _plugin = plugin;
 

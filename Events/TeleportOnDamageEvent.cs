@@ -2,9 +2,9 @@ using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Entities.Constants;
 using CounterStrikeSharp.API.Modules.Utils;
-using HelloWorldPlugin.ThirdParty;
+using MyrtleSkill.ThirdParty;
 
-namespace HelloWorldPlugin;
+namespace MyrtleSkill;
 
 /// <summary>
 /// 受伤传送事件 - 受到伤害时随机传送到地图上的可行走位置

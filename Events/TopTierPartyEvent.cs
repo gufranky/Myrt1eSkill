@@ -1,6 +1,6 @@
 using CounterStrikeSharp.API;
 
-namespace HelloWorldPlugin;
+namespace MyrtleSkill;
 
 /// <summary>
 /// 顶级狂欢事件 - 同时启用两个随机事件

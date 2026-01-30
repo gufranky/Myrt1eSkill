@@ -1,7 +1,7 @@
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 
-namespace HelloWorldPlugin.Skills;
+namespace MyrtleSkill.Skills;
 
 /// <summary>
 /// 速度提升技能 - 被动技能示例

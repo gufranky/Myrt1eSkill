@@ -2,7 +2,7 @@ using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Utils;
 
-namespace HelloWorldPlugin.Features;
+namespace MyrtleSkill.Features;
 
 /// <summary>
 /// 炸弹相关功能管理器

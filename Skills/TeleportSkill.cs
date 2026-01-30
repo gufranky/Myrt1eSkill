@@ -1,9 +1,9 @@
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Utils;
-using HelloWorldPlugin.ThirdParty;
+using MyrtleSkill.ThirdParty;
 
-namespace HelloWorldPlugin.Skills;
+namespace MyrtleSkill.Skills;
 
 /// <summary>
 /// 传送技能 - 主动技能示例
