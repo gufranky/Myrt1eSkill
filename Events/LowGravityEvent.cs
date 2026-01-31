@@ -1,5 +1,6 @@
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
+using CounterStrikeSharp.API.Modules.Cvars;
 
 namespace MyrtleSkill;
 
@@ -9,29 +10,26 @@ namespace MyrtleSkill;
 public class LowGravityEvent : EntertainmentEvent
 {
     public override string Name => "LowGravity";
-    public override string DisplayName => "低重力";
+    public override string DisplayName => "🌑 低重力";
     public override string Description => "玩家可以跳得更高！";
 
-    private const float GravityMultiplier = 0.5f;
-    private readonly Dictionary<int, float> _originalGravity = new();
+    private const float TARGET_GRAVITY = 0.5f; // 直接设置为目标值
+    private ConVar? _svGravity;
+    private float _originalGravity = 800.0f;
 
     public override void OnApply()
     {
-        Console.WriteLine("[低重力] 设置重力为当前值的 " + GravityMultiplier + " 倍");
+        Console.WriteLine("[低重力] 设置重力为 " + TARGET_GRAVITY + " 倍");
 
-        foreach (var player in Utilities.GetPlayers())
+        // 获取并保存 sv_gravity ConVar
+        _svGravity = ConVar.Find("sv_gravity");
+        if (_svGravity != null)
         {
-            if (!player.IsValid) continue;
+            _originalGravity = _svGravity.GetPrimitiveValue<float>();
 
-            var pawn = player.PlayerPawn.Value;
-            if (pawn == null || !pawn.IsValid) continue;
-
-            // 保存原始重力值
-            _originalGravity[player.Slot] = pawn.GravityScale;
-
-            // 应用重力倍数
-            pawn.GravityScale *= GravityMultiplier;
-            Utilities.SetStateChanged(pawn, "CCSPlayerPawn", "m_flGravityScale");
+            // 设置全局重力（正常值是800，设置为400即0.5倍）
+            _svGravity.SetValue(_originalGravity * TARGET_GRAVITY);
+            Console.WriteLine($"[低重力] sv_gravity 从 {_originalGravity} 设置为 {_originalGravity * TARGET_GRAVITY}");
         }
     }
 
@@ -39,21 +37,11 @@ public class LowGravityEvent : EntertainmentEvent
     {
         Console.WriteLine("[低重力] 恢复重力为原始值");
 
-        foreach (var player in Utilities.GetPlayers())
+        // 恢复全局重力
+        if (_svGravity != null)
         {
-            if (!player.IsValid) continue;
-
-            var pawn = player.PlayerPawn.Value;
-            if (pawn == null || !pawn.IsValid) continue;
-
-            // 恢复原始重力值
-            if (_originalGravity.ContainsKey(player.Slot))
-            {
-                pawn.GravityScale = _originalGravity[player.Slot];
-                Utilities.SetStateChanged(pawn, "CCSPlayerPawn", "m_flGravityScale");
-            }
+            _svGravity.SetValue(_originalGravity);
+            Console.WriteLine($"[低重力] sv_gravity 恢复为 {_originalGravity}");
         }
-
-        _originalGravity.Clear();
     }
 }

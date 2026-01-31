@@ -62,7 +62,7 @@ public class HeavyArmorManager
                 RestrictToSecondaryWeapons(luckyPlayer);
 
                 luckyPlayer.PrintToChat(" 🛡️ 你被选中为重甲战士！");
-                luckyPlayer.PrintToChat(" ⚡ 护甲值: 200 | 速度: 60% | 伤害抗性: +60% | 武器限制: 仅副武器");
+                luckyPlayer.PrintToChat(" ⚡ 护甲值: 200 | 速度: 60% | 伤害抗性: +60% | 武器限制: 仅副武器和道具");
                 luckyPlayer.PrintToCenter(" 🛡️ 重甲战士模式已激活！");
             }
 
@@ -131,12 +131,15 @@ public class HeavyArmorManager
             if (weaponBase != null && weaponBase.VData != null)
             {
                 var weaponType = weaponBase.VData.WeaponType;
+                // 重甲战士可以使用：副武器、刀具、C4、手雷（道具）
                 if (weaponType != CSWeaponType.WEAPONTYPE_PISTOL &&
                     weaponType != CSWeaponType.WEAPONTYPE_KNIFE &&
-                    weaponType != CSWeaponType.WEAPONTYPE_C4)
+                    weaponType != CSWeaponType.WEAPONTYPE_C4 &&
+                    weaponType != CSWeaponType.WEAPONTYPE_GRENADE &&
+                    weaponType != CSWeaponType.WEAPONTYPE_TASER)
                 {
-                    player.PrintToChat(" 🚫 重甲战士只能使用副武器！");
-                    Console.WriteLine("[重甲战士] 阻止玩家 " + player.PlayerName + " 使用非副武器 (类型: " + weaponType + ")");
+                    player.PrintToChat(" 🚫 重甲战士只能使用副武器和道具！");
+                    Console.WriteLine("[重甲战士] 阻止玩家 " + player.PlayerName + " 使用非副武器/道具 (类型: " + weaponType + ")");
                     ForceSecondaryWeapon(player);
                     return true; // 阻止切换
                 }
@@ -216,9 +219,12 @@ public class HeavyArmorManager
                 if (weaponBase != null && weaponBase.VData != null)
                 {
                     var weaponType = weaponBase.VData.WeaponType;
+                    // 保留：副武器、刀具、C4、手雷、电击枪
                     if (weaponType != CSWeaponType.WEAPONTYPE_PISTOL &&
                         weaponType != CSWeaponType.WEAPONTYPE_KNIFE &&
-                        weaponType != CSWeaponType.WEAPONTYPE_C4)
+                        weaponType != CSWeaponType.WEAPONTYPE_C4 &&
+                        weaponType != CSWeaponType.WEAPONTYPE_GRENADE &&
+                        weaponType != CSWeaponType.WEAPONTYPE_TASER)
                     {
                         weapon.Remove();
                         Console.WriteLine("[重甲战士] 已移除玩家 " + player.PlayerName + " 的武器: (类型: " + weaponType + ")");
@@ -391,9 +397,12 @@ public class HeavyArmorManager
             if (weaponBase != null && weaponBase.VData != null)
             {
                 var weaponType = weaponBase.VData.WeaponType;
+                // 重甲战士可以使用：副武器、刀具、C4、手雷（道具）
                 if (weaponType != CSWeaponType.WEAPONTYPE_PISTOL &&
                     weaponType != CSWeaponType.WEAPONTYPE_KNIFE &&
-                    weaponType != CSWeaponType.WEAPONTYPE_C4)
+                    weaponType != CSWeaponType.WEAPONTYPE_C4 &&
+                    weaponType != CSWeaponType.WEAPONTYPE_GRENADE &&
+                    weaponType != CSWeaponType.WEAPONTYPE_TASER)
                 {
                     ForceSecondaryWeapon(_currentHeavyArmorPlayer);
                 }

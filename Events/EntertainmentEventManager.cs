@@ -17,7 +17,7 @@ public class EntertainmentEventManager
     /// <summary>
     /// 事件系统是否启用
     /// </summary>
-    public bool IsEnabled { get; set; } = false;
+    public bool IsEnabled { get; set; } = true; // 默认启用
 
     public EntertainmentEventManager(MyrtleSkill plugin)
     {
@@ -67,6 +67,7 @@ public class EntertainmentEventManager
         RegisterEvent(new StrangersEvent());
         RegisterEvent(new AutoBhopEvent());
         RegisterEvent(new SlowMotionEvent());
+        RegisterEvent(new FoggyEvent());
         RegisterEvent(new NoSkillEvent());
 
         Console.WriteLine("[事件管理器] 已注册 " + _events.Count + " 个娱乐事件");

@@ -1,67 +1,53 @@
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
+using CounterStrikeSharp.API.Modules.Cvars;
 
 namespace MyrtleSkill;
 
-/// <summary>
-/// 超低重力事件 - 重力0.25 + 空中无扩散
-/// </summary>
+    /// <summary>
+    /// 超低重力事件 - 重力0.2 + 空中无扩散
+    /// </summary>
 public class LowGravityPlusPlusEvent : EntertainmentEvent
 {
     public override string Name => "LowGravityPlusPlus";
-    public override string DisplayName => "超低重力";
+    public override string DisplayName => "🌑 超低重力";
     public override string Description => "重力大幅降低，空中射击无扩散！";
 
-    private const float GravityMultiplier = 0.25f;
-    private readonly Dictionary<int, float> _originalGravity = new();
+    private const float TARGET_GRAVITY = 0.2f; // 直接设置为目标值
+    private ConVar? _svGravity;
+    private float _originalGravity = 800.0f;
 
     public override void OnApply()
     {
-        Console.WriteLine("[超低重力] 设置重力为当前值的 " + GravityMultiplier + " 倍，启用无扩散");
+        Console.WriteLine("[超低重力] 设置重力为 " + TARGET_GRAVITY + "，启用无扩散");
 
-        // 设置重力
-        foreach (var player in Utilities.GetPlayers())
+        // 获取并保存 sv_gravity ConVar
+        _svGravity = ConVar.Find("sv_gravity");
+        if (_svGravity != null)
         {
-            if (!player.IsValid) continue;
+            _originalGravity = _svGravity.GetPrimitiveValue<float>();
 
-            var pawn = player.PlayerPawn.Value;
-            if (pawn == null || !pawn.IsValid) continue;
-
-            // 保存原始重力值
-            _originalGravity[player.Slot] = pawn.GravityScale;
-
-            // 应用重力倍数
-            pawn.GravityScale *= GravityMultiplier;
-            Utilities.SetStateChanged(pawn, "CCSPlayerPawn", "m_flGravityScale");
+            // 设置全局重力（正常值是800，设置为160即0.2倍）
+            _svGravity.SetValue(_originalGravity * TARGET_GRAVITY);
+            Console.WriteLine($"[超低重力] sv_gravity 从 {_originalGravity} 设置为 {_originalGravity * TARGET_GRAVITY}");
         }
 
         // 启用无扩散
-        Server.ExecuteCommand("weapon_accuracy_nospread true");
+        Server.ExecuteCommand("weapon_accuracy_nospread 1");
     }
 
     public override void OnRevert()
     {
         Console.WriteLine("[超低重力] 恢复重力为原始值，禁用无扩散");
 
-        // 恢复重力
-        foreach (var player in Utilities.GetPlayers())
+        // 恢复全局重力
+        if (_svGravity != null)
         {
-            if (!player.IsValid) continue;
-
-            var pawn = player.PlayerPawn.Value;
-            if (pawn == null || !pawn.IsValid) continue;
-
-            // 恢复原始重力值
-            if (_originalGravity.ContainsKey(player.Slot))
-            {
-                pawn.GravityScale = _originalGravity[player.Slot];
-                Utilities.SetStateChanged(pawn, "CCSPlayerPawn", "m_flGravityScale");
-            }
+            _svGravity.SetValue(_originalGravity);
+            Console.WriteLine($"[超低重力] sv_gravity 恢复为 {_originalGravity}");
         }
 
-        _originalGravity.Clear();
-
         // 禁用无扩散
-        Server.ExecuteCommand("weapon_accuracy_nospread false");
+        Server.ExecuteCommand("weapon_accuracy_nospread 0");
     }
 }

@@ -16,14 +16,17 @@ public class DeadlyGrenadesEvent : EntertainmentEvent
     public override string DisplayName => "💣 更致命的手雷";
     public override string Description => "无限高爆手雷！移除主副武器！禁用商店！手雷伤害和范围增加！";
 
+    // 标志：事件是否激活
+    private bool _isActive = false;
+
     private ConVar? _buyAllowGunsConVar;
     private ConVar? _heDamageConVar;
     private ConVar? _heRadiusConVar;
     private ConVar? _infiniteAmmoConVar;
-    private bool _originalBuyAllowGuns = true;
+    private int _originalBuyAllowGuns = 1;
     private float _originalHeDamage = 1.0f;
     private float _originalHeRadius = 1.0f;
-    private bool _originalInfiniteAmmo = false;
+    private int _originalInfiniteAmmo = 0;
 
     private readonly Dictionary<int, List<string>> _cachedWeapons = new();
 
@@ -31,13 +34,16 @@ public class DeadlyGrenadesEvent : EntertainmentEvent
     {
         Console.WriteLine("[更致命的手雷] 事件已激活");
 
+        // 设置激活标志
+        _isActive = true;
+
         // 1. 禁用商店
         _buyAllowGunsConVar = ConVar.Find("mp_buy_allow_guns");
         if (_buyAllowGunsConVar != null)
         {
-            _originalBuyAllowGuns = _buyAllowGunsConVar.GetPrimitiveValue<bool>();
-            _buyAllowGunsConVar.SetValue(false);
-            Console.WriteLine("[更致命的手雷] mp_buy_allow_guns 已设置为 false");
+            _originalBuyAllowGuns = _buyAllowGunsConVar.GetPrimitiveValue<int>();
+            _buyAllowGunsConVar.SetValue(0);
+            Console.WriteLine($"[更致命的手雷] mp_buy_allow_guns 已设置为 0 (原值: {_originalBuyAllowGuns})");
         }
 
         // 2. 增加手雷伤害和范围
@@ -61,9 +67,9 @@ public class DeadlyGrenadesEvent : EntertainmentEvent
         _infiniteAmmoConVar = ConVar.Find("sv_infinite_ammo");
         if (_infiniteAmmoConVar != null)
         {
-            _originalInfiniteAmmo = _infiniteAmmoConVar.GetPrimitiveValue<bool>();
-            _infiniteAmmoConVar.SetValue(true);
-            Console.WriteLine($"[更致命的手雷] sv_infinite_ammo 已设置为 true (原值: {_originalInfiniteAmmo})");
+            _originalInfiniteAmmo = _infiniteAmmoConVar.GetPrimitiveValue<int>();
+            _infiniteAmmoConVar.SetValue(1);
+            Console.WriteLine($"[更致命的手雷] sv_infinite_ammo 已设置为 1 (原值: {_originalInfiniteAmmo})");
         }
 
         // 4. 移除所有玩家的主副武器并给予手雷
@@ -91,6 +97,9 @@ public class DeadlyGrenadesEvent : EntertainmentEvent
     public override void OnRevert()
     {
         Console.WriteLine("[更致命的手雷] 事件已恢复");
+
+        // 首先取消激活标志，阻止监听器继续工作
+        _isActive = false;
 
         // 移除事件监听
         if (Plugin != null)
@@ -261,15 +270,22 @@ public class DeadlyGrenadesEvent : EntertainmentEvent
     /// </summary>
     private HookResult OnPlayerSpawn(EventPlayerSpawn @event, GameEventInfo info)
     {
+        // 如果事件不激活，不处理
+        if (!_isActive) return HookResult.Continue;
+
         var player = @event.Userid;
         if (player == null || !player.IsValid || !player.PawnIsAlive)
             return HookResult.Continue;
 
         Server.NextFrame(() =>
         {
-            // 移除主副武器，给予高爆手雷
-            RemoveWeaponsAndGiveGrenades();
-            player.PrintToCenter("💣 更致命的手雷！\n无限高爆手雷 + 3倍伤害 + 5倍范围！");
+            // 再次检查事件是否仍然激活
+            if (_isActive)
+            {
+                // 移除主副武器，给予高爆手雷
+                RemoveWeaponsAndGiveGrenades();
+                player.PrintToCenter("💣 更致命的手雷！\n无限高爆手雷 + 3倍伤害 + 5倍范围！");
+            }
         });
 
         return HookResult.Continue;
@@ -280,14 +296,21 @@ public class DeadlyGrenadesEvent : EntertainmentEvent
     /// </summary>
     private HookResult OnItemPickup(EventItemPickup @event, GameEventInfo info)
     {
+        // 如果事件不激活，不处理
+        if (!_isActive) return HookResult.Continue;
+
         var player = @event.Userid;
         if (player == null || !player.IsValid || !player.PawnIsAlive)
             return HookResult.Continue;
 
         Server.NextFrame(() =>
         {
-            // 再次移除主副武器，确保只有手雷
-            RemoveNonGrenadeWeapons(player);
+            // 再次检查事件是否仍然激活
+            if (_isActive)
+            {
+                // 再次移除主副武器，确保只有手雷
+                RemoveNonGrenadeWeapons(player);
+            }
         });
 
         return HookResult.Continue;
@@ -298,14 +321,21 @@ public class DeadlyGrenadesEvent : EntertainmentEvent
     /// </summary>
     private HookResult OnItemEquip(EventItemEquip @event, GameEventInfo info)
     {
+        // 如果事件不激活，不处理
+        if (!_isActive) return HookResult.Continue;
+
         var player = @event.Userid;
         if (player == null || !player.IsValid || !player.PawnIsAlive)
             return HookResult.Continue;
 
         Server.NextFrame(() =>
         {
-            // 再次移除主副武器，确保只有手雷
-            RemoveNonGrenadeWeapons(player);
+            // 再次检查事件是否仍然激活
+            if (_isActive)
+            {
+                // 再次移除主副武器，确保只有手雷
+                RemoveNonGrenadeWeapons(player);
+            }
         });
 
         return HookResult.Continue;

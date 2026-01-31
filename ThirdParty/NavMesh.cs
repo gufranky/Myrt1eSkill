@@ -64,23 +64,46 @@ public class NavMesh
 
     public static Vector? GetRandomPosition(int maxAttempts = 10, bool includeOneWayAccessible = false)
     {
+        CNavMesh? navMesh = GetNavMesh();
+        if (navMesh == null)
+        {
+            Console.WriteLine("[NavMesh] 无法获取 NavMesh，返回 null");
+            return null;
+        }
+
+        Console.WriteLine($"[NavMesh] NavMesh 已加载，共有 {navMesh.Count} 个导航区域");
+
         // 简化版本：直接从玩家当前位置开始查找
         // 获取第一个在线玩家作为起点
         var players = Utilities.GetPlayers();
         if (players.Count == 0)
+        {
+            Console.WriteLine("[NavMesh] 没有在线玩家");
             return null;
+        }
 
         var player = players.First();
         if (player == null || !player.IsValid)
+        {
+            Console.WriteLine("[NavMesh] 第一个玩家无效");
             return null;
+        }
 
         var pawn = player.PlayerPawn.Value;
         if (pawn == null || !pawn.IsValid)
+        {
+            Console.WriteLine("[NavMesh] 玩家 Pawn 无效");
             return null;
+        }
 
         var startPosition = pawn.AbsOrigin;
         if (startPosition == null)
+        {
+            Console.WriteLine("[NavMesh] 玩家位置为 null");
             return null;
+        }
+
+        Console.WriteLine($"[NavMesh] 玩家位置: {startPosition.X}, {startPosition.Y}, {startPosition.Z}");
 
         return GetRandomAccessiblePosition(startPosition, maxAttempts, includeOneWayAccessible);
     }
@@ -98,28 +121,33 @@ public class NavMesh
         CNavMesh? navMesh = GetNavMesh();
         if (navMesh == null)
         {
+            Console.WriteLine("[NavMesh] GetRandomAccessiblePosition: NavMesh 为 null");
             return null;
         }
 
         CNavArea? startNavArea = GetClosestNavArea(startPosition);
         if (startNavArea == null)
         {
+            Console.WriteLine("[NavMesh] GetRandomAccessiblePosition: 找不到起始导航区域");
             return null;
         }
+
+        Console.WriteLine($"[NavMesh] 起始导航区域 ID: {startNavArea.ID}");
 
         for (int i = 0; i < maxAttempts; i++)
         {
             CNavArea navArea = navMesh[Random.Shared.Next(navMesh.Count)];
-            // TODO: Filter out nav areas close to blocked areas
-            // because they can be problematic, for instance,
-            // you can spawn inside objects on wingman maps.
+
+            // 检查是否被阻挡
             if (navArea.BlockedTeam != 0)
             {
                 continue;
             }
 
+            // 检查可达性
             if (IsAreaAccessible(startNavArea, navArea))
             {
+                Console.WriteLine($"[NavMesh] 找到可达区域 ID: {navArea.ID}, 位置: {navArea.Center.X}, {navArea.Center.Y}, {navArea.Center.Z}");
                 return navArea.Center;
             }
 
@@ -129,11 +157,13 @@ public class NavMesh
             {
                 if (IsAreaAccessible(navArea, startNavArea))
                 {
+                    Console.WriteLine($"[NavMesh] 找到单向可达区域 ID: {navArea.ID}");
                     return navArea.Center;
                 }
             }
         }
 
+        Console.WriteLine($"[NavMesh] 在 {maxAttempts} 次尝试后未找到可达位置");
         return null;
     }
 

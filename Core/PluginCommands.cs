@@ -321,6 +321,48 @@ public class PluginCommands
             player.PrintToChat(resultMessage);
     }
 
+    public void CommandForceEvent(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        if (commandInfo.ArgCount < 1)
+        {
+            string message = "用法: css_forceevent <事件英文名称>";
+            if (player == null)
+                commandInfo.ReplyToCommand(message);
+            else
+                player.PrintToChat(message);
+            return;
+        }
+
+        string eventName = commandInfo.GetArg(1);
+
+        // 验证事件是否存在
+        var targetEvent = _plugin.EventManager.GetEvent(eventName);
+        if (targetEvent == null)
+        {
+            string message = "❌ 未找到事件: " + eventName + "\n使用 css_event_list 查看所有可用事件";
+            if (player == null)
+                commandInfo.ReplyToCommand(message);
+            else
+                player.PrintToChat(message);
+            return;
+        }
+
+        // 设置强制事件
+        _plugin.ForcedEventName = eventName;
+
+        string successMessage = $"✅ 下回合将强制触发事件: {targetEvent.DisplayName} ({targetEvent.Name})";
+        if (player == null)
+        {
+            Console.WriteLine("[娱乐事件] " + successMessage);
+            commandInfo.ReplyToCommand(successMessage);
+        }
+        else
+        {
+            player.PrintToChat("[娱乐事件] " + successMessage);
+            Console.WriteLine("[娱乐事件] " + player.PlayerName + " 设置了强制事件: " + eventName);
+        }
+    }
+
     #endregion
 
     #region 炸弹相关命令

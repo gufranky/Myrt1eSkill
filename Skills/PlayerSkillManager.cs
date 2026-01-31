@@ -19,7 +19,7 @@ public class PlayerSkillManager
     /// <summary>
     /// 技能系统是否启用
     /// </summary>
-    public bool IsEnabled { get; set; } = false;
+    public bool IsEnabled { get; set; } = true; // 默认启用
 
     /// <summary>
     /// 技能激活按键（默认为 E 键）
@@ -46,7 +46,21 @@ public class PlayerSkillManager
         RegisterSkill(new TeleportSkill());      // 主动技能示例
         RegisterSkill(new SpeedBoostSkill());    // 被动技能示例
         RegisterSkill(new HighJumpSkill());      // 事件互斥示例
-        RegisterSkill(new NinjaSkill());           // 明刀技能
+        RegisterSkill(new NinjaSkill());         // 明刀技能
+        RegisterSkill(new BotSummonSkill());     // 召唤队友技能
+        RegisterSkill(new DumbBotSkill());       // 笨笨机器人技能
+        RegisterSkill(new DecoyXRaySkill());     // 透视诱饵弹技能
+        RegisterSkill(new ToxicSmokeSkill());    // 有毒烟雾弹技能
+        RegisterSkill(new KillerFlashSkill());   // 杀手闪电技能
+        RegisterSkill(new TeamWhipSkill());      // 鞭策队友技能
+        RegisterSkill(new SprintSkill());        // 短跑技能
+        RegisterSkill(new DarknessSkill());      // 黑暗技能
+        RegisterSkill(new AntiFlashSkill());     // 防闪光技能
+        RegisterSkill(new RadarHackSkill());     // 雷达黑客技能
+        RegisterSkill(new SecondChanceSkill());  // 第二次机会技能
+        RegisterSkill(new EnemySpinSkill());     // 敌人旋转技能
+        RegisterSkill(new DisarmSkill());       // 裁军技能
+        RegisterSkill(new MasterThiefSkill());  // 顶级小偷技能
 
         Console.WriteLine("[技能管理器] 已注册 " + _skills.Count + " 个玩家技能");
     }
