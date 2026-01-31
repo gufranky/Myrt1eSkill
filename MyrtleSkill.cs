@@ -95,6 +95,7 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         RegisterListener<Listeners.OnPlayerButtonsChanged>(OnPlayerButtonsChanged);
         RegisterListener<Listeners.OnServerPostEntityThink>(OnServerPostEntityThink);
         RegisterListener<Listeners.OnEntitySpawned>(OnEntitySpawned);
+        RegisterListener<Listeners.CheckTransmit>(OnCheckTransmit);
 
         // 注册命令
         RegisterCommands();
@@ -114,6 +115,9 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
     {
         // 0. 清理第二次机会使用记录
         Skills.SecondChanceSkill.OnRoundStart();
+
+        // 0.1 清理格拉兹烟雾弹追踪
+        Skills.GlazSkill.OnRoundStart();
 
         // 1. 首先重置技能禁用标志（新回合开始）
         DisableSkillsThisRound = false;
@@ -431,6 +435,12 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             toxicSmokeSkill.OnSmokegrenadeDetonate(@event);
         }
 
+        // 处理格拉兹技能
+        if (skill?.Name == "Glaz")
+        {
+            Skills.GlazSkill.OnSmokegrenadeDetonate(@event);
+        }
+
         return HookResult.Continue;
     }
 
@@ -446,6 +456,12 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         {
             var toxicSmokeSkill = (Skills.ToxicSmokeSkill)skill;
             toxicSmokeSkill.OnSmokegrenadeExpired(@event);
+        }
+
+        // 处理格拉兹技能
+        if (skill?.Name == "Glaz")
+        {
+            Skills.GlazSkill.OnSmokegrenadeExpired(@event);
         }
 
         return HookResult.Continue;
@@ -627,6 +643,14 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 处理黑暗技能（检查持续时间）
         var darknessSkill = (Skills.DarknessSkill?)SkillManager.GetSkill("Darkness");
         darknessSkill?.OnTick();
+    }
+
+    /// <summary>
+    /// 检查传输时控制烟雾弹的可见性（格拉兹技能）
+    /// </summary>
+    private void OnCheckTransmit(CCheckTransmitInfoList infoList)
+    {
+        Skills.GlazSkill.OnCheckTransmit(infoList);
     }
 
     /// <summary>

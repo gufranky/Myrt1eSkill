@@ -62,6 +62,7 @@ public class PlayerSkillManager
         RegisterSkill(new DisarmSkill());       // 裁军技能
         RegisterSkill(new MasterThiefSkill());  // 顶级小偷技能
         RegisterSkill(new ExplosiveShotSkill()); // 爆炸射击技能
+        RegisterSkill(new GlazSkill());        // 格拉兹技能
 
         Console.WriteLine("[技能管理器] 已注册 " + _skills.Count + " 个玩家技能");
     }
