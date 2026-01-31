@@ -261,6 +261,9 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
     private HookResult OnPlayerTakeDamagePre(CCSPlayerPawn player, CTakeDamageInfo info)
     {
+        // 处理爆炸射击技能
+        Skills.ExplosiveShotSkill.HandlePlayerDamagePre(player, info);
+
         // 收集所有伤害倍数修正器
         float totalMultiplier = 1.0f;
 
@@ -461,6 +464,9 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
     private void OnEntitySpawned(CEntityInstance entity)
     {
+        // 处理爆炸射击技能
+        Skills.ExplosiveShotSkill.OnEntitySpawned(entity);
+
         // 处理有毒烟雾弹技能（修改烟雾颜色）
         foreach (var player in Utilities.GetPlayers())
         {

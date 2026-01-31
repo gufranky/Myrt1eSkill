@@ -61,6 +61,7 @@ public class PlayerSkillManager
         RegisterSkill(new EnemySpinSkill());     // 敌人旋转技能
         RegisterSkill(new DisarmSkill());       // 裁军技能
         RegisterSkill(new MasterThiefSkill());  // 顶级小偷技能
+        RegisterSkill(new ExplosiveShotSkill()); // 爆炸射击技能
 
         Console.WriteLine("[技能管理器] 已注册 " + _skills.Count + " 个玩家技能");
     }
