@@ -2,6 +2,7 @@ using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Utils;
 using System.Drawing;
+using System.Linq;
 
 namespace MyrtleSkill;
 
@@ -31,6 +32,7 @@ public class XrayEvent : EntertainmentEvent
         // 注册监听器
         if (Plugin != null)
         {
+            Plugin.RegisterListener<Listeners.CheckTransmit>(OnCheckTransmit);
             Plugin.RegisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn, HookMode.Post);
             Plugin.RegisterEventHandler<EventPlayerDeath>(OnPlayerDeath, HookMode.Post);
         }
@@ -43,14 +45,29 @@ public class XrayEvent : EntertainmentEvent
         // 移除监听器
         if (Plugin != null)
         {
+            Plugin.RemoveListener<Listeners.CheckTransmit>(OnCheckTransmit);
             Plugin.DeregisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn, HookMode.Post);
             Plugin.DeregisterEventHandler<EventPlayerDeath>(OnPlayerDeath, HookMode.Post);
         }
 
-        // 移除所有发光效果
-        foreach (var player in Utilities.GetPlayers())
+        // 移除所有发光效果（直接遍历字典，避免遗漏）
+        var slotsToRemove = _glowingPlayers.Keys.ToList();
+        foreach (var slot in slotsToRemove)
         {
-            RemoveGlowFromPlayer(player);
+            var (relayIndex, glowIndex) = _glowingPlayers[slot];
+
+            var relay = Utilities.GetEntityFromIndex<CDynamicProp>(relayIndex);
+            var glow = Utilities.GetEntityFromIndex<CDynamicProp>(glowIndex);
+
+            if (relay != null && relay.IsValid)
+            {
+                relay.AcceptInput("Kill");
+            }
+
+            if (glow != null && glow.IsValid)
+            {
+                glow.AcceptInput("Kill");
+            }
         }
         _glowingPlayers.Clear();
     }
@@ -164,13 +181,13 @@ public class XrayEvent : EntertainmentEvent
         switch (team)
         {
             case CsTeam.Terrorist:
-                modelGlow.Render = Color.FromArgb(1, 255, 165, 0); // 橙色
+                modelGlow.Glow.GlowColorOverride = Color.FromArgb(255, 165, 0); // 橙色
                 break;
             case CsTeam.CounterTerrorist:
-                modelGlow.Render = Color.FromArgb(1, 135, 206, 235); // 天蓝色
+                modelGlow.Glow.GlowColorOverride = Color.FromArgb(135, 206, 235); // 天蓝色
                 break;
             default:
-                modelGlow.Render = Color.FromArgb(1, 255, 255, 255); // 白色
+                modelGlow.Glow.GlowColorOverride = Color.FromArgb(255, 255, 255); // 白色
                 break;
         }
 
@@ -185,6 +202,24 @@ public class XrayEvent : EntertainmentEvent
         glowIndex = (int)modelGlow.Index;
 
         return true;
+    }
+
+    /// <summary>
+    /// 检查传输时控制发光效果的可见性
+    /// </summary>
+    private void OnCheckTransmit(CCheckTransmitInfoList infoList)
+    {
+        if (_glowingPlayers.Count == 0)
+            return;
+
+        foreach (var (info, player) in infoList)
+        {
+            if (player == null || !player.IsValid)
+                continue;
+
+            // 所有玩家都可以看到所有发光效果（全员透视）
+            // 不需要移除任何实体
+        }
     }
 
     /// <summary>

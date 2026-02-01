@@ -2,6 +2,7 @@ using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Utils;
 using System.Drawing;
+using System.Linq;
 
 namespace MyrtleSkill;
 
@@ -33,6 +34,7 @@ public class UnluckyCouplesEvent : EntertainmentEvent
         // 注册监听器
         if (Plugin != null)
         {
+            Plugin.RegisterListener<Listeners.CheckTransmit>(OnCheckTransmit);
             Plugin.RegisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn, HookMode.Post);
             Plugin.RegisterEventHandler<EventPlayerDeath>(OnPlayerDeath, HookMode.Post);
         }
@@ -66,14 +68,29 @@ public class UnluckyCouplesEvent : EntertainmentEvent
         // 移除监听器
         if (Plugin != null)
         {
+            Plugin.RemoveListener<Listeners.CheckTransmit>(OnCheckTransmit);
             Plugin.DeregisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn, HookMode.Post);
             Plugin.DeregisterEventHandler<EventPlayerDeath>(OnPlayerDeath, HookMode.Post);
         }
 
-        // 移除所有发光效果
-        foreach (var player in Utilities.GetPlayers())
+        // 移除所有发光效果（直接遍历字典，避免遗漏）
+        var slotsToRemove = _glowingPlayers.Keys.ToList();
+        foreach (var slot in slotsToRemove)
         {
-            RemoveGlowFromPlayer(player);
+            var (relayIndex, glowIndex) = _glowingPlayers[slot];
+
+            var relay = Utilities.GetEntityFromIndex<CDynamicProp>(relayIndex);
+            var glow = Utilities.GetEntityFromIndex<CDynamicProp>(glowIndex);
+
+            if (relay != null && relay.IsValid)
+            {
+                relay.AcceptInput("Kill");
+            }
+
+            if (glow != null && glow.IsValid)
+            {
+                glow.AcceptInput("Kill");
+            }
         }
         _glowingPlayers.Clear();
 
@@ -273,7 +290,7 @@ public class UnluckyCouplesEvent : EntertainmentEvent
         modelGlow.AcceptInput("FollowEntity", modelRelay, modelGlow, "!activator");
 
         // 设置为粉红色（爱情色 ❤️）
-        modelGlow.Render = Color.FromArgb(1, 255, 105, 180); // 粉红色
+        modelGlow.Glow.GlowColorOverride = Color.FromArgb(255, 105, 180); // 粉红色
 
         modelGlow.Spawnflags = 256u;
         modelGlow.RenderMode = RenderMode_t.kRenderTransAlpha;
@@ -286,6 +303,53 @@ public class UnluckyCouplesEvent : EntertainmentEvent
         glowIndex = (int)modelGlow.Index;
 
         return true;
+    }
+
+    /// <summary>
+    /// 检查传输时控制发光效果的可见性
+    /// </summary>
+    private void OnCheckTransmit(CCheckTransmitInfoList infoList)
+    {
+        if (_glowingPlayers.Count == 0)
+            return;
+
+        foreach (var (info, player) in infoList)
+        {
+            if (player == null || !player.IsValid)
+                continue;
+
+            // 检查玩家是否在配对中
+            if (_pairs.ContainsKey(player.Slot))
+            {
+                var partnerSlot = _pairs[player.Slot];
+                var partnerGlow = _glowingPlayers.ContainsKey(partnerSlot) ? _glowingPlayers[partnerSlot] : (relayIndex: -1, glowIndex: -1);
+
+                // 只显示配对对象的发光效果
+                foreach (var kvp in _glowingPlayers)
+                {
+                    // 如果是配对对象，保留其发光效果
+                    if (kvp.Key == partnerSlot)
+                    {
+                        continue;
+                    }
+                    // 否则移除其他人的发光效果
+                    else
+                    {
+                        info.TransmitEntities.Remove(kvp.Value.relayIndex);
+                        info.TransmitEntities.Remove(kvp.Value.glowIndex);
+                    }
+                }
+            }
+            else
+            {
+                // 未配对的玩家看不到任何发光效果
+                foreach (var (relayIndex, glowIndex) in _glowingPlayers.Values)
+                {
+                    info.TransmitEntities.Remove(relayIndex);
+                    info.TransmitEntities.Remove(glowIndex);
+                }
+            }
+        }
     }
 
     /// <summary>
