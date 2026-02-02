@@ -92,6 +92,7 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         RegisterEventHandler<EventSmokegrenadeDetonate>(OnSmokegrenadeDetonate, HookMode.Post);
         RegisterEventHandler<EventSmokegrenadeExpired>(OnSmokegrenadeExpired, HookMode.Post);
         RegisterEventHandler<EventPlayerBlind>(OnPlayerBlind, HookMode.Post);
+        RegisterEventHandler<EventPlayerJump>(OnPlayerJump, HookMode.Post);
         RegisterListener<Listeners.OnPlayerButtonsChanged>(OnPlayerButtonsChanged);
         RegisterListener<Listeners.OnServerPostEntityThink>(OnServerPostEntityThink);
         RegisterListener<Listeners.OnEntitySpawned>(OnEntitySpawned);
@@ -475,6 +476,17 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 处理防闪光技能
         Skills.AntiFlashSkill.HandlePlayerBlind(@event, SkillManager);
 
+        // 处理闪光跳跃技能
+        Skills.FlashJumpSkill.HandlePlayerBlind(@event, SkillManager);
+
+        return HookResult.Continue;
+    }
+
+    private HookResult OnPlayerJump(EventPlayerJump @event, GameEventInfo info)
+    {
+        // 处理闪光跳跃技能
+        Skills.FlashJumpSkill.HandlePlayerJump(@event, SkillManager);
+
         return HookResult.Continue;
     }
 
@@ -587,6 +599,20 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
         var itemName = @event.Item;
 
+        // 处理防闪光技能（拾取武器时禁用攻击）
+        var antiFlashSkill = (Skills.AntiFlashSkill?)SkillManager.GetPlayerSkill(player);
+        if (antiFlashSkill?.Name == "AntiFlash")
+        {
+            Skills.AntiFlashSkill.HandleItemPickup(@event, SkillManager);
+        }
+
+        // 处理闪光跳跃技能（拾取武器时禁用攻击）
+        var flashJumpSkill = (Skills.FlashJumpSkill?)SkillManager.GetPlayerSkill(player);
+        if (flashJumpSkill?.Name == "FlashJump")
+        {
+            Skills.FlashJumpSkill.HandleItemPickup(@event, SkillManager);
+        }
+
         // 处理重甲战士拾取限制
         if (HeavyArmorManager.HandleItemPickup(player, itemName))
         {
@@ -637,6 +663,10 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             {
                 var radarHackSkill = (Skills.RadarHackSkill)skill;
                 radarHackSkill.OnTick(player);
+            }
+            else if (skill?.Name == "FlashJump")
+            {
+                Skills.FlashJumpSkill.OnTick(SkillManager);
             }
         }
 
