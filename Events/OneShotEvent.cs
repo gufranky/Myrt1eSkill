@@ -71,6 +71,10 @@ public class OneShotEvent : EntertainmentEvent
         // 恢复所有武器的MaxClip1
         RestoreAllWeaponMaxClip1();
 
+        // 清空缓存（重要！）
+        _cachedMaxClip1.Clear();
+        Console.WriteLine("[一发AK] 缓存已清空");
+
         // 显示提示
         foreach (var player in Utilities.GetPlayers())
         {
@@ -79,10 +83,11 @@ public class OneShotEvent : EntertainmentEvent
                 player.PrintToChat("💥 一发AK模式已禁用");
             }
         }
-
-        _cachedMaxClip1.Clear();
     }
 
+    /// <summary>
+    /// 恢复所有武器的MaxClip1
+    /// </summary>
     /// <summary>
     /// 恢复所有武器的MaxClip1
     /// </summary>
@@ -94,20 +99,25 @@ public class OneShotEvent : EntertainmentEvent
                 continue;
 
             var pawn = player.PlayerPawn.Value;
-            if (pawn == null || !pawn.IsValid) continue;
+            if (pawn == null || !pawn.IsValid)
+                continue;
 
             var weaponServices = pawn.WeaponServices;
-            if (weaponServices == null) continue;
+            if (weaponServices == null)
+                continue;
 
             foreach (var weaponHandle in weaponServices.MyWeapons)
             {
-                if (!weaponHandle.IsValid) continue;
+                if (!weaponHandle.IsValid)
+                    continue;
 
                 var weapon = weaponHandle.Get();
-                if (weapon == null || !weapon.IsValid) continue;
+                if (weapon == null || !weapon.IsValid)
+                    continue;
 
                 var weaponBase = weapon.As<CCSWeaponBase>();
-                if (weaponBase == null || weaponBase.VData == null) continue;
+                if (weaponBase == null || weaponBase.VData == null)
+                    continue;
 
                 var weaponType = weaponBase.VData.WeaponType;
                 if (weaponType == CSWeaponType.WEAPONTYPE_KNIFE ||
@@ -117,20 +127,28 @@ public class OneShotEvent : EntertainmentEvent
                 string weaponName = weaponBase.DesignerName;
                 if (_cachedMaxClip1.TryGetValue(weaponName, out int originalMaxClip1))
                 {
+                    // 使用 NextFrame 确保武器实体仍然有效
                     Server.NextFrame(() =>
                     {
                         if (weaponBase.IsValid && weaponBase.VData != null)
                         {
+                            // 恢复 MaxClip1
                             weaponBase.VData.MaxClip1 = originalMaxClip1;
+                            
+                            // 强制通知客户端
+                            Utilities.SetStateChanged(weaponBase, "CBasePlayerWeapon", "m_iClip1");
+                            
+                            Console.WriteLine($"[一发AK] {player.PlayerName} 的武器 {weaponName} MaxClip1已恢复为 {originalMaxClip1}");
                         }
                     });
                 }
             }
-
-            Console.WriteLine($"[一发AK] {player.PlayerName} 的武器MaxClip1已恢复");
         }
     }
 
+    /// <summary>
+    /// 设置玩家所有武器为1发子弹，并修改MaxClip1
+    /// </summary>
     /// <summary>
     /// 设置玩家所有武器为1发子弹，并修改MaxClip1
     /// </summary>
@@ -154,10 +172,11 @@ public class OneShotEvent : EntertainmentEvent
             var weaponBase = weapon.As<CCSWeaponBase>();
             if (weaponBase == null || weaponBase.VData == null) continue;
 
-            // 跳过刀和C4
+            // 跳过刀、C4和投掷物
             var weaponType = weaponBase.VData.WeaponType;
             if (weaponType == CSWeaponType.WEAPONTYPE_KNIFE ||
-                weaponType == CSWeaponType.WEAPONTYPE_C4)
+                weaponType == CSWeaponType.WEAPONTYPE_C4 ||
+                weaponType == CSWeaponType.WEAPONTYPE_GRENADE)
                 continue;
 
             string weaponName = weaponBase.DesignerName;

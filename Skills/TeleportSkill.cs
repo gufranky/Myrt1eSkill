@@ -2,19 +2,18 @@ using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Entities.Constants;
 using CounterStrikeSharp.API.Modules.Utils;
-using MyrtleSkill.ThirdParty;
 
 namespace MyrtleSkill.Skills;
 
 /// <summary>
-/// 传送技能 - 主动技能示例
-/// 玩家可以传送到随机位置
+/// 传送技能 - 传送到玩家历史位置
+/// 从所有玩家的历史位置中随机选择一个进行传送
 /// </summary>
 public class TeleportSkill : PlayerSkill
 {
     public override string Name => "Teleport";
     public override string DisplayName => "🌀 瞬间移动";
-    public override string Description => "传送到地图上的随机位置！";
+    public override string Description => "传送到玩家历史位置！";
     public override bool IsActive => true; // 主动技能
     public override float Cooldown => 15.0f; // 15秒冷却
 
@@ -42,35 +41,61 @@ public class TeleportSkill : PlayerSkill
 
         Console.WriteLine($"[瞬间移动] {player.PlayerName} 尝试使用传送技能");
 
-        // 方法1: 尝试使用 NavMesh 获取随机位置
-        Vector? randomPosition = NavMesh.GetRandomPosition(maxAttempts: 50);
-
-        if (randomPosition != null)
+        // 获取位置记录器
+        var plugin = MyrtleSkill.Instance;
+        if (plugin?.PositionRecorder == null)
         {
-            Console.WriteLine($"[瞬间移动] 使用 NavMesh 找到位置: {randomPosition.X}, {randomPosition.Y}, {randomPosition.Z}");
+            player.PrintToChat("💫 位置记录器未启用！");
+            return;
         }
-        else
+
+        // 收集所有玩家的历史位置
+        var allPositions = new List<(Features.PositionEntry, string)>();
+        foreach (var p in Utilities.GetPlayers())
         {
-            Console.WriteLine($"[瞬间移动] NavMesh 未找到位置，使用备用方案");
-
-            // 方法2: 使用简单的坐标偏移作为备用
-            randomPosition = GetRandomPositionByOffset(pawn.AbsOrigin);
-
-            if (randomPosition == null)
+            var history = plugin.PositionRecorder.GetPlayerHistory(p);
+            if (history != null && history.Positions.Count > 0)
             {
-                player.PrintToChat("💫 无法找到传送位置！");
-                return;
+                foreach (var pos in history.Positions)
+                {
+                    allPositions.Add((pos, history.PlayerName));
+                }
             }
-
-            Console.WriteLine($"[瞬间移动] 使用偏移方案找到位置: {randomPosition.X}, {randomPosition.Y}, {randomPosition.Z}");
         }
+
+        if (allPositions.Count == 0)
+        {
+            player.PrintToChat("💫 没有可用的传送位置！");
+            return;
+        }
+
+        // 随机选择一个位置
+        var random = new Random();
+        int randomIndex = random.Next(allPositions.Count);
+        var (selectedPosition, ownerName) = allPositions[randomIndex];
+
+        // 计算时间差
+        float timeAgo = Server.CurrentTime - selectedPosition.Timestamp;
+        string timeDesc = timeAgo < 60
+            ? $"{(int)timeAgo}秒前"
+            : timeAgo < 3600
+                ? $"{(int)(timeAgo / 60)}分钟前"
+                : $"{(int)(timeAgo / 3600)}小时前";
+
+        var targetPosition = new CounterStrikeSharp.API.Modules.Utils.Vector(
+            selectedPosition.Position.X,
+            selectedPosition.Position.Y,
+            selectedPosition.Position.Z
+        );
+
+        Console.WriteLine($"[瞬间移动] {player.PlayerName} 传送到 {ownerName} 的位置 ({timeDesc})");
 
         // 传送玩家
-        TeleportPlayer(player, pawn, randomPosition);
+        TeleportPlayer(player, pawn, targetPosition);
 
         // 显示效果
         player.PrintToCenter("🌀 瞬间移动！");
-        player.PrintToChat($"🌀 已传送到随机位置！");
+        player.PrintToChat($"🌀 已传送到 {ownerName} {timeDesc} 的位置！");
 
         Console.WriteLine($"[瞬间移动] {player.PlayerName} 成功使用传送技能");
     }
@@ -100,39 +125,5 @@ public class TeleportSkill : PlayerSkill
             Utilities.SetStateChanged(pawn, "CCollisionProperty", "m_CollisionGroup");
             Utilities.SetStateChanged(pawn, "VPhysicsCollisionAttribute_t", "m_nCollisionGroup");
         });
-    }
-
-    /// <summary>
-    /// 备用方案：通过坐标偏移获取随机位置
-    /// </summary>
-    private Vector? GetRandomPositionByOffset(Vector? currentPosition)
-    {
-        if (currentPosition == null)
-            return null;
-
-        var random = new Random();
-
-        // 在当前位置周围随机偏移 200-800 单位
-        float offsetX = (random.NextSingle() * 2 - 1) * 600; // -600 到 +600
-        float offsetY = (random.NextSingle() * 2 - 1) * 600;
-        float offsetZ = 0; // 保持相同高度，或者可以稍微上下浮动
-
-        Vector newPosition = new Vector(
-            currentPosition.X + offsetX,
-            currentPosition.Y + offsetY,
-            currentPosition.Z + offsetZ
-        );
-
-        // 确保不会传送到地图外太远的地方（简单的边界检查）
-        if (newPosition.X < -4000 || newPosition.X > 4000 ||
-            newPosition.Y < -4000 || newPosition.Y > 4000 ||
-            newPosition.Z < -500 || newPosition.Z > 2000)
-        {
-            Console.WriteLine($"[瞬间移动] 偏移位置超出合理范围，尝试中心位置");
-            // 返回地图大概中心位置
-            return new Vector(0, 0, 0);
-        }
-
-        return newPosition;
     }
 }

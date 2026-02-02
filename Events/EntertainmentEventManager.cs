@@ -47,7 +47,7 @@ public class EntertainmentEventManager
         RegisterEvent(new AnywhereBombPlantEvent());
         RegisterEvent(new MiniSizeEvent());
         RegisterEvent(new JuggernautEvent());
-        RegisterEvent(new InfiniteAmmoEvent());
+        RegisterEvent(new InfiniteBulletModeEvent());
         RegisterEvent(new SwapOnHitEvent());
         RegisterEvent(new SmallAndDeadlyEvent());
         RegisterEvent(new BlitzkriegEvent());

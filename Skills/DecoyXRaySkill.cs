@@ -32,7 +32,11 @@ public class DecoyXRaySkill : PlayerSkill
     private readonly Dictionary<int, CDecoyGrenade> _activeDecoys = new();
 
     // 追踪发光效果的敌人
+    // 追踪发光效果的敌人
     private readonly Dictionary<int, (int relayIndex, int glowIndex)> _glowingEnemies = new();
+
+    // 追踪投掷者队伍（用于控制可见性）
+    private CsTeam _ownerTeam = CsTeam.None;
 
     public override void OnApply(CCSPlayerController player)
     {
@@ -142,6 +146,9 @@ public class DecoyXRaySkill : PlayerSkill
     /// <summary>
     /// 触发诱饵弹爆炸并应用透视效果
     /// </summary>
+    /// <summary>
+    /// 触发诱饵弹爆炸并应用透视效果
+    /// </summary>
     private void TriggerDecoyExplosion(CCSPlayerController owner, CDecoyGrenade decoy)
     {
         if (!decoy.IsValid)
@@ -156,6 +163,9 @@ public class DecoyXRaySkill : PlayerSkill
         // 移除诱饵弹实体
         decoy.Remove();
         _activeDecoys.Remove((int)decoy.Index);
+
+        // 记录投掷者队伍
+        _ownerTeam = owner.Team;
 
         // 找到范围内的所有敌人
         var enemiesInRange = FindEnemiesInRange(owner, decoyPos, XRAY_RANGE);
@@ -298,6 +308,10 @@ public class DecoyXRaySkill : PlayerSkill
     /// <summary>
     /// 检查传输时控制发光效果的可见性
     /// </summary>
+    /// <summary>
+    /// 检查传输时控制发光效果的可见性
+    /// 只有投掷者的队友能看到发光效果
+    /// </summary>
     private void OnCheckTransmit(CCheckTransmitInfoList infoList)
     {
         if (_glowingEnemies.Count == 0)
@@ -308,22 +322,47 @@ public class DecoyXRaySkill : PlayerSkill
             if (receiver == null || !receiver.IsValid)
                 continue;
 
-            // 让所有队友都能看到发光的敌人
-            foreach (var slot in _glowingEnemies.Keys)
+            // 只有投掷者的队友能看到发光效果
+            if (receiver.Team == _ownerTeam)
             {
-                var (relayIndex, glowIndex) = _glowingEnemies[slot];
-
-                var relay = Utilities.GetEntityFromIndex<CDynamicProp>(relayIndex);
-                var glow = Utilities.GetEntityFromIndex<CDynamicProp>(glowIndex);
-
-                if (relay != null && relay.IsValid)
+                // 添加所有发光效果到传输列表
+                foreach (var slot in _glowingEnemies.Keys)
                 {
-                    info.TransmitEntities.Add(relay.Index);
+                    var (relayIndex, glowIndex) = _glowingEnemies[slot];
+
+                    var relay = Utilities.GetEntityFromIndex<CDynamicProp>(relayIndex);
+                    var glow = Utilities.GetEntityFromIndex<CDynamicProp>(glowIndex);
+
+                    if (relay != null && relay.IsValid)
+                    {
+                        info.TransmitEntities.Add(relay.Index);
+                    }
+
+                    if (glow != null && glow.IsValid)
+                    {
+                        info.TransmitEntities.Add(glow.Index);
+                    }
                 }
-
-                if (glow != null && glow.IsValid)
+            }
+            else
+            {
+                // 敌方玩家不能看到发光效果，从传输列表中移除
+                foreach (var slot in _glowingEnemies.Keys)
                 {
-                    info.TransmitEntities.Add(glow.Index);
+                    var (relayIndex, glowIndex) = _glowingEnemies[slot];
+
+                    var relay = Utilities.GetEntityFromIndex<CDynamicProp>(relayIndex);
+                    var glow = Utilities.GetEntityFromIndex<CDynamicProp>(glowIndex);
+
+                    if (relay != null && relay.IsValid)
+                    {
+                        info.TransmitEntities.Remove(relay.Index);
+                    }
+
+                    if (glow != null && glow.IsValid)
+                    {
+                        info.TransmitEntities.Remove(glow.Index);
+                    }
                 }
             }
         }
@@ -361,51 +400,91 @@ public class DecoyXRaySkill : PlayerSkill
     /// <summary>
     /// 复用发光效果方法（从SuperpowerXrayEvent复制）
     /// </summary>
+    /// <summary>
+    /// 应用实体发光效果（参考 XrayEvent 和 SuperpowerXrayEvent）
+    /// </summary>
     private bool ApplyEntityGlowEffect(CBaseEntity entity, CsTeam team, out int relayIndex, out int glowIndex)
     {
         relayIndex = -1;
         glowIndex = -1;
 
-        try
-        {
-            // 创建Relay实体
-            var relay = Utilities.CreateEntityByName<CDynamicProp>("prop_dynamic_override");
-            if (relay == null || !relay.IsValid)
-                return false;
-
-            var origin = entity.AbsOrigin ?? new Vector(0, 0, 0);
-            relay.Teleport(origin, new QAngle(0, 0, 0), new Vector(0, 0, 0));
-            relay.DispatchSpawn();
-            relay.AcceptInput("Enable");
-
-            // 创建Glow实体
-            var glow = Utilities.CreateEntityByName<CDynamicProp>("prop_dynamic_override");
-            if (glow == null || !glow.IsValid)
-            {
-                relay.Remove();
-                return false;
-            }
-
-            var glowOrigin = entity.AbsOrigin ?? new Vector(0, 0, 0);
-            glow.Teleport(glowOrigin, new QAngle(0, 0, 0), new Vector(0, 0, 0));
-
-            // 设置发光颜色
-            Color glowColor = team == CsTeam.Terrorist ? Color.FromArgb(255, 255, 0, 0) : Color.FromArgb(255, 0, 0, 255);
-            glow.Render = Color.FromArgb(255, glowColor.R, glowColor.G, glowColor.B);
-
-            glow.DispatchSpawn();
-            glow.AcceptInput("Enable");
-
-            relayIndex = (int)relay.Index;
-            glowIndex = (int)glow.Index;
-
-            return true;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[透视诱饵弹] 应用发光效果时出错: {ex.Message}");
+        if (entity == null || !entity.IsValid)
             return false;
+
+        var sceneNode = entity.CBodyComponent?.SceneNode;
+        if (sceneNode == null)
+            return false;
+
+        var skeletonInstance = sceneNode.GetSkeletonInstance();
+        if (skeletonInstance == null)
+            return false;
+
+        var modelName = skeletonInstance.ModelState.ModelName;
+        if (string.IsNullOrEmpty(modelName))
+            return false;
+
+        var modelRelay = Utilities.CreateEntityByName<CDynamicProp>("prop_dynamic");
+        var modelGlow = Utilities.CreateEntityByName<CDynamicProp>("prop_dynamic");
+
+        if (modelRelay == null || !modelRelay.IsValid || modelGlow == null || !modelGlow.IsValid)
+            return false;
+
+        // 设置modelRelay
+        modelRelay.Spawnflags = 256u;
+        modelRelay.RenderMode = RenderMode_t.kRenderNone;
+
+        if (modelRelay.CBodyComponent != null && modelRelay.CBodyComponent.SceneNode != null)
+        {
+            var owner = modelRelay.CBodyComponent.SceneNode.Owner;
+            if (owner != null && owner.Entity != null)
+            {
+                owner.Entity.Flags &= ~(uint)(1 << 2);
+            }
         }
+
+        modelRelay.SetModel(modelName);
+        modelRelay.DispatchSpawn();
+        modelRelay.AcceptInput("FollowEntity", entity, modelRelay, "!activator");
+
+        // 设置modelGlow
+        if (modelGlow.CBodyComponent != null && modelGlow.CBodyComponent.SceneNode != null)
+        {
+            var owner = modelGlow.CBodyComponent.SceneNode.Owner;
+            if (owner != null && owner.Entity != null)
+            {
+                owner.Entity.Flags &= ~(uint)(1 << 2);
+            }
+        }
+
+        modelGlow.SetModel(modelName);
+        modelGlow.DispatchSpawn();
+        modelGlow.AcceptInput("FollowEntity", modelRelay, modelGlow, "!activator");
+
+        // 根据队伍设置发光颜色
+        switch (team)
+        {
+            case CsTeam.Terrorist:
+                modelGlow.Glow.GlowColorOverride = Color.FromArgb(255, 165, 0); // 橙色
+                break;
+            case CsTeam.CounterTerrorist:
+                modelGlow.Glow.GlowColorOverride = Color.FromArgb(135, 206, 235); // 天蓝色
+                break;
+            default:
+                modelGlow.Glow.GlowColorOverride = Color.FromArgb(255, 255, 255); // 白色
+                break;
+        }
+
+        modelGlow.Spawnflags = 256u;
+        modelGlow.RenderMode = RenderMode_t.kRenderTransAlpha;
+        modelGlow.Glow.GlowRange = 5000;
+        modelGlow.Glow.GlowTeam = -1;
+        modelGlow.Glow.GlowType = 3;
+        modelGlow.Glow.GlowRangeMin = 20;
+
+        relayIndex = (int)modelRelay.Index;
+        glowIndex = (int)modelGlow.Index;
+
+        return true;
     }
 
     /// <summary>

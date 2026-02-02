@@ -11,7 +11,7 @@ namespace MyrtleSkill.Features;
 public class BombPlantManager
 {
     public bool AllowAnywherePlant { get; set; } = false;
-    public float BombTimer { get; set; } = 40.0f;
+    public float BombTimer { get; set; } = 65.0f;
 
     /// <summary>
     /// 处理玩家按键变化（用于任意下包）

@@ -194,6 +194,14 @@ public class RainyDayEvent : EntertainmentEvent
     /// 检查传输时控制玩家可见性
     /// 参考 jRandomSkills Ghost 的 CheckTransmit 实现
     /// </summary>
+    /// <summary>
+    /// 检查传输时控制玩家可见性
+    /// 参考 jRandomSkills Ghost 的 CheckTransmit 实现
+    /// </summary>
+    /// <summary>
+    /// 检查传输时控制玩家可见性
+    /// 参考 jRandomSkills Ghost 的 CheckTransmit 实现
+    /// </summary>
     private void OnCheckTransmit(CCheckTransmitInfoList infoList)
     {
         if (_invisibleEntities.Count == 0)
@@ -204,20 +212,24 @@ public class RainyDayEvent : EntertainmentEvent
             if (observer == null || !observer.IsValid)
                 continue;
 
-            // 遍历所有处于隐身状态的玩家
+            // 遍历所有玩家
             foreach (var kvp in _invisibleEntities)
             {
                 ulong playerSteamID = kvp.Key;
                 var hiddenEntities = kvp.Value;
 
-                // 检查玩家是否处于隐身状态
-                bool isInvisible = _playerVisibleState.GetValueOrDefault(playerSteamID, false);
-
-                // 如果玩家可见或者是观察者自己，不需要隐藏
-                if (!isInvisible || observer.SteamID == playerSteamID)
+                // 不移除观察者自己的实体
+                if (observer.SteamID == playerSteamID)
                     continue;
 
-                // 移除所有隐藏实体的传输
+                // 检查玩家是否处于隐身状态（false = 隐身）
+                bool playerIsVisible = _playerVisibleState.GetValueOrDefault(playerSteamID, true);
+
+                // 如果玩家可见，不需要隐藏实体
+                if (playerIsVisible)
+                    continue;
+
+                // 玩家不可见，移除所有隐藏实体的传输
                 foreach (var entityIndex in hiddenEntities)
                 {
                     info.TransmitEntities.Remove(entityIndex);

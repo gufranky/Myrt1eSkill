@@ -147,8 +147,11 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 0.2 清理第二次机会使用记录
         Skills.SecondChanceSkill.OnRoundStart();
 
-        // 0.1 清理格拉兹烟雾弹追踪
+        // 0.3 清理格拉兹烟雾弹追踪
         Skills.GlazSkill.OnRoundStart();
+
+        // 0.4 清理名刀使用记录
+        Skills.MeitoSkill.OnRoundStart();
 
         // 1. 首先重置技能禁用标志（新回合开始）
         DisableSkillsThisRound = false;
@@ -340,12 +343,17 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             }
         }
 
-        // 应用累积的倍数
+        // 处理名刀技能（致命伤害保护）- 在所有其他倍数之后处理
+        float? meitoMultiplier = Skills.MeitoSkill.HandleDamagePre(player, info, totalMultiplier);
+        if (meitoMultiplier.HasValue)
+        {
+            totalMultiplier *= meitoMultiplier.Value;
+        }
+
+        // 应用伤害倍数
         if (totalMultiplier != 1.0f)
         {
-            float originalDamage = info.Damage;
             info.Damage *= totalMultiplier;
-            Console.WriteLine($"[伤害结算] 原始: {originalDamage}, 总倍数: {totalMultiplier:F2}, 最终: {info.Damage}");
         }
 
         return HookResult.Continue;
