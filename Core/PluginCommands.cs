@@ -18,6 +18,7 @@ public class PluginCommands
         _plugin = plugin;
     }
 
+    /*
     #region 重甲战士命令
 
     public void CommandEnableHeavyArmor(CCSPlayerController? player, CommandInfo commandInfo)
@@ -105,6 +106,7 @@ public class PluginCommands
     }
 
     #endregion
+    */
 
     #region 娱乐事件命令
 

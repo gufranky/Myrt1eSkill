@@ -20,10 +20,13 @@ public class RainyDayEvent : EntertainmentEvent
 
     private readonly Dictionary<ulong, bool> _playerVisibleState = new();
     private System.Threading.Timer? _revealTimer;
+    private bool _isActive = false;
 
     public override void OnApply()
     {
         Console.WriteLine("[下雨天] 事件已激活");
+
+        _isActive = true;
 
         // 初始化所有玩家为隐身状态
         foreach (var player in Utilities.GetPlayers())
@@ -58,6 +61,8 @@ public class RainyDayEvent : EntertainmentEvent
     {
         Console.WriteLine("[下雨天] 事件已恢复");
 
+        _isActive = false;
+
         // 停止定时器
         _revealTimer?.Dispose();
         _revealTimer = null;
@@ -85,18 +90,29 @@ public class RainyDayEvent : EntertainmentEvent
     /// </summary>
     private void ScheduleNextReveal()
     {
+        // 如果事件不再活跃，不调度新的显形
+        if (!_isActive)
+            return;
+
         float interval = (float)(_random.NextDouble() * (MaxInvisibleInterval - MinInvisibleInterval) + MinInvisibleInterval);
 
         _revealTimer = new System.Threading.Timer(callback =>
         {
             Server.NextFrame(() =>
             {
+                // 再次检查事件是否仍然活跃
+                if (!_isActive)
+                    return;
+
                 // 显形2秒
                 RevealAllPlayers();
 
                 // 2秒后重新隐身
                 Plugin?.AddTimer(VisibleDuration, () =>
                 {
+                    if (!_isActive)
+                        return;
+
                     HideAllPlayers();
 
                     // 调度下一次显形

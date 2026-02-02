@@ -136,10 +136,7 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             Console.WriteLine("[娱乐事件] 没有上一回合事件需要恢复（第一回合或PreviousEvent为null）");
         }
 
-        // 3. 处理重甲战士（第一优先级）
-        HeavyArmorManager.OnRoundStart();
-
-        // 4. 选择并应用新事件（第二优先级）
+        // 3. 选择并应用新事件（第一优先级）
         if (EventManager.IsEnabled)
         {
             // 检查是否有强制事件
@@ -258,9 +255,6 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 清理有毒烟雾弹记录
         Skills.ToxicSmokeSkill.ClearAllToxicSmokes();
 
-        // 清理重甲战士
-        HeavyArmorManager.OnRoundEnd();
-
         return HookResult.Continue;
     }
 
@@ -286,13 +280,17 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
                     totalMultiplier *= ninjaMultiplier.Value;
                 }
             }
-        }
 
-        // 处理重甲战士减伤（返回伤害倍数）
-        float? heavyArmorMultiplier = HeavyArmorManager.HandleDamage(player, info);
-        if (heavyArmorMultiplier.HasValue)
-        {
-            totalMultiplier *= heavyArmorMultiplier.Value;
+            // 处理重甲战士减伤
+            if (skill?.Name == "HeavyArmor")
+            {
+                var heavyArmorSkill = (Skills.HeavyArmorSkill)skill;
+                float? heavyArmorMultiplier = heavyArmorSkill?.HandleDamage(player, info);
+                if (heavyArmorMultiplier.HasValue)
+                {
+                    totalMultiplier *= heavyArmorMultiplier.Value;
+                }
+            }
         }
 
         // 处理苦命鸳鸯配对伤害加成
@@ -536,12 +534,6 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             }
         }
 
-        // 处理重甲战士武器限制
-        if (HeavyArmorManager.HandleWeaponSelection(player, selectedWeapon))
-        {
-            return HookResult.Stop;
-        }
-
         return HookResult.Continue;
     }
 
@@ -596,14 +588,6 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         var player = @event.Userid;
         if (player == null || !player.IsValid)
             return HookResult.Continue;
-
-        var itemName = @event.Item;
-
-        // 处理重甲战士拾取限制
-        if (HeavyArmorManager.HandleItemPickup(player, itemName))
-        {
-            return HookResult.Stop;
-        }
 
         return HookResult.Continue;
     }
@@ -695,11 +679,6 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
     private void RegisterCommands()
     {
-        // 重甲战士命令
-        AddCommand("css_heavyarmor_enable", "启用重甲战士模式", _commands.CommandEnableHeavyArmor);
-        AddCommand("css_heavyarmor_disable", "禁用重甲战士模式", _commands.CommandDisableHeavyArmor);
-        AddCommand("css_heavyarmor_status", "查看重甲战士状态", _commands.CommandStatusHeavyArmor);
-
         // 娱乐事件命令
         AddCommand("css_event_enable", "启用娱乐事件系统", _commands.CommandEventEnable);
         AddCommand("css_event_disable", "禁用娱乐事件系统", _commands.CommandEventDisable);

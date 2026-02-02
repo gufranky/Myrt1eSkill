@@ -1,6 +1,6 @@
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
-using CounterStrikeSharp.API.Modules.Timers;
+using CounterStrikeSharp.API.Modules.Cvars;
 
 namespace MyrtleSkill;
 
@@ -10,71 +10,63 @@ namespace MyrtleSkill;
 public class InfiniteAmmoEvent : EntertainmentEvent
 {
     public override string Name => "InfiniteAmmo";
-    public override string DisplayName => "无限弹药";
-    public override string Description => "弹药永不耗尽！";
+    public override string DisplayName => "🔫 无限弹药";
+    public override string Description => "弹药永不耗尽！火力全开！";
 
-    private CounterStrikeSharp.API.Modules.Timers.Timer? _ammoTimer;
+    private ConVar? _svCheatConVar;
+    private ConVar? _infiniteAmmoConVar;
+    private int _originalSvCheat = 0;
+    private int _originalInfiniteAmmo = 0;
 
     public override void OnApply()
     {
         Console.WriteLine("[无限弹药] 事件已激活");
 
-        // 启动定时器，定期补充弹药
-        if (Plugin != null)
+        // 1. 启用作弊模式
+        _svCheatConVar = ConVar.Find("sv_cheats");
+        if (_svCheatConVar != null)
         {
-            _ammoTimer = Plugin.AddTimer(0.5f, () =>
+            _originalSvCheat = _svCheatConVar.GetPrimitiveValue<int>();
+            _svCheatConVar.SetValue(1);
+            Console.WriteLine($"[无限弹药] sv_cheats 已设置为 1 (原值: {_originalSvCheat})");
+        }
+
+        // 2. 启用无限弹药
+        _infiniteAmmoConVar = ConVar.Find("sv_infinite_ammo");
+        if (_infiniteAmmoConVar != null)
+        {
+            _originalInfiniteAmmo = _infiniteAmmoConVar.GetPrimitiveValue<int>();
+            _infiniteAmmoConVar.SetValue(1);
+            Console.WriteLine($"[无限弹药] sv_infinite_ammo 已设置为 1 (原值: {_originalInfiniteAmmo})");
+        }
+
+        // 显示提示
+        foreach (var player in Utilities.GetPlayers())
+        {
+            if (player.IsValid)
             {
-                RefillAmmo();
-            }, TimerFlags.REPEAT);
+                player.PrintToCenter("🔫 无限弹药！\n弹药永不耗尽！");
+                player.PrintToChat("🔫 无限弹药模式已启用！");
+            }
         }
     }
 
     public override void OnRevert()
     {
-        Console.WriteLine("[无限弹药] 事件已结束");
+        Console.WriteLine("[无限弹药] 事件已恢复");
 
-        // 停止定时器
-        if (_ammoTimer != null)
+        // 恢复无限弹药
+        if (_infiniteAmmoConVar != null)
         {
-            _ammoTimer.Kill();
-            _ammoTimer = null;
+            _infiniteAmmoConVar.SetValue(_originalInfiniteAmmo);
+            Console.WriteLine($"[无限弹药] sv_infinite_ammo 已恢复为 {_originalInfiniteAmmo}");
         }
-    }
 
-    private void RefillAmmo()
-    {
-        foreach (var player in Utilities.GetPlayers())
+        // 恢复作弊模式
+        if (_svCheatConVar != null)
         {
-            if (!player.IsValid || !player.PawnIsAlive) continue;
-
-            var pawn = player.PlayerPawn.Get();
-            if (pawn == null || !pawn.IsValid) continue;
-
-            var weaponServices = pawn.WeaponServices;
-            if (weaponServices == null) continue;
-
-            // 遍历所有武器
-            foreach (var weaponHandle in weaponServices.MyWeapons)
-            {
-                var weapon = weaponHandle.Get();
-                if (weapon == null || !weapon.IsValid) continue;
-
-                var weaponBase = weapon.As<CCSWeaponBase>();
-                if (weaponBase == null || weaponBase.VData == null) continue;
-
-                // 跳过刀和C4
-                var weaponType = weaponBase.VData.WeaponType;
-                if (weaponType == CSWeaponType.WEAPONTYPE_KNIFE ||
-                    weaponType == CSWeaponType.WEAPONTYPE_C4)
-                    continue;
-
-                // 补充弹药
-                if (weaponBase.VData.MaxClip1 > 0)
-                {
-                    weapon.Clip1 = weaponBase.VData.MaxClip1;
-                    weapon.ReserveAmmo[0] = 999;
-                }
-            }
+            _svCheatConVar.SetValue(_originalSvCheat);
+            Console.WriteLine($"[无限弹药] sv_cheats 已恢复为 {_originalSvCheat}");
         }
     }
 }

@@ -16,6 +16,7 @@ public class ScreamingRabbitEvent : EntertainmentEvent
 
     private readonly Random _random = new();
     private System.Threading.Timer? _screamTimer;
+    private bool _isActive = false;
 
     // 定位音效列表（简短、能指示位置的声音）
     private readonly string[] _positionSounds = new string[]
@@ -35,6 +36,8 @@ public class ScreamingRabbitEvent : EntertainmentEvent
     public override void OnApply()
     {
         Console.WriteLine("[怪叫兔] 事件已激活");
+
+        _isActive = true;
 
         // 显示事件提示
         foreach (var player in Utilities.GetPlayers())
@@ -60,6 +63,8 @@ public class ScreamingRabbitEvent : EntertainmentEvent
     {
         Console.WriteLine("[怪叫兔] 事件已恢复");
 
+        _isActive = false;
+
         // 停止定时器
         _screamTimer?.Dispose();
         _screamTimer = null;
@@ -76,10 +81,18 @@ public class ScreamingRabbitEvent : EntertainmentEvent
     /// </summary>
     private void ScheduleNextScream()
     {
+        // 如果事件不再活跃，不调度新的尖叫
+        if (!_isActive)
+            return;
+
         _screamTimer = new System.Threading.Timer(callback =>
         {
             Server.NextFrame(() =>
             {
+                // 再次检查事件是否仍然活跃
+                if (!_isActive)
+                    return;
+
                 // 开始倒计时
                 StartCountdown();
             });
