@@ -53,6 +53,10 @@ public class ToxicSmokeSkill : PlayerSkill
         var slot = player.Index;
         _usedThisRound.Remove(slot);
 
+        // 清理该玩家可能残留的有毒烟雾记录
+        // 注意：由于_toxicSmokes只记录位置，无法直接按玩家清理
+        // 这里不做清理，依靠回合结束时的ClearAllToxicSmokes()
+
         Console.WriteLine($"[有毒烟雾弹] {player.PlayerName} 失去了有毒烟雾弹能力");
     }
 
@@ -112,42 +116,37 @@ public class ToxicSmokeSkill : PlayerSkill
     /// </summary>
     public void OnEntitySpawned(CEntityInstance entity)
     {
-        var name = entity.DesignerName;
-        if (name != "smokegrenade_projectile")
-            return;
-
-        var grenade = entity.As<CBaseCSGrenadeProjectile>();
-        if (grenade == null || !grenade.IsValid)
-            return;
-
-        if (grenade.OwnerEntity == null || !grenade.OwnerEntity.IsValid || grenade.OwnerEntity.Value == null || !grenade.OwnerEntity.Value.IsValid)
-            return;
-
-        var pawn = grenade.OwnerEntity.Value.As<CCSPlayerPawn>();
-        if (pawn == null || !pawn.IsValid)
-            return;
-
-        var controller = pawn.Controller.Value;
-        if (controller == null || !controller.IsValid || !(controller is CCSPlayerController player))
-            return;
-
-        // 检查是否有有毒烟雾弹技能
-        var skill = Plugin?.SkillManager.GetPlayerSkill(player);
-        if (skill?.Name != "ToxicSmoke")
-            return;
-
-        // 修改烟雾颜色为紫色（255, 0, 255）
-        Server.NextFrame(() =>
+        try
         {
             var smoke = entity.As<CSmokeGrenadeProjectile>();
-            if (smoke != null && smoke.IsValid)
+            if (smoke == null || !smoke.IsValid)
+                return;
+
+            // 修改烟雾颜色为紫色（255, 0, 255）
+            smoke.SmokeColor.X = 255; // R
+            smoke.SmokeColor.Y = 0;   // G
+            smoke.SmokeColor.Z = 255; // B
+
+            Utilities.SetStateChanged(smoke, "CSmokeGrenadeProjectile", "m_SmokeColor");
+
+            // 获取玩家信息用于日志（不阻止颜色修改）
+            if (smoke.Thrower != null && smoke.Thrower.IsValid)
             {
-                smoke.SmokeColor.X = 255; // R
-                smoke.SmokeColor.Y = 0;   // G
-                smoke.SmokeColor.Z = 255; // B
-                Console.WriteLine($"[有毒烟雾弹] {player.PlayerName} 的烟雾弹已设置为紫色");
+                var throwerPawn = smoke.Thrower.Value;
+                if (throwerPawn != null && throwerPawn.Controller != null && throwerPawn.Controller.IsValid)
+                {
+                    var player = throwerPawn.Controller.Value.As<CCSPlayerController>();
+                    if (player != null && player.IsValid)
+                    {
+                        Console.WriteLine($"[有毒烟雾弹] {player.PlayerName} 的烟雾弹已设置为紫色");
+                    }
+                }
             }
-        });
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[有毒烟雾弹] OnEntitySpawned出错: {ex.Message}");
+        }
     }
 
     /// <summary>

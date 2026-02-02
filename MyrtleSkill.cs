@@ -494,16 +494,27 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         Skills.ExplosiveShotSkill.OnEntitySpawned(entity);
 
         // 处理有毒烟雾弹技能（修改烟雾颜色）
-        foreach (var player in Utilities.GetPlayers())
+        // 只处理烟雾弹实体，且只调用一次（针对投掷者）
+        var name = entity.DesignerName;
+        if (name == "smokegrenade_projectile")
         {
-            if (!player.IsValid)
-                continue;
-
-            var skill = SkillManager.GetPlayerSkill(player);
-            if (skill?.Name == "ToxicSmoke")
+            var grenade = entity.As<CBaseCSGrenadeProjectile>();
+            if (grenade != null && grenade.IsValid && grenade.Thrower != null && grenade.Thrower.IsValid)
             {
-                var toxicSmokeSkill = (Skills.ToxicSmokeSkill)skill;
-                toxicSmokeSkill.OnEntitySpawned(entity);
+                var throwerPawn = grenade.Thrower.Value;
+                if (throwerPawn != null && throwerPawn.IsValid)
+                {
+                    var controller = throwerPawn.Controller.Value;
+                    if (controller != null && controller.IsValid && controller is CCSPlayerController player)
+                    {
+                        var skill = SkillManager.GetPlayerSkill(player);
+                        if (skill?.Name == "ToxicSmoke")
+                        {
+                            var toxicSmokeSkill = (Skills.ToxicSmokeSkill)skill;
+                            toxicSmokeSkill.OnEntitySpawned(entity);
+                        }
+                    }
+                }
             }
         }
     }
@@ -637,6 +648,10 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             else if (skill?.Name == "FlashJump")
             {
                 Skills.FlashJumpSkill.OnTick(SkillManager);
+            }
+            else if (skill?.Name == "QuickShot")
+            {
+                Skills.QuickShotSkill.OnTick(SkillManager);
             }
         }
 
