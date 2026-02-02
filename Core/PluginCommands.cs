@@ -464,6 +464,91 @@ public class PluginCommands
 
     #endregion
 
+    #region 开局福利命令
+
+    public void CommandWelfareEnable(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        if (_plugin.WelfareManager.IsEnabled)
+        {
+            commandInfo.ReplyToCommand("开局福利系统已经是启用状态！");
+            return;
+        }
+
+        _plugin.WelfareManager.Enable();
+        string message = "💰 开局福利系统已启用！每回合将随机给一名玩家发放2000金钱。";
+
+        if (player == null)
+        {
+            Console.WriteLine("[开局福利] " + message);
+            commandInfo.ReplyToCommand(message);
+        }
+        else
+        {
+            player.PrintToChat("[开局福利] " + message);
+            Console.WriteLine("[开局福利] " + player.PlayerName + " 启用了开局福利系统");
+        }
+
+        foreach (var p in Utilities.GetPlayers())
+        {
+            if (p.IsValid && p != player)
+            {
+                p.PrintToChat("💰 开局福利系统已启用！");
+            }
+        }
+    }
+
+    public void CommandWelfareDisable(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        if (!_plugin.WelfareManager.IsEnabled)
+        {
+            commandInfo.ReplyToCommand("开局福利系统已经是禁用状态！");
+            return;
+        }
+
+        _plugin.WelfareManager.Disable();
+
+        string message = "❌ 开局福利系统已禁用！";
+
+        if (player == null)
+        {
+            Console.WriteLine("[开局福利] " + message);
+            commandInfo.ReplyToCommand(message);
+        }
+        else
+        {
+            player.PrintToChat("[开局福利] " + message);
+            Console.WriteLine("[开局福利] " + player.PlayerName + " 禁用了开局福利系统");
+        }
+
+        foreach (var p in Utilities.GetPlayers())
+        {
+            if (p.IsValid && p != player)
+            {
+                p.PrintToChat("💰 开局福利系统已禁用！");
+            }
+        }
+    }
+
+    public void CommandWelfareStatus(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        string status = _plugin.WelfareManager.IsEnabled ? "✅ 启用" : "❌ 禁用";
+
+        if (player == null)
+        {
+            commandInfo.ReplyToCommand("=== 开局福利系统状态 ===");
+            commandInfo.ReplyToCommand("状态: " + status);
+            commandInfo.ReplyToCommand("功能: 每回合随机给一名玩家发放2000金钱");
+        }
+        else
+        {
+            player.PrintToChat("=== 开局福利系统状态 ===");
+            player.PrintToChat("状态: " + status);
+            player.PrintToChat("功能: 每回合随机给一名玩家发放2000金钱");
+        }
+    }
+
+    #endregion
+
     #region 玩家技能命令
 
     public void CommandSkillEnable(CCSPlayerController? player, CommandInfo commandInfo)

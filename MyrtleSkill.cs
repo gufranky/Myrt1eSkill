@@ -27,6 +27,7 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
     public BombPlantManager BombPlantManager { get; private set; } = null!;
     public EntertainmentEventManager EventManager { get; private set; } = null!;
     public PlayerSkillManager SkillManager { get; private set; } = null!;
+    public WelfareManager WelfareManager { get; private set; } = null!;
     private PluginCommands _commands = null!;
 
     // 事件状态
@@ -42,6 +43,14 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
     // 友军伤害踢人保护
     private bool _originalAutoKickValue = false;
+
+    // 友军伤害设置
+    private ConVar? _friendlyFireConVar;
+    private bool _originalFriendlyFireValue = false;
+
+    // 坠落伤害设置
+    private ConVar? _fallDamageConVar;
+    private bool _originalFallDamageValue = false;
 
     // 作弊保护
     private ConVar? _svCheatConVar;
@@ -62,7 +71,9 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 启用作弊功能
         EnableCheatMode();
 
-        // 禁用友军伤害自动踢人并启用派对模式
+        // 启用友军伤害、禁用坠落伤害并启用派对模式
+        EnableFriendlyFire();
+        DisableFallDamage();
         DisableFriendlyFireKick();
         EnablePartyMode();
 
@@ -71,6 +82,7 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         BombPlantManager = new BombPlantManager();
         EventManager = new EntertainmentEventManager(this);
         SkillManager = new PlayerSkillManager(this);
+        WelfareManager = new WelfareManager(this);
         _commands = new PluginCommands(this);
 
         // 设置技能静态引用（用于技能内部访问插件）
@@ -106,6 +118,8 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         Console.WriteLine("[玩家技能系统] 已初始化，共加载 " + SkillManager.GetSkillCount() + " 个技能");
         Console.WriteLine("[任意下包功能] 状态: " + (BombPlantManager.AllowAnywherePlant ? "✅ 启用" : "❌ 禁用"));
         Console.WriteLine("[炸弹时间设置] 当前时间: " + BombPlantManager.BombTimer + " 秒");
+        Console.WriteLine("[友军伤害] ⚔️ 已启用友军伤害");
+        Console.WriteLine("[坠落伤害] 🪽 已禁用坠落伤害");
         Console.WriteLine("[友军伤害保护] 已禁用自动踢人功能");
         Console.WriteLine("[派对模式] 🎉 已启用派对模式！");
     }
@@ -114,7 +128,10 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
     private HookResult OnRoundStart(EventRoundStart @event, GameEventInfo info)
     {
-        // 0. 清理第二次机会使用记录
+        // 0. 开局福利系统（最优先执行）
+        WelfareManager.OnRoundStart();
+
+        // 0.1 清理第二次机会使用记录
         Skills.SecondChanceSkill.OnRoundStart();
 
         // 0.1 清理格拉兹烟雾弹追踪
@@ -482,9 +499,6 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
     private HookResult OnPlayerJump(EventPlayerJump @event, GameEventInfo info)
     {
-        // 处理闪光跳跃技能
-        Skills.FlashJumpSkill.HandlePlayerJump(@event, SkillManager);
-
         return HookResult.Continue;
     }
 
@@ -645,10 +659,6 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
                 var radarHackSkill = (Skills.RadarHackSkill)skill;
                 radarHackSkill.OnTick(player);
             }
-            else if (skill?.Name == "FlashJump")
-            {
-                Skills.FlashJumpSkill.OnTick(SkillManager);
-            }
             else if (skill?.Name == "QuickShot")
             {
                 Skills.QuickShotSkill.OnTick(SkillManager);
@@ -694,6 +704,11 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
     private void RegisterCommands()
     {
+        // 开局福利命令
+        AddCommand("css_welfare_enable", "启用开局福利系统", _commands.CommandWelfareEnable);
+        AddCommand("css_welfare_disable", "禁用开局福利系统", _commands.CommandWelfareDisable);
+        AddCommand("css_welfare_status", "查看开局福利系统状态", _commands.CommandWelfareStatus);
+
         // 娱乐事件命令
         AddCommand("css_event_enable", "启用娱乐事件系统", _commands.CommandEventEnable);
         AddCommand("css_event_disable", "禁用娱乐事件系统", _commands.CommandEventDisable);
@@ -768,6 +783,60 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
     }
 
     /// <summary>
+    /// 启用友军伤害
+    /// </summary>
+    private void EnableFriendlyFire()
+    {
+        try
+        {
+            _friendlyFireConVar = ConVar.Find("mp_friendlyfire");
+            if (_friendlyFireConVar != null)
+            {
+                _originalFriendlyFireValue = _friendlyFireConVar.GetPrimitiveValue<bool>();
+
+                // 启用友军伤害
+                _friendlyFireConVar.SetValue(true);
+                Console.WriteLine($"[友军伤害] ⚔️ 已启用 mp_friendlyfire (原始值: {_originalFriendlyFireValue})");
+            }
+            else
+            {
+                Console.WriteLine("[友军伤害] 警告：无法找到 mp_friendlyfire ConVar");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[友军伤害] 错误：{ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 禁用坠落伤害
+    /// </summary>
+    private void DisableFallDamage()
+    {
+        try
+        {
+            _fallDamageConVar = ConVar.Find("mp_falldamage");
+            if (_fallDamageConVar != null)
+            {
+                _originalFallDamageValue = _fallDamageConVar.GetPrimitiveValue<bool>();
+
+                // 禁用坠落伤害
+                _fallDamageConVar.SetValue(false);
+                Console.WriteLine($"[坠落伤害] 🪽 已禁用 mp_falldamage (原始值: {_originalFallDamageValue})");
+            }
+            else
+            {
+                Console.WriteLine("[坠落伤害] 警告：无法找到 mp_falldamage ConVar");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[坠落伤害] 错误：{ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// 禁用友军伤害自动踢人功能
     /// </summary>
     private void DisableFriendlyFireKick()
@@ -820,6 +889,44 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
     }
 
     /// <summary>
+    /// 恢复友军伤害
+    /// </summary>
+    private void RestoreFriendlyFire()
+    {
+        try
+        {
+            if (_friendlyFireConVar != null)
+            {
+                _friendlyFireConVar.SetValue(_originalFriendlyFireValue);
+                Console.WriteLine($"[友军伤害] 已恢复 mp_friendlyfire 为 {_originalFriendlyFireValue}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[友军伤害] 错误：{ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 恢复坠落伤害
+    /// </summary>
+    private void RestoreFallDamage()
+    {
+        try
+        {
+            if (_fallDamageConVar != null)
+            {
+                _fallDamageConVar.SetValue(_originalFallDamageValue);
+                Console.WriteLine($"[坠落伤害] 已恢复 mp_falldamage 为 {_originalFallDamageValue}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[坠落伤害] 错误：{ex.Message}");
+        }
+    }
+
+    /// <summary>
     /// 恢复友军伤害自动踢人功能
     /// </summary>
     private void RestoreFriendlyFireKick()
@@ -844,11 +951,17 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 恢复作弊模式设置
         RestoreCheatMode();
 
+        // 恢复友军伤害
+        RestoreFriendlyFire();
+
+        // 恢复坠落伤害
+        RestoreFallDamage();
+
         // 恢复友军伤害自动踢人功能
         RestoreFriendlyFireKick();
 
         base.Unload(hotReload);
-        Console.WriteLine("[Myrtle技能插件] 已卸载，作弊模式已恢复，友军伤害保护已移除");
+        Console.WriteLine("[Myrtle技能插件] 已卸载，所有设置已恢复原值");
     }
 
     #endregion

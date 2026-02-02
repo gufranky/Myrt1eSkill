@@ -140,6 +140,9 @@ public class ChickenModeEvent : EntertainmentEvent
         pawn.Render = Color.FromArgb(0, 255, 255, 255);
         Utilities.SetStateChanged(pawn, "CBaseModelEntity", "m_clrRender");
 
+        // 设置武器透明（参考 jRandomSkills Ninja 技能）
+        SetWeaponVisibility(player, false);
+
         // 禁用阴影
         pawn.ShadowStrength = 0f;
         Utilities.SetStateChanged(pawn, "CBaseModelEntity", "m_flShadowStrength");
@@ -194,6 +197,9 @@ public class ChickenModeEvent : EntertainmentEvent
             pawn.Render = _originalRender[player.Slot];
             Utilities.SetStateChanged(pawn, "CBaseModelEntity", "m_clrRender");
         }
+
+        // 恢复武器透明度
+        SetWeaponVisibility(player, true);
 
         // 恢复原始缩放
         if (_originalScale.ContainsKey(player.Slot))
@@ -358,9 +364,42 @@ public class ChickenModeEvent : EntertainmentEvent
             if (player.IsValid && player.PawnIsAlive)
             {
                 SetWeaponAttack(player, true);
+                // 同时设置武器透明
+                SetWeaponVisibility(player, false);
             }
         });
 
         return HookResult.Continue;
+    }
+
+    /// <summary>
+    /// 设置武器可见性
+    /// 参考 jRandomSkills 实现
+    /// </summary>
+    private void SetWeaponVisibility(CCSPlayerController player, bool visible)
+    {
+        if (player == null || !player.IsValid)
+            return;
+
+        var pawn = player.PlayerPawn.Value;
+        if (pawn?.WeaponServices == null)
+            return;
+
+        var weaponColor = visible
+            ? Color.FromArgb(255, 255, 255, 255)
+            : Color.FromArgb(0, 255, 255, 255);
+
+        foreach (var weapon in pawn.WeaponServices.MyWeapons)
+        {
+            if (weapon != null && weapon.IsValid)
+            {
+                var weaponEntity = weapon.Value;
+                if (weaponEntity != null && weaponEntity.IsValid)
+                {
+                    weaponEntity.Render = weaponColor;
+                    Utilities.SetStateChanged(weaponEntity, "CBaseModelEntity", "m_clrRender");
+                }
+            }
+        }
     }
 }

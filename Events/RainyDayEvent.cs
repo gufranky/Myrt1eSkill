@@ -186,7 +186,8 @@ public class RainyDayEvent : EntertainmentEvent
     }
 
     /// <summary>
-    /// 设置玩家可见性
+    /// 设置玩家可见性（包括武器）
+    /// 参考 jRandomSkills 的实现，同时设置玩家和武器的透明度
     /// </summary>
     private void SetPlayerVisibility(CCSPlayerController player, bool visible)
     {
@@ -197,11 +198,44 @@ public class RainyDayEvent : EntertainmentEvent
         if (pawn == null || !pawn.IsValid)
             return;
 
+        // 设置玩家身体透明度
         var color = visible ? Color.FromArgb(255, 255, 255, 255) : Color.FromArgb(0, 255, 255, 255);
         var shadowStrength = visible ? 1.0f : 0.0f;
 
         pawn.Render = color;
         pawn.ShadowStrength = shadowStrength;
         Utilities.SetStateChanged(pawn, "CBaseModelEntity", "m_clrRender");
+
+        // 设置武器透明度（参考 jRandomSkills Ninja 技能）
+        SetWeaponVisibility(player, visible);
+    }
+
+    /// <summary>
+    /// 设置武器可见性
+    /// 参考 jRandomSkills 实现，武器完全隐身
+    /// </summary>
+    private void SetWeaponVisibility(CCSPlayerController player, bool visible)
+    {
+        var pawn = player.PlayerPawn.Value;
+        if (pawn?.WeaponServices == null)
+            return;
+
+        // 武器使用完全相同的透明度设置
+        var weaponColor = visible
+            ? Color.FromArgb(255, 255, 255, 255)
+            : Color.FromArgb(0, 255, 255, 255);
+
+        foreach (var weapon in pawn.WeaponServices.MyWeapons)
+        {
+            if (weapon != null && weapon.IsValid)
+            {
+                var weaponEntity = weapon.Value;
+                if (weaponEntity != null && weaponEntity.IsValid)
+                {
+                    weaponEntity.Render = weaponColor;
+                    Utilities.SetStateChanged(weaponEntity, "CBaseModelEntity", "m_clrRender");
+                }
+            }
+        }
     }
 }

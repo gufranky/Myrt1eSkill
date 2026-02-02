@@ -37,10 +37,11 @@ public class HighJumpSkill : PlayerSkill
         // 保存原始重力
         _originalGravity[player.Slot] = pawn.GravityScale;
 
-        // 降低重力以实现高跳效果
+        // 降低重力以实现高跳效果（50%重力 = 2倍跳跃高度）
         pawn.GravityScale = 0.5f;
+        Utilities.SetStateChanged(pawn, "CBasePlayerPawn", "m_flGravityScale");
 
-        Console.WriteLine($"[超级跳跃] {player.PlayerName} 获得了超级跳跃能力");
+        Console.WriteLine($"[超级跳跃] {player.PlayerName} 获得了超级跳跃能力 (重力: 0.5f)");
         player.PrintToCenter("🦘 超级跳跃！");
     }
 
@@ -57,6 +58,7 @@ public class HighJumpSkill : PlayerSkill
         if (_originalGravity.ContainsKey(player.Slot))
         {
             pawn.GravityScale = _originalGravity[player.Slot];
+            Utilities.SetStateChanged(pawn, "CBasePlayerPawn", "m_flGravityScale");
             _originalGravity.Remove(player.Slot);
         }
 
