@@ -157,6 +157,47 @@ public class PlayerSkillManager
 
     /// <summary>
     /// 为玩家应用技能
+    /// <summary>
+    /// 为指定的玩家应用指定的技能
+    /// </summary>
+    public void ApplySpecificSkillToPlayer(CCSPlayerController player, string skillName)
+    {
+        if (player == null || !player.IsValid)
+        {
+            Console.WriteLine($"[技能管理器] 玩家无效，无法应用技能");
+            return;
+        }
+
+        var skill = GetSkill(skillName);
+        if (skill == null)
+        {
+            Console.WriteLine($"[技能管理器] 未找到技能: {skillName}");
+            return;
+        }
+
+        // 如果玩家已有技能，先移除
+        RemoveSkillFromPlayer(player);
+
+        // 应用技能
+        _playerSkills[player.Slot] = skill;
+        skill.OnApply(player);
+
+        Console.WriteLine($"[技能管理器] {player.PlayerName} 被强制赋予技能: {skill.DisplayName} ({(skill.IsActive ? "主动" : "被动")})");
+
+        // 显示提示
+        player.PrintToChat($"💫 你获得了技能：{skill.DisplayName}");
+        player.PrintToChat($"📝 {skill.Description}");
+
+        // 如果是主动技能，提示如何使用
+        if (skill.IsActive)
+        {
+            player.PrintToChat($"⌨️ 输入 !useskill 或按键激活技能");
+            player.PrintToChat($"⏱️ 冷却时间：{skill.Cooldown}秒");
+        }
+    }
+
+    /// <summary>
+    /// 为指定的玩家应用指定的技能
     /// </summary>
     public void ApplySkillToPlayer(CCSPlayerController player)
     {

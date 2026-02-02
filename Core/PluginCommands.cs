@@ -1,3 +1,4 @@
+using System.Linq;
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Commands;
@@ -676,6 +677,83 @@ public class PluginCommands
         }
 
         _plugin.SkillManager.UsePlayerSkill(player);
+    }
+
+    public void CommandForceSkill(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        if (commandInfo.ArgCount < 1)
+        {
+            string message = "用法: css_forceskill <技能英文名称> [玩家名称]";
+            if (player == null)
+                commandInfo.ReplyToCommand(message);
+            else
+                player.PrintToChat(message);
+            return;
+        }
+
+        string skillName = commandInfo.GetArg(1);
+
+        // 验证技能是否存在
+        var targetSkill = _plugin.SkillManager.GetSkill(skillName);
+        if (targetSkill == null)
+        {
+            string message = "❌ 未找到技能: " + skillName + "\n使用 css_skill_list 查看所有可用技能";
+            if (player == null)
+                commandInfo.ReplyToCommand(message);
+            else
+                player.PrintToChat(message);
+            return;
+        }
+
+        // 如果指定了玩家名称
+        CCSPlayerController? targetPlayer = player;
+        if (commandInfo.ArgCount >= 2)
+        {
+            string playerName = commandInfo.GetArg(2);
+            targetPlayer = Utilities.GetPlayers().FirstOrDefault(p =>
+                p.IsValid && p.PlayerName.Contains(playerName, StringComparison.OrdinalIgnoreCase));
+
+            if (targetPlayer == null)
+            {
+                string message = "❌ 未找到玩家: " + playerName;
+                if (player == null)
+                    commandInfo.ReplyToCommand(message);
+                else
+                    player.PrintToChat(message);
+                return;
+            }
+        }
+        else if (player == null)
+        {
+            commandInfo.ReplyToCommand("从控制台使用时必须指定玩家名称！");
+            commandInfo.ReplyToCommand("用法: css_forceskill <技能英文名称> <玩家名称>");
+            return;
+        }
+
+        // 应用指定技能
+        if (targetPlayer == null)
+        {
+            string message = "❌ 目标玩家无效";
+            if (player == null)
+                commandInfo.ReplyToCommand(message);
+            else
+                player.PrintToChat(message);
+            return;
+        }
+
+        _plugin.SkillManager.ApplySpecificSkillToPlayer(targetPlayer, skillName);
+
+        string successMessage = $"✅ 玩家 {targetPlayer.PlayerName} 被强制赋予技能: {targetSkill.DisplayName} ({targetSkill.Name})";
+        if (player == null)
+        {
+            Console.WriteLine("[玩家技能系统] " + successMessage);
+            commandInfo.ReplyToCommand(successMessage);
+        }
+        else
+        {
+            player.PrintToChat("[技能系统] " + successMessage);
+            Console.WriteLine("[玩家技能系统] " + player.PlayerName + " 为 " + targetPlayer.PlayerName + " 强制赋予技能: " + skillName);
+        }
     }
 
     #endregion

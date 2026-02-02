@@ -599,20 +599,6 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
         var itemName = @event.Item;
 
-        // 处理防闪光技能（拾取武器时禁用攻击）
-        var antiFlashSkill = (Skills.AntiFlashSkill?)SkillManager.GetPlayerSkill(player);
-        if (antiFlashSkill?.Name == "AntiFlash")
-        {
-            Skills.AntiFlashSkill.HandleItemPickup(@event, SkillManager);
-        }
-
-        // 处理闪光跳跃技能（拾取武器时禁用攻击）
-        var flashJumpSkill = (Skills.FlashJumpSkill?)SkillManager.GetPlayerSkill(player);
-        if (flashJumpSkill?.Name == "FlashJump")
-        {
-            Skills.FlashJumpSkill.HandleItemPickup(@event, SkillManager);
-        }
-
         // 处理重甲战士拾取限制
         if (HeavyArmorManager.HandleItemPickup(player, itemName))
         {
@@ -731,6 +717,7 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         AddCommand("css_skill_weight", "查看/设置技能权重", _commands.CommandSkillWeight);
         AddCommand("css_skill_weights", "查看所有技能权重", _commands.CommandSkillWeights);
         AddCommand("css_useskill", "使用/激活你的技能", _commands.CommandUseSkill);
+        AddCommand("css_forceskill", "强制赋予玩家指定技能（调试用）", _commands.CommandForceSkill);
 
         // 炸弹相关命令
         AddCommand("css_allowanywhereplant_enable", "启用任意下包功能", _commands.CommandEnableAllowAnywherePlant);
