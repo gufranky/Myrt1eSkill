@@ -108,6 +108,91 @@ public class PluginCommands
     #endregion
     */
 
+    #region 机器人控制命令
+
+    public void CommandBotControlEnable(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        if (_plugin.BotManager.AllowBotControl)
+        {
+            commandInfo.ReplyToCommand("机器人清理功能已经是启用状态！");
+            return;
+        }
+
+        _plugin.BotManager.EnableBotControl();
+        string message = "🤖 机器人清理已启用！玩家死后不可控制机器人，每回合清除机器人！";
+
+        if (player == null)
+        {
+            Console.WriteLine("[机器人控制] " + message);
+            commandInfo.ReplyToCommand(message);
+        }
+        else
+        {
+            player.PrintToChat("[机器人控制] " + message);
+            Console.WriteLine("[机器人控制] " + player.PlayerName + " 启用了机器人清理");
+        }
+
+        foreach (var p in Utilities.GetPlayers())
+        {
+            if (p.IsValid && p != player)
+            {
+                p.PrintToChat("🤖 机器人清理已启用！");
+            }
+        }
+    }
+
+    public void CommandBotControlDisable(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        if (!_plugin.BotManager.AllowBotControl)
+        {
+            commandInfo.ReplyToCommand("机器人清理功能已经是禁用状态！");
+            return;
+        }
+
+        _plugin.BotManager.DisableBotControl();
+
+        string message = "🤖 机器人清理已禁用！";
+
+        if (player == null)
+        {
+            Console.WriteLine("[机器人控制] " + message);
+            commandInfo.ReplyToCommand(message);
+        }
+        else
+        {
+            player.PrintToChat("[机器人控制] " + message);
+            Console.WriteLine("[机器人控制] " + player.PlayerName + " 禁用了机器人清理");
+        }
+
+        foreach (var p in Utilities.GetPlayers())
+        {
+            if (p.IsValid && p != player)
+            {
+                p.PrintToChat("🤖 机器人清理已禁用！");
+            }
+        }
+    }
+
+    public void CommandBotControlStatus(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        string status = _plugin.BotManager.AllowBotControl ? "✅ 启用" : "❌ 禁用";
+
+        if (player == null)
+        {
+            commandInfo.ReplyToCommand("=== 机器人清理状态 ===");
+            commandInfo.ReplyToCommand("状态: " + status);
+            commandInfo.ReplyToCommand("功能: 禁用玩家控制机器人 + 每回合清除机器人");
+        }
+        else
+        {
+            player.PrintToChat("=== 机器人清理状态 ===");
+            player.PrintToChat("状态: " + status);
+            player.PrintToChat("功能: 禁用玩家控制机器人 + 每回合清除机器人");
+        }
+    }
+
+    #endregion
+
     #region 娱乐事件命令
 
     public void CommandEventEnable(CCSPlayerController? player, CommandInfo commandInfo)
@@ -842,6 +927,89 @@ public class PluginCommands
             Console.WriteLine("[玩家技能系统] " + player.PlayerName + " 为 " + targetPlayer.PlayerName + " 强制赋予技能: " + skillName);
         }
     }
+
+    #region 位置记录器命令
+
+    /// <summary>
+    /// 查看位置历史
+    /// 用法: css_pos_history [数量]
+    /// </summary>
+    public void CommandPosHistory(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        if (player == null || !player.IsValid)
+        {
+            commandInfo.ReplyToCommand("此命令只能由玩家使用！");
+            return;
+        }
+
+        int count = 10; // 默认显示10个
+        if (commandInfo.ArgCount >= 2 && int.TryParse(commandInfo.GetArg(1), out int parsedCount))
+        {
+            count = Math.Clamp(parsedCount, 1, 100);
+        }
+
+        _plugin.PositionRecorder.ShowPlayerHistory(player, count);
+    }
+
+    /// <summary>
+    /// 清除位置历史
+    /// 用法: css_pos_clear
+    /// </summary>
+    public void CommandPosClear(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        if (player == null || !player.IsValid)
+        {
+            commandInfo.ReplyToCommand("此命令只能由玩家使用！");
+            return;
+        }
+
+        _plugin.PositionRecorder.ClearPlayerHistory(player);
+        string message = "🗑️ 你的位置历史已清除";
+        player.PrintToChat(message);
+        Console.WriteLine("[位置记录器] " + player.PlayerName + " 清除了自己的位置历史");
+    }
+
+    /// <summary>
+    /// 显示位置记录器统计信息
+    /// 用法: css_pos_stats
+    /// </summary>
+    public void CommandPosStats(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        _plugin.PositionRecorder.ShowStatistics();
+
+        string message = "📊 位置记录器统计信息已输出到控制台";
+        if (player == null)
+        {
+            commandInfo.ReplyToCommand(message);
+        }
+        else
+        {
+            player.PrintToChat(message);
+            Console.WriteLine("[位置记录器] " + player.PlayerName + " 查看了统计信息");
+        }
+    }
+
+    /// <summary>
+    /// 清除所有位置历史
+    /// 用法: css_pos_clear_all
+    /// </summary>
+    public void CommandPosClearAll(CCSPlayerController? player, CommandInfo commandInfo)
+    {
+        _plugin.PositionRecorder.ClearAllHistory();
+
+        string message = "🗑️ 所有玩家的位置历史已清除";
+        if (player == null)
+        {
+            commandInfo.ReplyToCommand(message);
+        }
+        else
+        {
+            player.PrintToChat(message);
+            Console.WriteLine("[位置记录器] " + player.PlayerName + " 清除了所有位置历史");
+        }
+    }
+
+    #endregion
 
     #endregion
 }

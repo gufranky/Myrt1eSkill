@@ -113,6 +113,7 @@ public class ToxicSmokeSkill : PlayerSkill
 
     /// <summary>
     /// 处理烟雾弹实体生成（修改烟雾颜色为紫色）
+    /// 参考 jRandomSkills 实现
     /// </summary>
     public void OnEntitySpawned(CEntityInstance entity)
     {
@@ -122,26 +123,34 @@ public class ToxicSmokeSkill : PlayerSkill
             if (smoke == null || !smoke.IsValid)
                 return;
 
-            // 修改烟雾颜色为紫色（255, 0, 255）
-            smoke.SmokeColor.X = 255; // R
-            smoke.SmokeColor.Y = 0;   // G
-            smoke.SmokeColor.Z = 255; // B
-
-            Utilities.SetStateChanged(smoke, "CSmokeGrenadeProjectile", "m_SmokeColor");
-
-            // 获取玩家信息用于日志（不阻止颜色修改）
-            if (smoke.Thrower != null && smoke.Thrower.IsValid)
+            // 使用 NextFrame 延迟设置颜色（参考 jRandomSkills）
+            Server.NextFrame(() =>
             {
-                var throwerPawn = smoke.Thrower.Value;
-                if (throwerPawn != null && throwerPawn.Controller != null && throwerPawn.Controller.IsValid)
+                if (smoke == null || !smoke.IsValid)
+                    return;
+
+                // 修改烟雾颜色为紫色（255, 0, 255）
+                smoke.SmokeColor.X = 255; // R
+                smoke.SmokeColor.Y = 0;   // G
+                smoke.SmokeColor.Z = 255; // B
+
+                // 注意：参考 jRandomSkills，不需要调用 SetStateChanged
+                // Utilities.SetStateChanged(smoke, "CSmokeGrenadeProjectile", "m_SmokeColor");
+
+                // 获取玩家信息用于日志
+                if (smoke.Thrower != null && smoke.Thrower.IsValid)
                 {
-                    var player = throwerPawn.Controller.Value.As<CCSPlayerController>();
-                    if (player != null && player.IsValid)
+                    var throwerPawn = smoke.Thrower.Value;
+                    if (throwerPawn != null && throwerPawn.Controller != null && throwerPawn.Controller.IsValid)
                     {
-                        Console.WriteLine($"[有毒烟雾弹] {player.PlayerName} 的烟雾弹已设置为紫色");
+                        var player = throwerPawn.Controller.Value;
+                        if (player != null && player.IsValid)
+                        {
+                            Console.WriteLine($"[有毒烟雾弹] {player.PlayerName} 的烟雾弹已设置为紫色");
+                        }
                     }
                 }
-            }
+            });
         }
         catch (Exception ex)
         {

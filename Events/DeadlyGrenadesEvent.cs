@@ -145,7 +145,7 @@ public class DeadlyGrenadesEvent : EntertainmentEvent
     }
 
     /// <summary>
-    /// 给予所有玩家手雷并移除主副武器
+    /// 给予所有玩家手雷并让他们丢弃主副武器
     /// </summary>
     private void GiveGrenadesToAllPlayers()
     {
@@ -155,7 +155,7 @@ public class DeadlyGrenadesEvent : EntertainmentEvent
             {
                 if (!player.IsValid || !player.PawnIsAlive) continue;
 
-                // 先移除主副武器（参考裁军技能的稳定方式）
+                // 先让玩家丢弃主副武器
                 RemovePrimaryAndSecondaryWeapons(player);
 
                 // 给予3颗手雷
@@ -164,7 +164,7 @@ public class DeadlyGrenadesEvent : EntertainmentEvent
                     player.GiveNamedItem("weapon_hegrenade");
                 }
 
-                Console.WriteLine($"[更致命的手雷] {player.PlayerName} 已移除主副武器并给予3颗高爆手雷");
+                Console.WriteLine($"[更致命的手雷] {player.PlayerName} 已丢弃主副武器并给予3颗高爆手雷");
             }
             catch (Exception ex)
             {
@@ -174,7 +174,7 @@ public class DeadlyGrenadesEvent : EntertainmentEvent
     }
 
     /// <summary>
-    /// 移除玩家的主武器和副武器（参考裁军技能的稳定方式）
+    /// 移除玩家的主武器和副武器（直接删除）
     /// </summary>
     private void RemovePrimaryAndSecondaryWeapons(CCSPlayerController player)
     {

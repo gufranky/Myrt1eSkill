@@ -68,17 +68,18 @@ public class DisarmSkill : PlayerSkill
 
         Console.WriteLine($"[裁军] {attacker.PlayerName} 的攻击触发了裁军效果，目标：{victim.PlayerName}");
 
-        // 移除敌人所有武器
-        RemoveAllWeapons(victim);
+        // 让敌人掉落当前武器
+        DropCurrentWeapon(victim);
 
         attacker.PrintToChat($"✂ 你让 {victim.PlayerName} 掉落了武器！");
         victim.PrintToChat($"✂ 你被 {attacker.PlayerName} 裁掉了武器！");
     }
 
     /// <summary>
-    /// 移除玩家的所有武器
+    /// 让玩家掉落当前武器（如果当前是刀或C4则不掉落）
+    /// 参考 jRandomSkills Disarmament 实现
     /// </summary>
-    private static void RemoveAllWeapons(CCSPlayerController player)
+    private static void DropCurrentWeapon(CCSPlayerController player)
     {
         if (player == null || !player.IsValid)
             return;
@@ -91,19 +92,26 @@ public class DisarmSkill : PlayerSkill
         if (weaponServices == null)
             return;
 
-        // 移除所有武器
-        foreach (var weaponHandle in weaponServices.MyWeapons)
+        // 获取当前激活的武器
+        var activeWeapon = weaponServices.ActiveWeapon;
+        if (!activeWeapon.IsValid)
+            return;
+
+        var weapon = activeWeapon.Get();
+        if (weapon == null || !weapon.IsValid)
+            return;
+
+        var weaponName = weapon.DesignerName;
+
+        // 如果当前是刀或C4，不掉落
+        if (weaponName.Contains("weapon_knife") || weaponName.Contains("weapon_c4"))
         {
-            if (weaponHandle.IsValid)
-            {
-                var weapon = weaponHandle.Get();
-                if (weapon != null && weapon.IsValid)
-                {
-                    weapon.Remove();
-                }
-            }
+            Console.WriteLine($"[裁军] {player.PlayerName} 当前持有 {weaponName}，不掉落");
+            return;
         }
 
-        Console.WriteLine($"[裁军] 移除了 {player.PlayerName} 的所有武器");
+        // 掉落当前武器
+        player.DropActiveWeapon();
+        Console.WriteLine($"[裁军] {player.PlayerName} 掉落了 {weaponName}");
     }
 }

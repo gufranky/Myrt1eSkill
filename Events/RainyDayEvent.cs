@@ -19,6 +19,7 @@ public class RainyDayEvent : EntertainmentEvent
     private readonly Random _random = new();
 
     private readonly Dictionary<ulong, bool> _playerVisibleState = new();
+    private readonly Dictionary<ulong, HashSet<uint>> _invisibleEntities = new(); // 记录隐藏实体索引
     private System.Threading.Timer? _revealTimer;
     private bool _isActive = false;
 
@@ -51,6 +52,7 @@ public class RainyDayEvent : EntertainmentEvent
         {
             Plugin.RegisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn, HookMode.Post);
             Plugin.RegisterEventHandler<EventPlayerDeath>(OnPlayerDeath, HookMode.Post);
+            Plugin.RegisterListener<Listeners.CheckTransmit>(OnCheckTransmit);
         }
 
         // 启动随机显形定时器
@@ -72,6 +74,7 @@ public class RainyDayEvent : EntertainmentEvent
         {
             Plugin.DeregisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn, HookMode.Post);
             Plugin.DeregisterEventHandler<EventPlayerDeath>(OnPlayerDeath, HookMode.Post);
+            Plugin.RemoveListener<Listeners.CheckTransmit>(OnCheckTransmit);
         }
 
         // 恢复所有玩家可见
@@ -83,6 +86,7 @@ public class RainyDayEvent : EntertainmentEvent
         }
 
         _playerVisibleState.Clear();
+        _invisibleEntities.Clear();
     }
 
     /// <summary>
@@ -181,13 +185,50 @@ public class RainyDayEvent : EntertainmentEvent
             return HookResult.Continue;
 
         _playerVisibleState.Remove(player.SteamID);
+        _invisibleEntities.Remove(player.SteamID);
 
         return HookResult.Continue;
     }
 
     /// <summary>
-    /// 设置玩家可见性（包括武器）
-    /// 参考 jRandomSkills 的实现，同时设置玩家和武器的透明度
+    /// 检查传输时控制玩家可见性
+    /// 参考 jRandomSkills Ghost 的 CheckTransmit 实现
+    /// </summary>
+    private void OnCheckTransmit(CCheckTransmitInfoList infoList)
+    {
+        if (_invisibleEntities.Count == 0)
+            return;
+
+        foreach (var (info, observer) in infoList)
+        {
+            if (observer == null || !observer.IsValid)
+                continue;
+
+            // 遍历所有处于隐身状态的玩家
+            foreach (var kvp in _invisibleEntities)
+            {
+                ulong playerSteamID = kvp.Key;
+                var hiddenEntities = kvp.Value;
+
+                // 检查玩家是否处于隐身状态
+                bool isInvisible = _playerVisibleState.GetValueOrDefault(playerSteamID, false);
+
+                // 如果玩家可见或者是观察者自己，不需要隐藏
+                if (!isInvisible || observer.SteamID == playerSteamID)
+                    continue;
+
+                // 移除所有隐藏实体的传输
+                foreach (var entityIndex in hiddenEntities)
+                {
+                    info.TransmitEntities.Remove(entityIndex);
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// 设置玩家可见性（包括武器和所有附着物）
+    /// 参考 jRandomSkills Ghost 的实现，使用 CheckTransmit 机制
     /// </summary>
     private void SetPlayerVisibility(CCSPlayerController player, bool visible)
     {
@@ -198,7 +239,7 @@ public class RainyDayEvent : EntertainmentEvent
         if (pawn == null || !pawn.IsValid)
             return;
 
-        // 设置玩家身体透明度
+        // 设置玩家身体透明度和阴影
         var color = visible ? Color.FromArgb(255, 255, 255, 255) : Color.FromArgb(0, 255, 255, 255);
         var shadowStrength = visible ? 1.0f : 0.0f;
 
@@ -206,36 +247,46 @@ public class RainyDayEvent : EntertainmentEvent
         pawn.ShadowStrength = shadowStrength;
         Utilities.SetStateChanged(pawn, "CBaseModelEntity", "m_clrRender");
 
-        // 设置武器透明度（参考 jRandomSkills Ninja 技能）
-        SetWeaponVisibility(player, visible);
+        // 记录或移除隐藏实体（武器、手套等）
+        RecordInvisibleEntities(player, !visible);
     }
 
     /// <summary>
-    /// 设置武器可见性
-    /// 参考 jRandomSkills 实现，武器完全隐身
+    /// 记录或清除不可见实体索引（武器、手套等附着物）
+    /// 参考 jRandomSkills Ghost 的 SetWeaponVisibility 实现
     /// </summary>
-    private void SetWeaponVisibility(CCSPlayerController player, bool visible)
+    private void RecordInvisibleEntities(CCSPlayerController player, bool shouldHide)
     {
         var pawn = player.PlayerPawn.Value;
-        if (pawn?.WeaponServices == null)
+        if (pawn == null || !pawn.IsValid)
             return;
 
-        // 武器使用完全相同的透明度设置
-        var weaponColor = visible
-            ? Color.FromArgb(255, 255, 255, 255)
-            : Color.FromArgb(0, 255, 255, 255);
-
-        foreach (var weapon in pawn.WeaponServices.MyWeapons)
+        if (shouldHide)
         {
-            if (weapon != null && weapon.IsValid)
+            // 隐藏：记录所有需要隐藏的实体索引
+            var entities = new HashSet<uint>();
+
+            // 记录玩家 Pawn 索引
+            entities.Add(pawn.Index);
+
+            // 记录所有武器索引
+            if (pawn.WeaponServices != null)
             {
-                var weaponEntity = weapon.Value;
-                if (weaponEntity != null && weaponEntity.IsValid)
+                foreach (var weapon in pawn.WeaponServices.MyWeapons)
                 {
-                    weaponEntity.Render = weaponColor;
-                    Utilities.SetStateChanged(weaponEntity, "CBaseModelEntity", "m_clrRender");
+                    if (weapon != null && weapon.IsValid)
+                    {
+                        entities.Add(weapon.Index);
+                    }
                 }
             }
+
+            _invisibleEntities[player.SteamID] = entities;
+        }
+        else
+        {
+            // 显示：清除记录
+            _invisibleEntities.Remove(player.SteamID);
         }
     }
 }

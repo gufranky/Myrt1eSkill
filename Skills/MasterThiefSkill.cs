@@ -85,27 +85,12 @@ public class MasterThiefSkill : PlayerSkill
     /// <summary>
     /// 传送玩家到指定位置
     /// </summary>
+    /// <summary>
+    /// 传送玩家到指定位置
+    /// </summary>
     private static void TeleportPlayer(CCSPlayerController player, CCSPlayerPawn pawn, Vector position)
     {
         // 传送玩家
         pawn.Teleport(position, pawn.AbsRotation, new Vector(0, 0, 0));
-
-        // 临时设置为穿透模式，防止卡在墙里
-        pawn.Collision.CollisionGroup = 1; // COLLISION_GROUP_DISSOLVING
-        pawn.Collision.CollisionAttribute.CollisionGroup = 1;
-        Utilities.SetStateChanged(pawn, "CCollisionProperty", "m_CollisionGroup");
-        Utilities.SetStateChanged(pawn, "VPhysicsCollisionAttribute_t", "m_nCollisionGroup");
-
-        // 下一帧恢复正常碰撞
-        Server.NextFrame(() =>
-        {
-            if (pawn == null || !pawn.IsValid || pawn.LifeState != 2) // LIFE_ALIVE
-                return;
-
-            pawn.Collision.CollisionGroup = 2; // COLLISION_GROUP_PLAYER
-            pawn.Collision.CollisionAttribute.CollisionGroup = 2;
-            Utilities.SetStateChanged(pawn, "CCollisionProperty", "m_CollisionGroup");
-            Utilities.SetStateChanged(pawn, "VPhysicsCollisionAttribute_t", "m_nCollisionGroup");
-        });
     }
 }

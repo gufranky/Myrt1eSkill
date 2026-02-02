@@ -100,12 +100,23 @@ public class AntiFlashSkill : PlayerSkill
             // 如果是自己投掷的，只补充闪光弹，不增强
             if (player == attacker)
             {
-                // 自动补充闪光弹
+                // 自动补充闪光弹（检查数量上限）
                 Server.NextFrame(() =>
                 {
-                    var flashSkill = (AntiFlashSkill)attackerSkill;
-                    flashSkill.GiveFlashbangs(attacker, 1);
-                    attacker.PrintToChat("✨ 闪光弹已自动补充！");
+                    if (attacker.IsValid && attacker.PawnIsAlive && attackerSkill is AntiFlashSkill flashSkill)
+                    {
+                        int currentCount = flashSkill.GetFlashbangCount(attacker);
+
+                        if (currentCount < FLASHBANG_COUNT)
+                        {
+                            flashSkill.GiveFlashbangs(attacker, 1);
+                            attacker.PrintToChat($"✨ 闪光弹已补充！({currentCount + 1}/{FLASHBANG_COUNT})");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[防闪光] {attacker.PlayerName} 闪光弹已满 ({currentCount}/{FLASHBANG_COUNT})，不补充");
+                        }
+                    }
                 });
             }
             else
@@ -114,14 +125,54 @@ public class AntiFlashSkill : PlayerSkill
                 playerPawn.FlashDuration = FLASH_DURATION;
                 Console.WriteLine($"[防闪光] {attacker.PlayerName} 的强力闪光弹致盲了 {player.PlayerName}，持续时间 {FLASH_DURATION} 秒");
 
-                // 自动补充闪光弹
+                // 自动补充闪光弹（检查数量上限）
                 Server.NextFrame(() =>
                 {
-                    var flashSkill = (AntiFlashSkill)attackerSkill;
-                    flashSkill.GiveFlashbangs(attacker, 1);
-                    attacker.PrintToChat("✨ 闪光弹已自动补充！");
+                    if (attacker.IsValid && attacker.PawnIsAlive && attackerSkill is AntiFlashSkill flashSkill)
+                    {
+                        int currentCount = flashSkill.GetFlashbangCount(attacker);
+
+                        if (currentCount < FLASHBANG_COUNT)
+                        {
+                            flashSkill.GiveFlashbangs(attacker, 1);
+                            attacker.PrintToChat($"✨ 闪光弹已补充！({currentCount + 1}/{FLASHBANG_COUNT})");
+                        }
+                        else
+                        {
+                            Console.WriteLine($"[防闪光] {attacker.PlayerName} 闪光弹已满 ({currentCount}/{FLASHBANG_COUNT})，不补充");
+                        }
+                    }
                 });
             }
         }
+    }
+
+    /// <summary>
+    /// 获取玩家当前闪光弹数量
+    /// </summary>
+    private int GetFlashbangCount(CCSPlayerController player)
+    {
+        if (player == null || !player.IsValid)
+            return 0;
+
+        var pawn = player.PlayerPawn.Value;
+        if (pawn == null || !pawn.IsValid || pawn.WeaponServices == null)
+            return 0;
+
+        int count = 0;
+        foreach (var weapon in pawn.WeaponServices.MyWeapons)
+        {
+            if (weapon != null && weapon.IsValid)
+            {
+                var weaponEntity = weapon.Value;
+                if (weaponEntity != null && weaponEntity.IsValid &&
+                    weaponEntity.DesignerName == "weapon_flashbang")
+                {
+                    count++;
+                }
+            }
+        }
+
+        return count;
     }
 }

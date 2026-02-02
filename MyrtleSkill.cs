@@ -28,6 +28,8 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
     public EntertainmentEventManager EventManager { get; private set; } = null!;
     public PlayerSkillManager SkillManager { get; private set; } = null!;
     public WelfareManager WelfareManager { get; private set; } = null!;
+    public BotManager BotManager { get; private set; } = null!;
+    public PositionRecorder PositionRecorder { get; private set; } = null!;
     private PluginCommands _commands = null!;
 
     // 事件状态
@@ -83,7 +85,15 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         EventManager = new EntertainmentEventManager(this);
         SkillManager = new PlayerSkillManager(this);
         WelfareManager = new WelfareManager(this);
+        BotManager = new BotManager(this);
+        PositionRecorder = new PositionRecorder(this);
         _commands = new PluginCommands(this);
+
+        // 默认启用机器人管理功能
+        BotManager.EnableBotControl();
+
+        // 启动位置记录器
+        PositionRecorder.Start();
 
         // 设置技能静态引用（用于技能内部访问插件）
         Skills.TeamWhipSkill.MyrtleSkillPlugin = this;
@@ -131,7 +141,10 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 0. 开局福利系统（最优先执行）
         WelfareManager.OnRoundStart();
 
-        // 0.1 清理第二次机会使用记录
+        // 0.1 清除所有机器人
+        BotManager.OnRoundStart();
+
+        // 0.2 清理第二次机会使用记录
         Skills.SecondChanceSkill.OnRoundStart();
 
         // 0.1 清理格拉兹烟雾弹追踪
@@ -310,6 +323,13 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             }
         }
 
+        // 处理鞭策队友技能（在Pre阶段处理，取消伤害并治疗）
+        float? teamWhipMultiplier = Skills.TeamWhipSkill.HandleDamagePre(player, info);
+        if (teamWhipMultiplier.HasValue)
+        {
+            totalMultiplier *= teamWhipMultiplier.Value;
+        }
+
         // 处理苦命鸳鸯配对伤害加成
         if (CurrentEvent is UnluckyCouplesEvent couplesEvent)
         {
@@ -393,9 +413,6 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         {
             swapEvent.HandlePlayerHurt(@event);
         }
-
-        // 处理 TeamWhip 技能（鞭策队友）
-        Skills.TeamWhipSkill.HandlePlayerHurt(@event);
 
         // 处理第二次机会技能
         Skills.SecondChanceSkill.HandlePlayerHurt(@event);
@@ -709,6 +726,11 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         AddCommand("css_welfare_disable", "禁用开局福利系统", _commands.CommandWelfareDisable);
         AddCommand("css_welfare_status", "查看开局福利系统状态", _commands.CommandWelfareStatus);
 
+        // 机器人控制命令
+        AddCommand("css_botcontrol_enable", "启用玩家控制机器人", _commands.CommandBotControlEnable);
+        AddCommand("css_botcontrol_disable", "禁用玩家控制机器人", _commands.CommandBotControlDisable);
+        AddCommand("css_botcontrol_status", "查看机器人控制状态", _commands.CommandBotControlStatus);
+
         // 娱乐事件命令
         AddCommand("css_event_enable", "启用娱乐事件系统", _commands.CommandEventEnable);
         AddCommand("css_event_disable", "禁用娱乐事件系统", _commands.CommandEventDisable);
@@ -734,6 +756,12 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         AddCommand("css_allowanywhereplant_status", "查看任意下包功能状态", _commands.CommandAllowAnywherePlantStatus);
         AddCommand("css_bombtimer_set", "设置炸弹爆炸时间（秒）", _commands.CommandSetBombTimer);
         AddCommand("css_bombtimer_status", "查看炸弹爆炸时间", _commands.CommandBombTimerStatus);
+
+        // 位置记录器命令
+        AddCommand("css_pos_history", "查看你的位置历史", _commands.CommandPosHistory);
+        AddCommand("css_pos_clear", "清除你的位置历史", _commands.CommandPosClear);
+        AddCommand("css_pos_stats", "查看位置记录器统计信息", _commands.CommandPosStats);
+        AddCommand("css_pos_clear_all", "清除所有玩家的位置历史", _commands.CommandPosClearAll);
     }
 
     #region 友军伤害保护
@@ -959,6 +987,9 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
         // 恢复友军伤害自动踢人功能
         RestoreFriendlyFireKick();
+
+        // 清理机器人管理器
+        BotManager.Dispose();
 
         base.Unload(hotReload);
         Console.WriteLine("[Myrtle技能插件] 已卸载，所有设置已恢复原值");

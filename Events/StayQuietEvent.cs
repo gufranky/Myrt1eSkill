@@ -17,6 +17,7 @@ public class StayQuietEvent : EntertainmentEvent
 
     private const float VisibilityCooldown = 3.0f; // 现身后3秒才能再次隐身
     private readonly Dictionary<ulong, PlayerVisibilityState> _playerStates = new();
+    private readonly Dictionary<ulong, HashSet<uint>> _invisibleEntities = new(); // 记录每个玩家的隐藏实体索引
 
     // CS2声音事件哈希列表（来自jRandomSkills）
     private readonly uint[] _footstepSoundEvents = new uint[]
@@ -101,6 +102,7 @@ public class StayQuietEvent : EntertainmentEvent
         }
 
         _playerStates.Clear();
+        _invisibleEntities.Clear();
     }
 
     /// <summary>
@@ -208,6 +210,7 @@ public class StayQuietEvent : EntertainmentEvent
 
     /// <summary>
     /// 检查传输时控制玩家可见性
+    /// 参考 jRandomSkills Ghost 的 CheckTransmit 实现
     /// </summary>
     private void OnCheckTransmit(CCheckTransmitInfoList infoList)
     {
@@ -232,42 +235,31 @@ public class StayQuietEvent : EntertainmentEvent
             }
         }
 
+        // 控制 PVS 传输，移除不可见实体
         foreach (var (info, observer) in infoList)
         {
             if (observer == null || !observer.IsValid)
                 continue;
 
-            // 检查每个玩家的可见性
-            foreach (var kvp in _playerStates)
+            // 遍历所有处于隐身状态的玩家
+            foreach (var kvp in _invisibleEntities)
             {
-                ulong steamID = kvp.Key;
-                var state = kvp.Value;
+                ulong playerSteamID = kvp.Key;
+                var hiddenEntities = kvp.Value;
 
-                // 如果玩家处于隐身状态且不是观察者自己
-                if (!state.IsVisible && observer.SteamID != steamID)
+                // 不移除观察者自己的实体
+                if (observer.SteamID == playerSteamID)
+                    continue;
+
+                // 检查玩家是否处于隐身状态
+                var playerState = _playerStates.GetValueOrDefault(playerSteamID);
+                if (playerState == null || playerState.IsVisible)
+                    continue;
+
+                // 移除所有隐藏实体的传输
+                foreach (var entityIndex in hiddenEntities)
                 {
-                    var player = Utilities.GetPlayers().FirstOrDefault(p => p.SteamID == steamID);
-                    if (player == null || !player.IsValid)
-                        continue;
-
-                    var pawn = player.PlayerPawn.Value;
-                    if (pawn == null || !pawn.IsValid)
-                        continue;
-
-                    // 移除玩家实体，使其不可见
-                    info.TransmitEntities.Remove(pawn.Index);
-
-                    // 也移除武器
-                    if (pawn.WeaponServices != null)
-                    {
-                        foreach (var weapon in pawn.WeaponServices.MyWeapons)
-                        {
-                            if (weapon != null && weapon.IsValid)
-                            {
-                                info.TransmitEntities.Remove(weapon.Index);
-                            }
-                        }
-                    }
+                    info.TransmitEntities.Remove(entityIndex);
                 }
             }
         }
@@ -309,8 +301,8 @@ public class StayQuietEvent : EntertainmentEvent
     }
 
     /// <summary>
-    /// 设置玩家可见性（包括武器）
-    /// 参考 jRandomSkills 的实现，同时设置玩家和武器的透明度
+    /// 设置玩家可见性（包括武器和所有附着物）
+    /// 参考 jRandomSkills Ghost 的实现，使用 CheckTransmit 机制
     /// </summary>
     private void SetPlayerVisibility(CCSPlayerController player, bool visible)
     {
@@ -321,7 +313,7 @@ public class StayQuietEvent : EntertainmentEvent
         if (pawn == null || !pawn.IsValid)
             return;
 
-        // 设置玩家身体透明度
+        // 设置玩家身体透明度和阴影
         var color = visible ? Color.FromArgb(255, 255, 255, 255) : Color.FromArgb(0, 255, 255, 255);
         var shadowStrength = visible ? 1.0f : 0.0f;
 
@@ -329,36 +321,46 @@ public class StayQuietEvent : EntertainmentEvent
         pawn.ShadowStrength = shadowStrength;
         Utilities.SetStateChanged(pawn, "CBaseModelEntity", "m_clrRender");
 
-        // 设置武器透明度（参考 jRandomSkills Ninja 技能）
-        SetWeaponVisibility(player, visible);
+        // 记录或移除隐藏实体（武器、手套等）
+        RecordInvisibleEntities(player, !visible);
     }
 
     /// <summary>
-    /// 设置武器可见性
-    /// 参考 jRandomSkills 实现，武器隐身速度是玩家的2倍
+    /// 记录或清除不可见实体索引（武器、手套等附着物）
+    /// 参考 jRandomSkills Ghost 的 SetWeaponVisibility 实现
     /// </summary>
-    private void SetWeaponVisibility(CCSPlayerController player, bool visible)
+    private void RecordInvisibleEntities(CCSPlayerController player, bool shouldHide)
     {
         var pawn = player.PlayerPawn.Value;
-        if (pawn?.WeaponServices == null)
+        if (pawn == null || !pawn.IsValid)
             return;
 
-        // 武器使用更激进的透明度设置（完全隐身时 alpha=0）
-        var weaponColor = visible
-            ? Color.FromArgb(255, 255, 255, 255)
-            : Color.FromArgb(0, 255, 255, 255);
-
-        foreach (var weapon in pawn.WeaponServices.MyWeapons)
+        if (shouldHide)
         {
-            if (weapon != null && weapon.IsValid)
+            // 隐藏：记录所有需要隐藏的实体索引
+            var entities = new HashSet<uint>();
+
+            // 记录玩家 Pawn 索引
+            entities.Add(pawn.Index);
+
+            // 记录所有武器索引
+            if (pawn.WeaponServices != null)
             {
-                var weaponEntity = weapon.Value;
-                if (weaponEntity != null && weaponEntity.IsValid)
+                foreach (var weapon in pawn.WeaponServices.MyWeapons)
                 {
-                    weaponEntity.Render = weaponColor;
-                    Utilities.SetStateChanged(weaponEntity, "CBaseModelEntity", "m_clrRender");
+                    if (weapon != null && weapon.IsValid)
+                    {
+                        entities.Add(weapon.Index);
+                    }
                 }
             }
+
+            _invisibleEntities[player.SteamID] = entities;
+        }
+        else
+        {
+            // 显示：清除记录
+            _invisibleEntities.Remove(player.SteamID);
         }
     }
 

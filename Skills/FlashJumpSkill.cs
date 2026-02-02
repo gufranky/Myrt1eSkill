@@ -111,14 +111,53 @@ public class FlashJumpSkill : PlayerSkill
         player.PrintToCenter($"✈️ 你被闪到了！向上飞起！");
         attacker.PrintToChat($"✈️ {player.PlayerName} 被闪到了，飞向天空！");
 
-        // 自动补充闪光弹给投掷者
+        // 自动补充闪光弹给投掷者（但不超过最大数量）
         Server.NextFrame(() =>
         {
-            if (attacker.IsValid && attackerSkill is FlashJumpSkill flashJumpSkill)
+            if (attacker.IsValid && attacker.PawnIsAlive && attackerSkill is FlashJumpSkill flashJumpSkill)
             {
-                flashJumpSkill.GiveFlashbangs(attacker, 1);
-                attacker.PrintToChat("✈️ 闪光弹已自动补充！");
+                // 检查当前闪光弹数量
+                int currentFlashCount = flashJumpSkill.GetFlashbangCount(attacker);
+
+                if (currentFlashCount < FLASHBANG_COUNT)
+                {
+                    flashJumpSkill.GiveFlashbangs(attacker, 1);
+                    attacker.PrintToChat($"✈️ 闪光弹已补充！({currentFlashCount + 1}/{FLASHBANG_COUNT})");
+                }
+                else
+                {
+                    Console.WriteLine($"[闪光跳跃] {attacker.PlayerName} 闪光弹已满 ({currentFlashCount}/{FLASHBANG_COUNT})，不补充");
+                }
             }
         });
+    }
+
+    /// <summary>
+    /// 获取玩家当前闪光弹数量
+    /// </summary>
+    private int GetFlashbangCount(CCSPlayerController player)
+    {
+        if (player == null || !player.IsValid)
+            return 0;
+
+        var pawn = player.PlayerPawn.Value;
+        if (pawn == null || !pawn.IsValid || pawn.WeaponServices == null)
+            return 0;
+
+        int count = 0;
+        foreach (var weapon in pawn.WeaponServices.MyWeapons)
+        {
+            if (weapon != null && weapon.IsValid)
+            {
+                var weaponEntity = weapon.Value;
+                if (weaponEntity != null && weaponEntity.IsValid &&
+                    weaponEntity.DesignerName == "weapon_flashbang")
+                {
+                    count++;
+                }
+            }
+        }
+
+        return count;
     }
 }
