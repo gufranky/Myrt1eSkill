@@ -3,18 +3,18 @@ using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Cvars;
 using CounterStrikeSharp.API.Modules.Entities;
 using CounterStrikeSharp.API.Modules.Timers;
-using CounterStrikeSharp.API.Modules.Utils;
 
 namespace MyrtleSkill;
 
 /// <summary>
-/// 更致命的手雷事件 - 无限高爆手雷、移除主副武器、禁用商店、手雷伤害和范围增加
+/// 更致命的手雷事件 - 无限高爆手雷、手雷伤害和范围增加
+/// 采用不删除武器的安全方案，避免 PVS 崩溃
 /// </summary>
 public class DeadlyGrenadesEvent : EntertainmentEvent
 {
     public override string Name => "DeadlyGrenades";
     public override string DisplayName => "💣 更致命的手雷";
-    public override string Description => "无限高爆手雷！移除主副武器！禁用商店！手雷伤害和范围增加！";
+    public override string Description => "无限高爆手雷！手雷伤害和范围大幅增加！";
 
     // 标志：事件是否激活
     private bool _isActive = false;
@@ -27,8 +27,6 @@ public class DeadlyGrenadesEvent : EntertainmentEvent
     private float _originalHeDamage = 1.0f;
     private float _originalHeRadius = 1.0f;
     private int _originalInfiniteAmmo = 0;
-
-    private readonly Dictionary<int, List<string>> _cachedWeapons = new();
 
     public override void OnApply()
     {
@@ -63,7 +61,7 @@ public class DeadlyGrenadesEvent : EntertainmentEvent
             Console.WriteLine($"[更致命的手雷] sv_hegrenade_radius_multiplier 已设置为 5.0 (原值: {_originalHeRadius})");
         }
 
-        // 3. 启用无限弹药
+        // 3. 启用无限弹药（包括手雷）
         _infiniteAmmoConVar = ConVar.Find("sv_infinite_ammo");
         if (_infiniteAmmoConVar != null)
         {
@@ -72,15 +70,14 @@ public class DeadlyGrenadesEvent : EntertainmentEvent
             Console.WriteLine($"[更致命的手雷] sv_infinite_ammo 已设置为 1 (原值: {_originalInfiniteAmmo})");
         }
 
-        // 4. 移除所有玩家的主副武器并给予手雷
-        RemoveWeaponsAndGiveGrenades();
+        // 4. 给予所有玩家手雷并移除主副武器
+        GiveGrenadesToAllPlayers();
 
         // 5. 注册事件监听
         if (Plugin != null)
         {
             Plugin.RegisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn, HookMode.Post);
-            Plugin.RegisterEventHandler<EventItemPickup>(OnItemPickup, HookMode.Post);
-            Plugin.RegisterEventHandler<EventItemEquip>(OnItemEquip, HookMode.Post);
+            Plugin.RegisterEventHandler<EventWeaponFire>(OnWeaponFire, HookMode.Post);
         }
 
         // 显示提示
@@ -90,6 +87,8 @@ public class DeadlyGrenadesEvent : EntertainmentEvent
             {
                 player.PrintToCenter("💣 更致命的手雷！\n无限高爆手雷 + 3倍伤害 + 5倍范围！");
                 player.PrintToChat("💣 更致命的手雷模式已启用！");
+                player.PrintToChat("🚫 商店已禁用！主副武器已移除！");
+                player.PrintToChat("💡 投掷手雷会自动补充！");
             }
         }
     }
@@ -98,15 +97,14 @@ public class DeadlyGrenadesEvent : EntertainmentEvent
     {
         Console.WriteLine("[更致命的手雷] 事件已恢复");
 
-        // 首先取消激活标志，阻止监听器继续工作
+        // 首先取消激活标志
         _isActive = false;
 
         // 移除事件监听
         if (Plugin != null)
         {
             Plugin.DeregisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn, HookMode.Post);
-            Plugin.DeregisterEventHandler<EventItemPickup>(OnItemPickup, HookMode.Post);
-            Plugin.DeregisterEventHandler<EventItemEquip>(OnItemEquip, HookMode.Post);
+            Plugin.DeregisterEventHandler<EventWeaponFire>(OnWeaponFire, HookMode.Post);
         }
 
         // 恢复商店
@@ -136,9 +134,6 @@ public class DeadlyGrenadesEvent : EntertainmentEvent
             Console.WriteLine($"[更致命的手雷] sv_infinite_ammo 已恢复为 {_originalInfiniteAmmo}");
         }
 
-        // 返还武器
-        ReturnAllWeapons();
-
         // 显示提示
         foreach (var player in Utilities.GetPlayers())
         {
@@ -147,71 +142,41 @@ public class DeadlyGrenadesEvent : EntertainmentEvent
                 player.PrintToChat("💣 更致命的手雷模式已禁用");
             }
         }
-
-        _cachedWeapons.Clear();
     }
 
     /// <summary>
-    /// 移除主副武器并给予手雷
+    /// 给予所有玩家手雷并移除主副武器
     /// </summary>
-    private void RemoveWeaponsAndGiveGrenades()
+    private void GiveGrenadesToAllPlayers()
     {
         foreach (var player in Utilities.GetPlayers())
         {
-            if (!player.IsValid || !player.PawnIsAlive) continue;
-
-            var pawn = player.PlayerPawn.Value;
-            if (pawn == null || !pawn.IsValid) continue;
-
-            var weaponServices = pawn.WeaponServices;
-            if (weaponServices == null) continue;
-
-            // 保存当前武器
-            List<string> cachedWeapons = new List<string>();
-            List<CHandle<CBasePlayerWeapon>>? weaponHandles = weaponServices.MyWeapons.ToList();
-
-            foreach (var weaponHandle in weaponHandles)
+            try
             {
-                if (weaponHandle.IsValid && weaponHandle.Value != null)
+                if (!player.IsValid || !player.PawnIsAlive) continue;
+
+                // 先移除主副武器（参考裁军技能的稳定方式）
+                RemovePrimaryAndSecondaryWeapons(player);
+
+                // 给予3颗手雷
+                for (int i = 0; i < 3; i++)
                 {
-                    var weapon = weaponHandle.Get();
-                    if (weapon != null && weapon.IsValid)
-                    {
-                        var weaponBase = weapon.As<CCSWeaponBase>();
-                        if (weaponBase != null && weaponBase.VData != null)
-                        {
-                            var weaponType = weaponBase.VData.WeaponType;
-                            // 只保存主武器和副武器
-                            if (weaponType == CSWeaponType.WEAPONTYPE_PISTOL ||
-                                weaponType == CSWeaponType.WEAPONTYPE_SUBMACHINEGUN ||
-                                weaponType == CSWeaponType.WEAPONTYPE_RIFLE ||
-                                weaponType == CSWeaponType.WEAPONTYPE_SHOTGUN ||
-                                weaponType == CSWeaponType.WEAPONTYPE_SNIPER_RIFLE ||
-                                weaponType == CSWeaponType.WEAPONTYPE_MACHINEGUN)
-                            {
-                                cachedWeapons.Add(weaponBase.DesignerName);
-                            }
-                        }
-                    }
+                    player.GiveNamedItem("weapon_hegrenade");
                 }
+
+                Console.WriteLine($"[更致命的手雷] {player.PlayerName} 已移除主副武器并给予3颗高爆手雷");
             }
-
-            _cachedWeapons[player.Slot] = cachedWeapons;
-
-            // 移除所有武器
-            RemoveAllWeapons(player);
-
-            // 只给予高爆手雷
-            player.GiveNamedItem("weapon_hegrenade");
-
-            Console.WriteLine($"[更致命的手雷] {player.PlayerName} 的主副武器已移除，给予高爆手雷");
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[更致命的手雷] 处理玩家时出错: {ex.Message}");
+            }
         }
     }
 
     /// <summary>
-    /// 移除玩家所有武器
+    /// 移除玩家的主武器和副武器（参考裁军技能的稳定方式）
     /// </summary>
-    private void RemoveAllWeapons(CCSPlayerController player)
+    private void RemovePrimaryAndSecondaryWeapons(CCSPlayerController player)
     {
         if (player == null || !player.IsValid) return;
 
@@ -221,139 +186,7 @@ public class DeadlyGrenadesEvent : EntertainmentEvent
         var weaponServices = pawn.WeaponServices;
         if (weaponServices == null) return;
 
-        // 移除所有武器
-        var weaponsToRemove = new List<CBasePlayerWeapon>();
-        foreach (var weaponHandle in weaponServices.MyWeapons)
-        {
-            if (weaponHandle.IsValid)
-            {
-                var weapon = weaponHandle.Get();
-                if (weapon != null && weapon.IsValid)
-                {
-                    weaponsToRemove.Add(weapon);
-                }
-            }
-        }
-
-        foreach (var weapon in weaponsToRemove)
-        {
-            weapon.Remove();
-        }
-    }
-
-    /// <summary>
-    /// 返还所有玩家的原始武器
-    /// </summary>
-    private void ReturnAllWeapons()
-    {
-        foreach (var kvp in _cachedWeapons)
-        {
-            var player = Utilities.GetPlayerFromSlot(kvp.Key);
-            if (player == null || !player.IsValid || !player.PawnIsAlive)
-                continue;
-
-            // 先移除当前武器
-            RemoveAllWeapons(player);
-
-            // 返还原始武器
-            foreach (var weaponName in kvp.Value)
-            {
-                player.GiveNamedItem(weaponName);
-            }
-        }
-
-        _cachedWeapons.Clear();
-    }
-
-    /// <summary>
-    /// 玩家生成时给予手雷
-    /// </summary>
-    private HookResult OnPlayerSpawn(EventPlayerSpawn @event, GameEventInfo info)
-    {
-        // 如果事件不激活，不处理
-        if (!_isActive) return HookResult.Continue;
-
-        var player = @event.Userid;
-        if (player == null || !player.IsValid || !player.PawnIsAlive)
-            return HookResult.Continue;
-
-        Server.NextFrame(() =>
-        {
-            // 再次检查事件是否仍然激活
-            if (_isActive)
-            {
-                // 移除主副武器，给予高爆手雷
-                RemoveWeaponsAndGiveGrenades();
-                player.PrintToCenter("💣 更致命的手雷！\n无限高爆手雷 + 3倍伤害 + 5倍范围！");
-            }
-        });
-
-        return HookResult.Continue;
-    }
-
-    /// <summary>
-    /// 阻止拾取主副武器
-    /// </summary>
-    private HookResult OnItemPickup(EventItemPickup @event, GameEventInfo info)
-    {
-        // 如果事件不激活，不处理
-        if (!_isActive) return HookResult.Continue;
-
-        var player = @event.Userid;
-        if (player == null || !player.IsValid || !player.PawnIsAlive)
-            return HookResult.Continue;
-
-        Server.NextFrame(() =>
-        {
-            // 再次检查事件是否仍然激活
-            if (_isActive)
-            {
-                // 再次移除主副武器，确保只有手雷
-                RemoveNonGrenadeWeapons(player);
-            }
-        });
-
-        return HookResult.Continue;
-    }
-
-    /// <summary>
-    /// 阻止装备主副武器
-    /// </summary>
-    private HookResult OnItemEquip(EventItemEquip @event, GameEventInfo info)
-    {
-        // 如果事件不激活，不处理
-        if (!_isActive) return HookResult.Continue;
-
-        var player = @event.Userid;
-        if (player == null || !player.IsValid || !player.PawnIsAlive)
-            return HookResult.Continue;
-
-        Server.NextFrame(() =>
-        {
-            // 再次检查事件是否仍然激活
-            if (_isActive)
-            {
-                // 再次移除主副武器，确保只有手雷
-                RemoveNonGrenadeWeapons(player);
-            }
-        });
-
-        return HookResult.Continue;
-    }
-
-    /// <summary>
-    /// 移除除手雷外的所有武器
-    /// </summary>
-    private void RemoveNonGrenadeWeapons(CCSPlayerController player)
-    {
-        if (player == null || !player.IsValid) return;
-
-        var pawn = player.PlayerPawn.Value;
-        if (pawn == null || !pawn.IsValid) return;
-
-        var weaponServices = pawn.WeaponServices;
-        if (weaponServices == null) return;
-
+        // 直接移除主副武器（不使用延迟，参考裁军技能）
         foreach (var weaponHandle in weaponServices.MyWeapons)
         {
             if (!weaponHandle.IsValid) continue;
@@ -364,16 +197,110 @@ public class DeadlyGrenadesEvent : EntertainmentEvent
             var weaponBase = weapon.As<CCSWeaponBase>();
             if (weaponBase == null || weaponBase.VData == null) continue;
 
-            // 只保留高爆手雷，移除其他所有武器
-            string weaponName = weaponBase.DesignerName.ToLower();
-            bool isHEGrenade = weaponName.Contains("hegrenade");
+            var weaponType = weaponBase.VData.WeaponType;
 
-            // 如果不是高爆手雷，移除它
-            if (!isHEGrenade)
+            // 只移除主武器和副武器
+            if (weaponType == CSWeaponType.WEAPONTYPE_PISTOL ||
+                weaponType == CSWeaponType.WEAPONTYPE_SUBMACHINEGUN ||
+                weaponType == CSWeaponType.WEAPONTYPE_RIFLE ||
+                weaponType == CSWeaponType.WEAPONTYPE_SHOTGUN ||
+                weaponType == CSWeaponType.WEAPONTYPE_SNIPER_RIFLE ||
+                weaponType == CSWeaponType.WEAPONTYPE_MACHINEGUN)
             {
                 weapon.Remove();
                 Console.WriteLine($"[更致命的手雷] 移除了 {player.PlayerName} 的 {weaponBase.DesignerName}");
             }
         }
+    }
+
+    /// <summary>
+    /// 玩家生成时给予手雷并移除主副武器
+    /// </summary>
+    private HookResult OnPlayerSpawn(EventPlayerSpawn @event, GameEventInfo info)
+    {
+        // 如果事件不激活，不处理
+        if (!_isActive) return HookResult.Continue;
+
+        var player = @event.Userid;
+        if (player == null || !player.IsValid || !player.PawnIsAlive)
+            return HookResult.Continue;
+
+        // 延迟处理，等待玩家完全生成
+        Plugin?.AddTimer(0.5f, () =>
+        {
+            if (_isActive && player.IsValid && player.PawnIsAlive)
+            {
+                try
+                {
+                    // 移除主副武器
+                    RemovePrimaryAndSecondaryWeapons(player);
+
+                    // 给予3颗手雷
+                    for (int i = 0; i < 3; i++)
+                    {
+                        player.GiveNamedItem("weapon_hegrenade");
+                    }
+
+                    player.PrintToCenter("💣 更致命的手雷！");
+                    Console.WriteLine($"[更致命的手雷] {player.PlayerName} 生成，已移除主副武器并给予手雷");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[更致命的手雷] 处理玩家生成时出错: {ex.Message}");
+                }
+            }
+        });
+
+        return HookResult.Continue;
+    }
+
+    /// <summary>
+    /// 处理武器投掷事件 - 自动补充手雷
+    /// </summary>
+    private HookResult OnWeaponFire(EventWeaponFire @event, GameEventInfo info)
+    {
+        // 如果事件不激活，不处理
+        if (!_isActive) return HookResult.Continue;
+
+        var player = @event.Userid;
+        if (player == null || !player.IsValid || !player.PawnIsAlive)
+            return HookResult.Continue;
+
+        var pawn = player.PlayerPawn.Value;
+        if (pawn == null || !pawn.IsValid) return HookResult.Continue;
+
+        var weaponServices = pawn.WeaponServices;
+        if (weaponServices == null) return HookResult.Continue;
+
+        var activeWeapon = weaponServices.ActiveWeapon.Value;
+        if (activeWeapon == null || !activeWeapon.IsValid) return HookResult.Continue;
+
+        // 检查是否是手雷
+        var weaponBase = activeWeapon.As<CCSWeaponBase>();
+        if (weaponBase == null || weaponBase.VData == null) return HookResult.Continue;
+
+        string weaponName = weaponBase.DesignerName.ToLower();
+        if (!weaponName.Contains("hegrenade"))
+            return HookResult.Continue;
+
+        // 延迟补充手雷（等待投掷动画完成）
+        Plugin?.AddTimer(0.3f, () =>
+        {
+            if (_isActive && player.IsValid && player.PawnIsAlive)
+            {
+                try
+                {
+                    // 给予1颗新手雷
+                    player.GiveNamedItem("weapon_hegrenade");
+                    Console.WriteLine($"[更致命的手雷] 自动补充了 {player.PlayerName} 的手雷");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[更致命的手雷] 补充手雷时出错: {ex.Message}");
+                }
+            }
+        });
+
+        return HookResult.Continue;
     }
 }

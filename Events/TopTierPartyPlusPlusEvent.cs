@@ -139,13 +139,13 @@ public class TopTierPartyPlusPlusEvent : EntertainmentEvent
     {
         Console.WriteLine("[顶级狂欢++] 正在恢复事件");
 
-        // 恢复三个事件
-        if (_firstEvent != null)
+        // 恢复三个事件（按相反顺序：后进先出）
+        if (_thirdEvent != null)
         {
             try
             {
-                _firstEvent.OnRevert();
-                Console.WriteLine($"[顶级狂欢++] 已恢复事件 1: {_firstEvent.DisplayName}");
+                _thirdEvent.OnRevert();
+                Console.WriteLine($"[顶级狂欢++] 已恢复事件 1: {_thirdEvent.DisplayName}");
             }
             catch (Exception ex)
             {
@@ -166,12 +166,12 @@ public class TopTierPartyPlusPlusEvent : EntertainmentEvent
             }
         }
 
-        if (_thirdEvent != null)
+        if (_firstEvent != null)
         {
             try
             {
-                _thirdEvent.OnRevert();
-                Console.WriteLine($"[顶级狂欢++] 已恢复事件 3: {_thirdEvent.DisplayName}");
+                _firstEvent.OnRevert();
+                Console.WriteLine($"[顶级狂欢++] 已恢复事件 3: {_firstEvent.DisplayName}");
             }
             catch (Exception ex)
             {

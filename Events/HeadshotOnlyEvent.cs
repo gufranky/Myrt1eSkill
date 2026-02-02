@@ -57,20 +57,20 @@ public class HeadshotOnlyEvent : EntertainmentEvent
     {
         Console.WriteLine("[只有爆头] 事件已恢复");
 
-        // 移除事件监听
-        if (Plugin != null)
-        {
-            Plugin.DeregisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn, HookMode.Post);
-        }
-
-        // 恢复原始值
+        // 1. 恢复 ConVar
         if (_headshotOnlyConVar != null)
         {
             _headshotOnlyConVar.SetValue(_originalValue);
             Console.WriteLine($"[只有爆头] mp_damage_headshot_only 已恢复为 {_originalValue}");
         }
 
-        // 显示提示
+        // 2. 移除事件监听
+        if (Plugin != null)
+        {
+            Plugin.DeregisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn, HookMode.Post);
+        }
+
+        // 3. 显示提示
         foreach (var player in Utilities.GetPlayers())
         {
             if (player.IsValid)

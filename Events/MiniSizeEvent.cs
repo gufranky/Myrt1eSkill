@@ -30,7 +30,7 @@ public class MiniSizeEvent : EntertainmentEvent
             var sceneNode = pawn.CBodyComponent?.SceneNode;
             if (sceneNode != null)
             {
-                // 保存原始缩放值
+                // 保存当前缩放值（覆盖可能存在的旧值）
                 _originalScale[player.Slot] = sceneNode.Scale;
 
                 // 应用缩放倍数
@@ -48,7 +48,8 @@ public class MiniSizeEvent : EntertainmentEvent
 
     public override void OnRevert()
     {
-        Console.WriteLine("[迷你尺寸] 恢复玩家尺寸为原始值");
+        Console.WriteLine("[迷你尺寸] 正在恢复玩家尺寸为原始值");
+        Console.WriteLine($"[迷你尺寸] _originalScale 包含 { _originalScale.Count} 个玩家");
 
         foreach (var player in Utilities.GetPlayers())
         {
@@ -68,11 +69,20 @@ public class MiniSizeEvent : EntertainmentEvent
                 {
                     Utilities.SetStateChanged(pawn, "CBaseEntity", "m_CBodyComponent");
                 });
-            }
 
-            Console.WriteLine($"[迷你尺寸] {player.PlayerName} 已恢复");
+                Console.WriteLine($"[迷你尺寸] {player.PlayerName} 已恢复 (Scale: {originalScale})");
+            }
+            else if (sceneNode != null)
+            {
+                Console.WriteLine($"[迷你尺寸] 警告：{player.PlayerName} 的 sceneNode 为 null");
+            }
+            else if (!_originalScale.ContainsKey(player.Slot))
+            {
+                Console.WriteLine($"[迷你尺寸] 警告：{player.PlayerName} 不在 _originalScale 字典中");
+            }
         }
 
         _originalScale.Clear();
+        Console.WriteLine("[迷你尺寸] 已清空 _originalScale 字典");
     }
 }
