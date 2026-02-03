@@ -1,5 +1,6 @@
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
+using MyrtleSkill.Utils;
 
 namespace MyrtleSkill.Skills;
 
@@ -60,21 +61,8 @@ public class KillerFlashSkill : PlayerSkill
         {
             Console.WriteLine($"[杀手闪电] {attacker.PlayerName} 的闪光弹致盲了 {player.PlayerName}，持续时间: {flashDuration:F2}秒");
 
-            // 造成 999 点致命伤害
-            Server.NextFrame(() =>
-            {
-                if (pawn != null && pawn.IsValid && pawn.LifeState == (byte)LifeState_t.LIFE_ALIVE)
-                {
-                    var damageInfo = new CTakeDamageInfo
-                    {
-                        Damage = 999,
-                        Attacker = attacker.PlayerPawn.Value,
-                        BitsDamageType = (uint)DamageType_t.DMG_GENERIC
-                    };
-                    pawn.TakeDamage(damageInfo);
-                    Console.WriteLine($"[杀手闪电] {player.PlayerName} 受到 999 伤害");
-                }
-            });
+            // 造成999点伤害（使用真正的伤害系统）
+            SkillUtils.DealDamage(attacker, player, 999);
 
             // 显示消息
             if (player == attacker)

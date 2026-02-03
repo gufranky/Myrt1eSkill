@@ -51,7 +51,6 @@ public class PlayerSkillManager
         RegisterSkill(new TeleportSkill());      // 主动技能示例
         RegisterSkill(new SpeedBoostSkill());    // 被动技能示例
         RegisterSkill(new HighJumpSkill());      // 事件互斥示例
-        RegisterSkill(new NinjaSkill());         // 明刀技能
         RegisterSkill(new BotSummonSkill());     // 召唤队友技能
         RegisterSkill(new DumbBotSkill());       // 笨笨机器人技能
         RegisterSkill(new DecoyXRaySkill());     // 透视诱饵弹技能

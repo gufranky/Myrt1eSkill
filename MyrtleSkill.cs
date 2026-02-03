@@ -99,7 +99,7 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         Skills.TeamWhipSkill.MyrtleSkillPlugin = this;
 
         // 注册事件处理器
-        RegisterEventHandler<EventMapStart>(OnMapStart, HookMode.Post);
+        RegisterListener<Listeners.OnMapStart>(OnMapStart);
         RegisterEventHandler<EventRoundStart>(OnRoundStart, HookMode.Post);
         RegisterEventHandler<EventRoundEnd>(OnRoundEnd, HookMode.Post);
         RegisterListener<Listeners.OnPlayerTakeDamagePre>(OnPlayerTakeDamagePre);
@@ -137,12 +137,12 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
     #region 事件处理
 
-    private HookResult OnMapStart(EventMapStart @event, GameEventInfo info)
+    private void OnMapStart(string mapName)
     {
         // 地图切换时清理所有位置记录，防止传送到地图外
         PositionRecorder?.ClearAllHistory();
-        Console.WriteLine($"[位置记录器] 地图切换到 {Server.MapName}，已清理所有位置记录");
-        return HookResult.Continue;
+        Console.WriteLine($"[位置记录器] 地图切换到 {mapName}，已清理所有位置记录");
+        return;
     }
 
     private HookResult OnRoundStart(EventRoundStart @event, GameEventInfo info)
@@ -308,22 +308,11 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 收集所有伤害倍数修正器
         float totalMultiplier = 1.0f;
 
-        // 处理 Ninja 技能的伤害保护
+        // 处理重甲战士减伤
         var controller = player.Controller.Value;
         if (controller != null && controller.IsValid && controller is CCSPlayerController csController)
         {
             var skill = SkillManager.GetPlayerSkill(csController);
-            if (skill?.Name == "Ninja")
-            {
-                var ninjaSkill = (Skills.NinjaSkill)skill;
-                float? ninjaMultiplier = ninjaSkill?.HandleDamagePre(player, info);
-                if (ninjaMultiplier.HasValue)
-                {
-                    totalMultiplier *= ninjaMultiplier.Value;
-                }
-            }
-
-            // 处理重甲战士减伤
             if (skill?.Name == "HeavyArmor")
             {
                 var heavyArmorSkill = (Skills.HeavyArmorSkill)skill;
@@ -411,13 +400,6 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         var player = @event.Userid;
         if (player == null || !player.IsValid)
             return HookResult.Continue;
-
-        var skill = SkillManager.GetPlayerSkill(player);
-        if (skill?.Name == "Ninja")
-        {
-            var ninjaSkill = (Skills.NinjaSkill)skill;
-            ninjaSkill?.OnPlayerHurtSkill(player, @event);
-        }
 
         // 处理 Vampire 事件
         if (CurrentEvent is VampireEvent vampireEvent)

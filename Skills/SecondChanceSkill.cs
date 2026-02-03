@@ -20,32 +20,25 @@ public class SecondChanceSkill : PlayerSkill
 
     // 跟踪已使用第二次机会的玩家
     private static readonly ConcurrentDictionary<int, byte> _secondChanceUsed = new();
+    // 跟踪玩家死亡前的护甲值
+    private static readonly ConcurrentDictionary<int, int> _playerArmor = new();
 
     public override void OnApply(CCSPlayerController player)
     {
         Console.WriteLine($"[第二次机会] {player.PlayerName} 获得了第二次机会技能");
 
-        // 启用时设置血量为50
-        SetHealth(player, REVIVE_HEALTH);
+        // 不再在获得技能时修改血量和护甲
 
         player.PrintToChat("🔄 你获得了第二次机会技能！");
         player.PrintToChat($"💀 死亡后会以 {REVIVE_HEALTH} 血复活！");
-        player.PrintToChat("⚠️ 每回合只能使用一次！");
+        player.PrintToChat("⚠️ 每回合只能使用一次！护甲会保留！");
     }
 
     public override void OnRevert(CCSPlayerController player)
     {
-        // 移除技能时恢复血量
+        // 移除技能时清理记录
         _secondChanceUsed.TryRemove(player.Slot, out _);
-
-        if (player.PlayerPawn.Value == null)
-            return;
-
-        int currentHealth = player.PlayerPawn.Value.Health;
-        int newHealth = Math.Min(currentHealth + REVIVE_HEALTH, 100);
-
-        player.PlayerPawn.Value.Health = newHealth;
-        Utilities.SetStateChanged(player.PlayerPawn.Value, "CBaseEntity", "m_iHealth");
+        _playerArmor.TryRemove(player.Slot, out _);
 
         Console.WriteLine($"[第二次机会] {player.PlayerName} 失去了第二次机会技能");
     }
@@ -78,11 +71,24 @@ public class SecondChanceSkill : PlayerSkill
 
         Console.WriteLine($"[第二次机会] {victim.PlayerName} 死亡，触发第二次机会复活");
 
+        // 保存当前护甲值
+        int currentArmor = victimPawn.ArmorValue;
+        _playerArmor[victim.Slot] = currentArmor;
+
         // 标记已使用
         _secondChanceUsed.TryAdd(victim.Slot, 0);
 
-        // 复活
-        SetHealth(victim, REVIVE_HEALTH);
+        // 复活时只设置血量，不影响护甲
+        SetHealthOnly(victim, REVIVE_HEALTH);
+
+        // 恢复护甲
+        if (currentArmor > 0)
+        {
+            victimPawn.ArmorValue = currentArmor;
+            Utilities.SetStateChanged(victimPawn, "CCSPlayerPawn", "m_ArmorValue");
+            Console.WriteLine($"[第二次机会] {victim.PlayerName} 恢复护甲: {currentArmor}");
+        }
+
         var spawn = GetSpawnVector(victim);
         if (spawn != null)
         {
@@ -91,7 +97,7 @@ public class SecondChanceSkill : PlayerSkill
 
         // 显示提示
         victim.PrintToCenter("🔄 第二次机会！");
-        victim.PrintToChat($"🔄 你使用了第二次机会！以 {REVIVE_HEALTH} 血复活！");
+        victim.PrintToChat($"🔄 你使用了第二次机会！以 {REVIVE_HEALTH} 血复活！护甲已保留！");
 
         Server.PrintToChatAll($"🔄 {victim.PlayerName} 使用了第二次机会复活！");
     }
@@ -102,13 +108,14 @@ public class SecondChanceSkill : PlayerSkill
     public static void OnRoundStart()
     {
         _secondChanceUsed.Clear();
+        _playerArmor.Clear();
         Console.WriteLine("[第二次机会] 新回合开始，清空使用记录");
     }
 
     /// <summary>
-    /// 设置玩家血量和护甲
+    /// 只设置玩家血量，不影响护甲
     /// </summary>
-    private static void SetHealth(CCSPlayerController player, int health)
+    private static void SetHealthOnly(CCSPlayerController player, int health)
     {
         var pawn = player.PlayerPawn.Value;
         if (pawn == null || !pawn.IsValid)
@@ -117,10 +124,7 @@ public class SecondChanceSkill : PlayerSkill
         pawn.Health = health;
         Utilities.SetStateChanged(pawn, "CBaseEntity", "m_iHealth");
 
-        pawn.ArmorValue = 0;
-        Utilities.SetStateChanged(pawn, "CCSPlayerPawn", "m_ArmorValue");
-
-        Console.WriteLine($"[第二次机会] {player.PlayerName} 血量设置为 {health}，护甲清零");
+        Console.WriteLine($"[第二次机会] {player.PlayerName} 血量设置为 {health}，护甲保持不变");
     }
 
     /// <summary>
