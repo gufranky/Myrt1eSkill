@@ -12,6 +12,8 @@ public class EntertainmentEventManager
 {
     private readonly MyrtleSkill _plugin;
     private readonly Dictionary<string, EntertainmentEvent> _events = new();
+    private readonly Queue<string> _eventHistory = new(); // 最近3个事件历史
+    private const int MAX_HISTORY = 3; // 只记录最近3个事件
     private readonly Random _random = new();
 
     /// <summary>
@@ -119,8 +121,20 @@ public class EntertainmentEventManager
         if (_events.Count == 0)
             return null;
 
+        // 过滤掉最近3个回合的事件
+        var availableEvents = _events.Values
+            .Where(e => e.Weight > 0) // 权重大于0
+            .Where(e => !_eventHistory.Contains(e.Name)) // 不在最近3个历史中
+            .ToList();
+
+        if (availableEvents.Count == 0)
+        {
+            Console.WriteLine("[事件管理器] 警告：没有可用的事件（所有事件都在最近3回合触发过）");
+            return null;
+        }
+
         // 计算总权重
-        int totalWeight = _events.Values.Sum(e => e.Weight);
+        int totalWeight = availableEvents.Sum(e => e.Weight);
 
         if (totalWeight <= 0)
             return null;
@@ -129,17 +143,31 @@ public class EntertainmentEventManager
         int randomWeight = _random.Next(totalWeight);
         int currentWeight = 0;
 
-        foreach (var @event in _events.Values)
+        EntertainmentEvent? selectedEvent = null;
+        foreach (var @event in availableEvents)
         {
             currentWeight += @event.Weight;
             if (randomWeight < currentWeight)
             {
-                Console.WriteLine("[事件管理器] 随机选择事件: " + @event.Name + " (权重: " + @event.Weight + ")");
-                return @event;
+                selectedEvent = @event;
+                break;
             }
         }
 
-        return _events.Values.FirstOrDefault();
+        selectedEvent ??= availableEvents.FirstOrDefault();
+
+        // 记录到历史（只保留最近3个）
+        if (selectedEvent != null)
+        {
+            _eventHistory.Enqueue(selectedEvent.Name);
+            if (_eventHistory.Count > MAX_HISTORY)
+            {
+                _eventHistory.Dequeue();
+            }
+            Console.WriteLine($"[事件管理器] 随机选择事件: {selectedEvent.Name} (权重: {selectedEvent.Weight}, 历史记录: {_eventHistory.Count})");
+        }
+
+        return selectedEvent;
     }
 
     /// <summary>
@@ -195,5 +223,22 @@ public class EntertainmentEventManager
     public int GetEventCount()
     {
         return _events.Count;
+    }
+
+    /// <summary>
+    /// 清空事件历史记录
+    /// </summary>
+    public void ClearEventHistory()
+    {
+        _eventHistory.Clear();
+        Console.WriteLine("[事件管理器] 已清空事件历史记录");
+    }
+
+    /// <summary>
+    /// 获取事件历史记录数量
+    /// </summary>
+    public int GetEventHistoryCount()
+    {
+        return _eventHistory.Count;
     }
 }

@@ -14,6 +14,8 @@ public class PlayerSkillManager
     private readonly Dictionary<string, PlayerSkill> _skills = new();
     private readonly Dictionary<int, PlayerSkill> _playerSkills = new(); // 玩家槽位 -> 当前技能
     private readonly Dictionary<int, DateTime> _playerCooldowns = new(); // 玩家槽位 -> 冷却结束时间
+    private readonly Dictionary<int, Queue<string>> _playerSkillHistory = new(); // 玩家槽位 -> 最近3个技能
+    private const int MAX_HISTORY = 3; // 只记录最近3个技能
     private readonly Random _random = new();
 
     /// <summary>
@@ -115,7 +117,8 @@ public class PlayerSkillManager
     /// <summary>
     /// 随机选择一个技能（基于权重）
     /// </summary>
-    public PlayerSkill? SelectRandomSkill()
+    /// <param name="player">可选的玩家参数，用于过滤该玩家最近获得的技能</param>
+    public PlayerSkill? SelectRandomSkill(CCSPlayerController? player = null)
     {
         if (_skills.Count == 0)
             return null;
@@ -123,10 +126,18 @@ public class PlayerSkillManager
         // 获取当前事件名称
         string? currentEventName = _plugin.CurrentEvent?.Name;
 
-        // 过滤掉与当前事件互斥的技能
+        // 获取玩家最近获得的技能历史
+        Queue<string>? playerHistory = null;
+        if (player != null && player.IsValid && _playerSkillHistory.TryGetValue(player.Slot, out var history))
+        {
+            playerHistory = history;
+        }
+
+        // 过滤掉与当前事件互斥的技能和玩家最近获得的技能
         var availableSkills = _skills.Values
             .Where(s => s.Weight > 0) // 权重大于0
             .Where(s => string.IsNullOrEmpty(currentEventName) || !s.ExcludedEvents.Contains(currentEventName)) // 不与当前事件互斥
+            .Where(s => playerHistory == null || !playerHistory.Contains(s.Name)) // 玩家最近3回合未获得
             .ToList();
 
         if (availableSkills.Count == 0)
@@ -188,6 +199,9 @@ public class PlayerSkillManager
         _playerSkills[player.Slot] = skill;
         skill.OnApply(player);
 
+        // 记录到历史
+        AddToPlayerHistory(player, skill.Name);
+
         Console.WriteLine($"[技能管理器] {player.PlayerName} 被强制赋予技能: {skill.DisplayName} ({(skill.IsActive ? "主动" : "被动")})");
 
         // 显示提示
@@ -213,8 +227,8 @@ public class PlayerSkillManager
         // 如果玩家已有技能，先移除
         RemoveSkillFromPlayer(player);
 
-        // 随机选择技能
-        var skill = SelectRandomSkill();
+        // 随机选择技能（传递玩家参数以避免重复）
+        var skill = SelectRandomSkill(player);
         if (skill == null)
         {
             Console.WriteLine($"[技能管理器] 无法为 {player.PlayerName} 选择技能");
@@ -224,6 +238,9 @@ public class PlayerSkillManager
         // 应用技能
         _playerSkills[player.Slot] = skill;
         skill.OnApply(player);
+
+        // 记录到历史
+        AddToPlayerHistory(player, skill.Name);
 
         Console.WriteLine($"[技能管理器] {player.PlayerName} 获得技能: {skill.DisplayName} ({(skill.IsActive ? "主动" : "被动")})");
 
@@ -283,6 +300,7 @@ public class PlayerSkillManager
         }
 
         _playerSkills.Clear();
+        // 注意：不清空历史记录，让玩家记住之前获得过的技能
     }
 
     /// <summary>
@@ -423,6 +441,57 @@ public class PlayerSkillManager
     public int GetSkillCount()
     {
         return _skills.Count;
+    }
+
+    /// <summary>
+    /// 添加技能到玩家历史记录（只保留最近3个）
+    /// </summary>
+    private void AddToPlayerHistory(CCSPlayerController player, string skillName)
+    {
+        if (player == null || !player.IsValid)
+            return;
+
+        // 确保玩家有历史记录队列
+        if (!_playerSkillHistory.ContainsKey(player.Slot))
+        {
+            _playerSkillHistory[player.Slot] = new Queue<string>();
+        }
+
+        // 添加技能到队列
+        var history = _playerSkillHistory[player.Slot];
+        history.Enqueue(skillName);
+
+        // 如果超过3个，移除最旧的
+        if (history.Count > MAX_HISTORY)
+        {
+            history.Dequeue();
+        }
+
+        Console.WriteLine($"[技能管理器] {player.PlayerName} 的技能历史已更新，最近 {history.Count} 个技能");
+    }
+
+    /// <summary>
+    /// 清空指定玩家的技能历史
+    /// </summary>
+    public void ClearPlayerHistory(CCSPlayerController player)
+    {
+        if (player == null || !player.IsValid)
+            return;
+
+        if (_playerSkillHistory.TryGetValue(player.Slot, out var history))
+        {
+            history.Clear();
+            Console.WriteLine($"[技能管理器] 已清空 {player.PlayerName} 的技能历史");
+        }
+    }
+
+    /// <summary>
+    /// 清空所有玩家的技能历史
+    /// </summary>
+    public void ClearAllPlayerHistory()
+    {
+        _playerSkillHistory.Clear();
+        Console.WriteLine("[技能管理器] 已清空所有玩家的技能历史");
     }
 }
 
