@@ -36,8 +36,8 @@ public class SwapOnHitEvent : EntertainmentEvent
         if (attacker == victim)
             return;
 
-        var attackerPawn = attacker.PlayerPawn.Get();
-        var victimPawn = victim.PlayerPawn.Get();
+        var attackerPawn = attacker.PlayerPawn.Value;
+        var victimPawn = victim.PlayerPawn.Value;
 
         if (attackerPawn == null || !attackerPawn.IsValid)
             return;
@@ -45,28 +45,20 @@ public class SwapOnHitEvent : EntertainmentEvent
         if (victimPawn == null || !victimPawn.IsValid)
             return;
 
-        // 保存位置和角度
-        var attackerPos = attackerPawn.AbsOrigin;
-        var attackerAngle = attackerPawn.AbsRotation;
+        // 保存位置（只交换位置，不交换朝向）
+        var attackerPos = new Vector(attackerPawn.AbsOrigin.X, attackerPawn.AbsOrigin.Y, attackerPawn.AbsOrigin.Z);
+        var victimPos = new Vector(victimPawn.AbsOrigin.X, victimPawn.AbsOrigin.Y, victimPawn.AbsOrigin.Z);
 
-        var victimPos = victimPawn.AbsOrigin;
-        var victimAngle = victimPawn.AbsRotation;
+        // 保存各自的朝向
+        var attackerAngle = new QAngle(attackerPawn.AbsRotation.X, attackerPawn.AbsRotation.Y, attackerPawn.AbsRotation.Z);
+        var victimAngle = new QAngle(victimPawn.AbsRotation.X, victimPawn.AbsRotation.Y, victimPawn.AbsRotation.Z);
 
-        if (attackerPos == null || victimPos == null)
-            return;
+        Console.WriteLine($"[击中交换-DEBUG] {attacker.PlayerName} 位置: ({attackerPos.X}, {attackerPos.Y}, {attackerPos.Z})");
+        Console.WriteLine($"[击中交换-DEBUG] {victim.PlayerName} 位置: ({victimPos.X}, {victimPos.Y}, {victimPos.Z})");
 
-        // 交换位置
-        attackerPawn.Teleport(
-            new Vector(victimPos.X, victimPos.Y, victimPos.Z),
-            victimAngle,
-            new Vector(0, 0, 0)
-        );
-
-        victimPawn.Teleport(
-            new Vector(attackerPos.X, attackerPos.Y, attackerPos.Z),
-            attackerAngle,
-            new Vector(0, 0, 0)
-        );
+        // 交换位置，保持各自朝向
+        attackerPawn.Teleport(victimPos, attackerAngle, new Vector(0, 0, 0));
+        victimPawn.Teleport(attackerPos, victimAngle, new Vector(0, 0, 0));
 
         attacker.PrintToCenter("💫 位置交换！");
         victim.PrintToCenter("💫 位置交换！");
