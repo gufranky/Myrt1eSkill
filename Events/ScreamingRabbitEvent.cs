@@ -18,19 +18,16 @@ public class ScreamingRabbitEvent : EntertainmentEvent
     private System.Threading.Timer? _screamTimer;
     private bool _isActive = false;
 
-    // 定位音效列表（简短、能指示位置的声音）
+    // 定位音效列表（简短、能指示位置的声音）- 使用 CS2 有效的音效名称
     private readonly string[] _positionSounds = new string[]
     {
-        "Chicken.Alert",           // 鸡叫声（短促）
-        "Chicken.Idle",            // 鸡闲聊声
-        "Chicken.Panic",           // 鸡惊恐声
-        "C4.DisarmStart",          // 拆弹开始声
-        "C4.Plant",                // 种弹声
-        "Weapon.Empty",            // 空弹夹声
-        "Bullet.Impact",           // 子弹击中声
-        "Player.Footstep",         // 脚步声
-        "Player.Death",            // 死亡声（短促）
-        "Physics.ImpactSoft"       // 轻微撞击声
+        "C4.PlantSoundB",          // 种弹声
+        "C4.Explode",              // C4爆炸声
+        "Healthshot.Success",      // 治疗成功声
+        "Player.DamageBody.Onlooker", // 受伤声
+        "UIPanorama.tab_mainmenu_news", // UI提示音
+        "c4.disarmstart",          // 拆弹开始声
+        "c4.plant"                 // 种弹声（备选）
     };
 
     public override void OnApply()
@@ -147,13 +144,14 @@ public class ScreamingRabbitEvent : EntertainmentEvent
         foreach (var player in Utilities.GetPlayers())
         {
             if (!player.IsValid || !player.PawnIsAlive) continue;
+            if (player.PlayerPawn.Value == null || !player.PlayerPawn.Value.IsValid) continue;
 
             // 为每个玩家随机选择一个音效
             int soundIndex = _random.Next(_positionSounds.Length);
             string soundName = _positionSounds[soundIndex];
 
-            // 播放音效
-            player.ExecuteClientCommand($"play {soundName}");
+            // 使用 EmitSound 播放音效（服务器端 API，更可靠）
+            player.PlayerPawn.Value.EmitSound(soundName, volume: 1.0f);
 
             // 显示提示
             player.PrintToChat($"🐰 你发出了音效：{soundName}");

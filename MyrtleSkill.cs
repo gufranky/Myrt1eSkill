@@ -99,6 +99,7 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         Skills.TeamWhipSkill.MyrtleSkillPlugin = this;
 
         // 注册事件处理器
+        RegisterEventHandler<EventMapStart>(OnMapStart, HookMode.Post);
         RegisterEventHandler<EventRoundStart>(OnRoundStart, HookMode.Post);
         RegisterEventHandler<EventRoundEnd>(OnRoundEnd, HookMode.Post);
         RegisterListener<Listeners.OnPlayerTakeDamagePre>(OnPlayerTakeDamagePre);
@@ -135,6 +136,14 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
     }
 
     #region 事件处理
+
+    private HookResult OnMapStart(EventMapStart @event, GameEventInfo info)
+    {
+        // 地图切换时清理所有位置记录，防止传送到地图外
+        PositionRecorder?.ClearAllHistory();
+        Console.WriteLine($"[位置记录器] 地图切换到 {Server.MapName}，已清理所有位置记录");
+        return HookResult.Continue;
+    }
 
     private HookResult OnRoundStart(EventRoundStart @event, GameEventInfo info)
     {

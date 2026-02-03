@@ -69,7 +69,6 @@ public class PlayerSkillManager
         RegisterSkill(new FlashJumpSkill());    // 闪光跳跃技能
         RegisterSkill(new HeavyArmorSkill());   // 重甲战士技能
         RegisterSkill(new QuickShotSkill());    // 速射技能
-        RegisterSkill(new RandomTimeJumpSkill()); // 随机时空跳跃技能
         RegisterSkill(new MeitoSkill());        // 名刀技能
 
         Console.WriteLine("[技能管理器] 已注册 " + _skills.Count + " 个玩家技能");
