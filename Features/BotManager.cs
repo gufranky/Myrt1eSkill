@@ -11,7 +11,9 @@ public class BotManager
 {
     private readonly MyrtleSkill _plugin;
     private ConVar? _playerBotCompetitiveConVar;
+    private ConVar? _botQuotaConVar;
     private bool _originalPlayerBotCompetitive = false;
+    private int _originalBotQuota = 0;
 
     public bool AllowBotControl { get; private set; } = false;
 
@@ -21,39 +23,55 @@ public class BotManager
     }
 
     /// <summary>
-    /// 启用清理机器人功能（每回合开始时清除机器人，禁止玩家控制）
+    /// 启用玩家控制机器人功能
     /// </summary>
     public void EnableBotControl()
     {
         AllowBotControl = true;
 
-        // 禁用玩家死后控制机器人
+        // 启用玩家死后控制机器人
         _playerBotCompetitiveConVar = ConVar.Find("mp_player_bot_competitive");
         if (_playerBotCompetitiveConVar != null)
         {
             _originalPlayerBotCompetitive = _playerBotCompetitiveConVar.GetPrimitiveValue<bool>();
-            _playerBotCompetitiveConVar.SetValue(false);
-            Console.WriteLine($"[机器人控制] mp_player_bot_competitive 已设置为 false (原值: {_originalPlayerBotCompetitive})");
+            _playerBotCompetitiveConVar.SetValue(true);
+            Console.WriteLine($"[机器人控制] mp_player_bot_competitive 已设置为 true (原值: {_originalPlayerBotCompetitive})");
         }
 
-        Console.WriteLine("[机器人管理] ✅ 已启用每回合清除机器人，玩家死后不可控制机器人");
+        // 保存并禁用自动补充机器人（避免清理后立刻补充）
+        _botQuotaConVar = ConVar.Find("bot_quota");
+        if (_botQuotaConVar != null)
+        {
+            _originalBotQuota = _botQuotaConVar.GetPrimitiveValue<int>();
+            _botQuotaConVar.SetValue(0);
+            Console.WriteLine($"[机器人控制] bot_quota 已设置为 0 (原值: {_originalBotQuota})");
+        }
+
+        Console.WriteLine("[机器人管理] ✅ 已启用玩家控制机器人功能");
     }
 
     /// <summary>
-    /// 禁用清理机器人功能
+    /// 禁用玩家控制机器人功能
     /// </summary>
     public void DisableBotControl()
     {
         AllowBotControl = false;
 
-        // 恢复玩家死后控制机器人
+        // 禁用玩家死后控制机器人
         if (_playerBotCompetitiveConVar != null)
         {
-            _playerBotCompetitiveConVar.SetValue(true);
-            Console.WriteLine("[机器人控制] mp_player_bot_competitive 已设置为 true");
+            _playerBotCompetitiveConVar.SetValue(false);
+            Console.WriteLine("[机器人控制] mp_player_bot_competitive 已设置为 false");
         }
 
-        Console.WriteLine("[机器人管理] ❌ 已禁用每回合清除机器人，玩家死后可以控制机器人");
+        // 恢复自动补充机器人设置
+        if (_botQuotaConVar != null)
+        {
+            _botQuotaConVar.SetValue(_originalBotQuota);
+            Console.WriteLine($"[机器人控制] bot_quota 已恢复为 {_originalBotQuota}");
+        }
+
+        Console.WriteLine("[机器人管理] ❌ 已禁用玩家控制机器人功能");
     }
 
     /// <summary>
@@ -81,10 +99,11 @@ public class BotManager
             Console.WriteLine($"[机器人管理] 已清除 {kickedBots} 个机器人");
         }
 
-        // 如果启用清理功能，显示提示
-        if (AllowBotControl)
+        // 确保不会自动补充机器人
+        if (_botQuotaConVar != null && _botQuotaConVar.GetPrimitiveValue<int>() != 0)
         {
-            Console.WriteLine("[机器人管理] 机器人清理已启用，机器人已被清除");
+            _botQuotaConVar.SetValue(0);
+            Console.WriteLine("[机器人管理] 已重置 bot_quota 为 0，防止自动补充");
         }
     }
 
@@ -93,11 +112,17 @@ public class BotManager
     /// </summary>
     public void Dispose()
     {
-        // 恢复 mp_player_bot_competitive
+        // 恢复原始设置
         if (_playerBotCompetitiveConVar != null)
         {
             _playerBotCompetitiveConVar.SetValue(_originalPlayerBotCompetitive);
             Console.WriteLine($"[机器人控制] mp_player_bot_competitive 已恢复为 {_originalPlayerBotCompetitive}");
+        }
+
+        if (_botQuotaConVar != null)
+        {
+            _botQuotaConVar.SetValue(_originalBotQuota);
+            Console.WriteLine($"[机器人控制] bot_quota 已恢复为 {_originalBotQuota}");
         }
 
         AllowBotControl = false;
