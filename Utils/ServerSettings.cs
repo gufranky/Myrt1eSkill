@@ -18,7 +18,7 @@ public static class ServerSettings
 
     // 坠落伤害
     private static ConVar? _fallDamageConVar;
-    private static bool _originalFallDamageValue = false;
+    private static float _originalFallDamageScale = 1.0f;
 
     // 友军伤害自动踢人
     private static ConVar? _autoKickConVar;
@@ -26,7 +26,7 @@ public static class ServerSettings
 
     // 派对模式
     private static ConVar? _partyModeConVar;
-    private static int _originalPartyModeValue = 0;
+    private static bool _originalPartyModeValue = false;
 
     /// <summary>
     /// 初始化所有娱乐服务器全局设置
@@ -41,11 +41,11 @@ public static class ServerSettings
         EnablePartyMode();
 
         Console.WriteLine("[服务器设置] ✅ 娱乐服务器全局设置已应用");
-        Console.WriteLine("   - sv_cheat: true (作弊模式)");
+        Console.WriteLine("   - sv_cheats: true (作弊模式)");
         Console.WriteLine("   - mp_friendlyfire: true (友军伤害)");
-        Console.WriteLine("   - mp_falldamage: false (禁用坠落伤害)");
-        Console.WriteLine("   - mp_autokick: 0 (禁用友军伤害踢人)");
-        Console.WriteLine("   - mp_maxrounds_draw: 1 (启用平局)");
+        Console.WriteLine("   - sv_falldamage_scale: 0 (禁用坠落伤害)");
+        Console.WriteLine("   - mp_autokick: false (禁用友军伤害踢人)");
+        Console.WriteLine("   - sv_party_mode: true (启用派对模式)");
     }
 
     /// <summary>
@@ -168,16 +168,16 @@ public static class ServerSettings
     {
         try
         {
-            _fallDamageConVar = ConVar.Find("mp_falldamage");
+            _fallDamageConVar = ConVar.Find("sv_falldamage_scale");
             if (_fallDamageConVar != null)
             {
-                _originalFallDamageValue = _fallDamageConVar.GetPrimitiveValue<bool>();
-                _fallDamageConVar.SetValue(false);
-                Console.WriteLine($"[服务器设置] mp_falldamage 已设置为 false (原值: {_originalFallDamageValue})");
+                _originalFallDamageScale = _fallDamageConVar.GetPrimitiveValue<float>();
+                _fallDamageConVar.SetValue(0.0f);
+                Console.WriteLine($"[服务器设置] sv_falldamage_scale 已设置为 0 (原值: {_originalFallDamageScale})");
             }
             else
             {
-                Console.WriteLine("[服务器设置] ⚠️ 警告：无法找到 mp_falldamage ConVar");
+                Console.WriteLine("[服务器设置] ⚠️ 警告：无法找到 sv_falldamage_scale ConVar");
             }
         }
         catch (Exception ex)
@@ -195,8 +195,8 @@ public static class ServerSettings
         {
             if (_fallDamageConVar != null)
             {
-                _fallDamageConVar.SetValue(_originalFallDamageValue);
-                Console.WriteLine($"[服务器设置] mp_falldamage 已恢复为 {_originalFallDamageValue}");
+                _fallDamageConVar.SetValue(_originalFallDamageScale);
+                Console.WriteLine($"[服务器设置] sv_falldamage_scale 已恢复为 {_originalFallDamageScale}");
             }
         }
         catch (Exception ex)
@@ -267,9 +267,9 @@ public static class ServerSettings
             _partyModeConVar = ConVar.Find("sv_party_mode");
             if (_partyModeConVar != null)
             {
-                _originalPartyModeValue = _partyModeConVar.GetPrimitiveValue<int>();
-                _partyModeConVar.SetValue(1);
-                Console.WriteLine($"[服务器设置] sv_party_mode 已设置为 1 (原值: {_originalPartyModeValue})");
+                _originalPartyModeValue = _partyModeConVar.GetPrimitiveValue<bool>();
+                _partyModeConVar.SetValue(true);
+                Console.WriteLine($"[服务器设置] sv_party_mode 已设置为 true (原值: {_originalPartyModeValue})");
             }
             else
             {
