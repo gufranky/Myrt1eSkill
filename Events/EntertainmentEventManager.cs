@@ -72,6 +72,7 @@ public class EntertainmentEventManager
         RegisterEvent(new FoggyEvent());
         RegisterEvent(new NoSkillEvent());
         RegisterEvent(new KeepMovingEvent());
+        RegisterEvent(new SoccerModeEvent());
 
         Console.WriteLine("[事件管理器] 已注册 " + _events.Count + " 个娱乐事件");
     }
