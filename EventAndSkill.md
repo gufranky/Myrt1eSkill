@@ -6,7 +6,7 @@
 
 ## 统计信息
 
-- **事件总数**: 37 个
+- **事件总数**: 38 个
 - **技能总数**: 24 个
 
 ---
@@ -419,6 +419,18 @@
   - 客户端状态同步：`Utilities.SetStateChanged(victimPawn, "CBaseEntity", "m_vecAbsVelocity")`
   - 物理原理：基于牛顿第三定律和动量传递
   - 击退力 = 方向向量 × 力度因子 / 距离
+
+### 37. Bankruptcy (全员破产)
+- **文件名**: BankruptcyEvent.cs
+- **内部名称**: Bankruptcy
+- **显示名称**: 💸 全员破产
+- **描述**: 所有人都破产了！金币只有800！
+- **特殊机制**:
+  - 在事件激活时立即生效
+  - 获取所有玩家的 `InGameMoneyServices`
+  - 将所有玩家的金币（Account）设置为 800
+  - 客户端状态同步：`Utilities.SetStateChanged(player, "CCSPlayerController", "m_pInGameMoneyServices")`
+  - 不恢复原始金币值（回合开始时游戏会自动重置）
 
 ---
 

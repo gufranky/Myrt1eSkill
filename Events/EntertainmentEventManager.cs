@@ -75,6 +75,7 @@ public class EntertainmentEventManager
         RegisterEvent(new SoccerModeEvent());
         RegisterEvent(new SuperRecoilEvent());
         RegisterEvent(new SuperKnockbackEvent());
+        RegisterEvent(new BankruptcyEvent());
 
         Console.WriteLine("[事件管理器] 已注册 " + _events.Count + " 个娱乐事件");
     }
