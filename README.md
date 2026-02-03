@@ -9,7 +9,7 @@ Myrtle Skill Plugin 是一个 Counter-Strike 2 (CS2) 娱乐插件，为服务器
 - **插件名称**: Myrtle Skill Plugin
 - **当前版本**: v2.2.0
 - **CS2Sharp API 版本**: 1.0.362
-- **事件数量**: 38 个
+- **事件数量**: 39 个
 - **技能数量**: 24 个
 
 ## 功能概述
@@ -81,6 +81,7 @@ Myrtle Skill Plugin 是一个 Counter-Strike 2 (CS2) 娱乐插件，为服务器
 | SuperKnockback       | 💪 超强推背   | 造成伤害时强力击退敌人！把你打飞！                               |
 | SuperRecoil          | 💥 超强反冲   | 开枪时会有超强后坐力！把自己弹飞！                               |
 | Bankruptcy           | 💸 全员破产     | 所有人都破产了！金币只有800！                                   |
+| Deaf                 | 🔇 失聪        | 随机敌人听不到所有声音！                                       |
 | TeleportOnDamage     | 受伤传送        | 受到伤害时会随机传送到地图上的其他位置！                         |
 | TopTierParty         | 🎊 顶级狂欢     | 顶级狂欢！同时启用两个随机事件！混乱与乐趣并存！                 |
 | TopTierPartyPlusPlus | 🎊🎊 顶级狂欢++ | 终极狂欢！同时启用三个随机事件！绝对的混乱与极致的乐趣！         |

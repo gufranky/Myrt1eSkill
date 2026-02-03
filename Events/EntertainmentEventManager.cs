@@ -76,6 +76,7 @@ public class EntertainmentEventManager
         RegisterEvent(new SuperRecoilEvent());
         RegisterEvent(new SuperKnockbackEvent());
         RegisterEvent(new BankruptcyEvent());
+        RegisterEvent(new DeafEvent());
 
         Console.WriteLine("[事件管理器] 已注册 " + _events.Count + " 个娱乐事件");
     }

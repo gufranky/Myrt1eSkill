@@ -6,7 +6,7 @@
 
 ## 统计信息
 
-- **事件总数**: 38 个
+- **事件总数**: 39 个
 - **技能总数**: 24 个
 
 ---
@@ -431,6 +431,19 @@
   - 将所有玩家的金币（Account）设置为 800
   - 客户端状态同步：`Utilities.SetStateChanged(player, "CCSPlayerController", "m_pInGameMoneyServices")`
   - 不恢复原始金币值（回合开始时游戏会自动重置）
+
+### 38. Deaf (失聪)
+- **文件名**: DeafEvent.cs
+- **内部名称**: Deaf
+- **显示名称**: 🔇 失聪
+- **描述**: 随机敌人听不到所有声音！
+- **特殊机制**:
+  - 随机选择一半玩家作为失聪者
+  - 注册 UserMessage 监听（ID=208，声音事件）
+  - 从 `um.Recipients` 中移除失聪玩家
+  - 失聪玩家听不到任何游戏声音（脚步、枪声、手雷等）
+  - 参考 jRandomSkills Deaf 技能的 `PlayerMakeSound` 实现
+  - GPLv3 许可：代码和设计概念来自 jRandomSkills
 
 ---
 
