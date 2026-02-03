@@ -28,12 +28,16 @@
 - **文件名**: AutoBhopEvent.cs
 - **内部名称**: AutoBhop
 - **显示名称**: 🐰 自动Bhop
-- **描述**: 自动连跳启用！移动速度提升！跳跃更流畅！
+- **描述**: 真正的自动连跳！按住跳跃自动连续跳跃！速度倍数放大！
 - **特殊机制**:
-  - 设置 `sv_enablebunnyhopping = true`
-  - 设置 `sv_maxspeed = 500`（默认320）
-  - 设置 `sv_accelerate = 10`（默认5.5）
-  - 保存原始值并在恢复时还原
+  - 使用 OnTick 每帧检测所有玩家
+  - 检测跳跃按键状态（包括 20 tick 缓冲时间）
+  - 检查玩家是否在地面且不在梯子上
+  - 自动设置跳跃垂直速度：`AbsVelocity.Z = 300`
+  - 水平速度倍数放大：2倍（`JUMP_BOOST = 2.0`）
+  - 最大速度限制：500（`MAX_SPEED = 500`）
+  - 参考 jRandomSkills BunnyHop 技能的 `GiveBunnyHop` 实现
+  - GPLv3 许可：代码和设计概念来自 jRandomSkills
 
 ### 3. Blitzkrieg (闪击行动)
 - **文件名**: BlitzkriegEvent.cs
