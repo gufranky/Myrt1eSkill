@@ -13,6 +13,8 @@ env:
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # 授予写入权限以创建 Release
 
     steps:
       # 检出代码
