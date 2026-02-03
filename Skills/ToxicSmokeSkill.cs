@@ -27,6 +27,9 @@ public class ToxicSmokeSkill : PlayerSkill
     // 追踪每回合是否已使用
     private readonly Dictionary<uint, bool> _usedThisRound = new();
 
+    // 追踪每回合是否已补充过（只补充1次）
+    private readonly Dictionary<uint, bool> _replenishedThisRound = new();
+
     // 追踪有毒烟雾弹位置（使用ConcurrentDictionary保证线程安全）
     private static readonly ConcurrentDictionary<Vector, byte> _toxicSmokes = new();
 
@@ -41,12 +44,14 @@ public class ToxicSmokeSkill : PlayerSkill
 
         var slot = player.Index;
         _usedThisRound[slot] = false;
+        _replenishedThisRound[slot] = false;
 
         // 给予3个烟雾弹
         GiveSmokeGrenades(player, 3);
 
         Console.WriteLine($"[有毒烟雾弹] {player.PlayerName} 获得了有毒烟雾弹能力");
         player.PrintToChat("☠️ 你获得了3个有毒烟雾弹！烟雾持续伤害敌人！");
+        player.PrintToChat("💡 投掷后自动补充1个烟雾弹！");
     }
 
     public override void OnRevert(CCSPlayerController player)
@@ -56,12 +61,59 @@ public class ToxicSmokeSkill : PlayerSkill
 
         var slot = player.Index;
         _usedThisRound.Remove(slot);
+        _replenishedThisRound.Remove(slot);
 
         // 清理该玩家可能残留的有毒烟雾记录
         // 注意：由于_toxicSmokes只记录位置，无法直接按玩家清理
         // 这里不做清理，依靠回合结束时的ClearAllToxicSmokes()
 
         Console.WriteLine($"[有毒烟雾弹] {player.PlayerName} 失去了有毒烟雾弹能力");
+    }
+
+    /// <summary>
+    /// 监听烟雾弹投掷事件 - 自动补充1次并记录烟雾位置
+    /// </summary>
+    public void OnSmokegrenadeDetonate(EventSmokegrenadeDetonate @event)
+    {
+        var player = @event.Userid;
+        if (player == null || !player.IsValid)
+            return;
+
+        // 检查玩家是否有有毒烟雾弹技能
+        var skill = Plugin?.SkillManager.GetPlayerSkill(player);
+        if (skill?.Name != "ToxicSmoke")
+            return;
+
+        var slot = player.Index;
+
+        // 自动补充逻辑
+        // 检查是否已经补充过
+        if (_replenishedThisRound.TryGetValue(slot, out var replenished) && replenished)
+        {
+            Console.WriteLine($"[有毒烟雾弹] {player.PlayerName} 本回合已补充过，不再补充");
+        }
+        else
+        {
+            // 立即补充1个烟雾弹
+            Server.NextFrame(() =>
+            {
+                if (player.IsValid && player.PawnIsAlive)
+                {
+                    GiveSmokeGrenades(player, 1);
+                    _replenishedThisRound[slot] = true;
+
+                    player.PrintToChat("☠️ 烟雾弹已补充！(1/1)");
+                    Console.WriteLine($"[有毒烟雾弹] {player.PlayerName} 的烟雾弹已补充");
+                }
+            });
+        }
+
+        // 记录烟雾位置
+        var smokePos = new Vector(@event.X, @event.Y, @event.Z);
+        _toxicSmokes.TryAdd(smokePos, 0);
+
+        Console.WriteLine($"[有毒烟雾弹] {player.PlayerName} 的有毒烟雾在 ({@event.X}, {@event.Y}, {@event.Z}) 爆炸");
+        player.PrintToChat("☠️ 有毒烟雾已扩散！");
     }
 
     public override void OnUse(CCSPlayerController player)
@@ -143,27 +195,6 @@ public class ToxicSmokeSkill : PlayerSkill
         {
             Console.WriteLine($"[有毒烟雾弹] OnEntitySpawned出错: {ex.Message}");
         }
-    }
-
-    /// <summary>
-    /// 处理烟雾弹爆炸事件
-    /// </summary>
-    public void OnSmokegrenadeDetonate(EventSmokegrenadeDetonate @event)
-    {
-        var player = @event.Userid;
-        if (player == null || !player.IsValid)
-            return;
-
-        // 检查是否有有毒烟雾弹技能
-        var skill = Plugin?.SkillManager.GetPlayerSkill(player);
-        if (skill?.Name != "ToxicSmoke")
-            return;
-
-        var smokePos = new Vector(@event.X, @event.Y, @event.Z);
-        _toxicSmokes.TryAdd(smokePos, 0);
-
-        Console.WriteLine($"[有毒烟雾弹] {player.PlayerName} 的有毒烟雾在 ({@event.X}, {@event.Y}, {@event.Z}) 爆炸");
-        player.PrintToChat("☠️ 有毒烟雾已扩散！");
     }
 
     /// <summary>

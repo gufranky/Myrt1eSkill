@@ -56,19 +56,28 @@ public class HighJumpSkill : PlayerSkill
         if (player == null || !player.IsValid)
             return;
 
-        var pawn = player.PlayerPawn.Value;
-        if (pawn == null || !pawn.IsValid)
-            return;
-
-        // 恢复原始重力
-        if (_originalGravity.ContainsKey(player.Slot))
-        {
-            // 参考 jRandomSkills Astronaut 技能，使用 ActualGravityScale
-            pawn.ActualGravityScale = _originalGravity[player.Slot];
-            Utilities.SetStateChanged(pawn, "CBaseEntity", "m_flActualGravityScale");
-            _originalGravity.Remove(player.Slot);
-        }
-
         Console.WriteLine($"[宇航员] {player.PlayerName} 失去了宇航员能力");
+
+        // 使用 NextFrame 确保即使在回合结束时也能正确恢复
+        Server.NextFrame(() =>
+        {
+            if (player == null || !player.IsValid)
+                return;
+
+            var pawn = player.PlayerPawn.Value;
+            if (pawn == null || !pawn.IsValid)
+                return;
+
+            // 恢复原始重力
+            if (_originalGravity.ContainsKey(player.Slot))
+            {
+                float originalGravity = _originalGravity[player.Slot];
+                pawn.ActualGravityScale = originalGravity;
+                Utilities.SetStateChanged(pawn, "CBaseEntity", "m_flActualGravityScale");
+                _originalGravity.Remove(player.Slot);
+
+                Console.WriteLine($"[宇航员] {player.PlayerName} 的重力已恢复为 {originalGravity}");
+            }
+        });
     }
 }

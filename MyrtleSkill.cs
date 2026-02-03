@@ -303,6 +303,9 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
     private HookResult OnPlayerTakeDamagePre(CCSPlayerPawn player, CTakeDamageInfo info)
     {
+        // 调试：确认函数被调用
+        Console.WriteLine($"[DEBUG-MAIN] OnPlayerTakeDamagePre 被调用，player IsValid: {player.IsValid}, 伤害: {info.Damage}");
+
         // 处理爆炸射击技能
         Skills.ExplosiveShotSkill.HandlePlayerDamagePre(player, info);
 
@@ -313,6 +316,7 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         var controller = player.Controller.Value;
         if (controller != null && controller.IsValid && controller is CCSPlayerController csController)
         {
+            Console.WriteLine($"[DEBUG-MAIN] 玩家: {csController.PlayerName}, 伤害: {info.Damage}, 当前血量: {player.Health}");
             var skill = SkillManager.GetPlayerSkill(csController);
             if (skill?.Name == "HeavyArmor")
             {
@@ -340,13 +344,6 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             {
                 totalMultiplier *= couplesMultiplier.Value;
             }
-        }
-
-        // 处理名刀技能（致命伤害保护）- 在所有其他倍数之后处理
-        float? meitoMultiplier = Skills.MeitoSkill.HandleDamagePre(player, info, totalMultiplier);
-        if (meitoMultiplier.HasValue)
-        {
-            totalMultiplier *= meitoMultiplier.Value;
         }
 
         // 应用伤害倍数
@@ -381,6 +378,17 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             jumpPlusPlusEvent.HandleWeaponFire(@event);
         }
 
+        // 处理爆炸射击技能
+        var player = @event.Userid;
+        if (player != null && player.IsValid)
+        {
+            var skill = SkillManager.GetPlayerSkill(player);
+            if (skill?.Name == "ExplosiveShot")
+            {
+                Skills.ExplosiveShotSkill.HandleWeaponFire(@event);
+            }
+        }
+
         return HookResult.Continue;
     }
 
@@ -392,6 +400,23 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             vampireEvent.HandlePlayerDeath(@event);
         }
 
+        // 处理 KeepMoving 事件
+        if (CurrentEvent is KeepMovingEvent keepMovingEvent)
+        {
+            keepMovingEvent.HandlePlayerDeath(@event);
+        }
+
+        // 处理名刀技能
+        var victim = @event.Userid;
+        if (victim != null && victim.IsValid)
+        {
+            var skill = SkillManager.GetPlayerSkill(victim);
+            if (skill?.Name == "Meito")
+            {
+                Skills.MeitoSkill.HandlePlayerDeath(@event);
+            }
+        }
+
         return HookResult.Continue;
     }
 
@@ -401,6 +426,13 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         var player = @event.Userid;
         if (player == null || !player.IsValid)
             return HookResult.Continue;
+
+        // 处理名刀技能（致命伤害保护）
+        var skill = SkillManager.GetPlayerSkill(player);
+        if (skill?.Name == "Meito")
+        {
+            Skills.MeitoSkill.HandlePlayerHurt(@event);
+        }
 
         // 处理 Vampire 事件
         if (CurrentEvent is VampireEvent vampireEvent)

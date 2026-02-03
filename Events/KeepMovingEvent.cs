@@ -145,10 +145,15 @@ public class KeepMovingEvent : EntertainmentEvent
                 // 提示玩家
                 player.PrintToCenter($"💡 按住 W 键！\n-{DAMAGE_AMOUNT} HP");
 
-                // 如果死亡
+                // 如果死亡，真正杀死玩家（参考杀手闪电实现）
                 if (newHealth <= 0)
                 {
                     player.PrintToChat("💀 你没有按住 W 键，死亡了！");
+
+                    // 使用 CommitSuicide 真正杀死玩家
+                    pawn.CommitSuicide(false, true);
+
+                    Console.WriteLine($"[永动机] {player.PlayerName} 因未按住 W 键而死亡");
                 }
 
                 // 重置计时器
@@ -160,6 +165,22 @@ public class KeepMovingEvent : EntertainmentEvent
             // 按住了 W 键，重置伤害计时器
             state.TimeSinceLastDamage = 0f;
         }
+    }
+
+    /// <summary>
+    /// 处理玩家死亡事件（在 MyrtleSkill 的 OnPlayerDeath 中调用）
+    /// 可以用于处理击杀奖励等逻辑
+    /// </summary>
+    public void HandlePlayerDeath(EventPlayerDeath @event)
+    {
+        // 可以在这里添加死亡相关的逻辑
+        // 比如给击杀者奖励，或者记录死亡统计等
+
+        var victim = @event.Userid;
+        if (victim == null || !victim.IsValid)
+            return;
+
+        Console.WriteLine($"[永动机] {victim.PlayerName} 死亡（可能是未按住W键）");
     }
 
     /// <summary>

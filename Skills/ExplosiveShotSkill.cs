@@ -27,6 +27,7 @@
 
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
+using CounterStrikeSharp.API.Modules.Entities;
 using CounterStrikeSharp.API.Modules.Memory;
 using CounterStrikeSharp.API.Modules.Memory.DynamicFunctions;
 using CounterStrikeSharp.API.Modules.Utils;
@@ -82,50 +83,67 @@ public class ExplosiveShotSkill : PlayerSkill
     }
 
     /// <summary>
-    /// 处理玩家伤害前事件
+    /// 处理玩家伤害前事件（旧实现，保留用于向后兼容）
     /// </summary>
     public static void HandlePlayerDamagePre(CCSPlayerPawn player, CTakeDamageInfo info)
+    {
+        // 这个方法已弃用，现在使用 HandleWeaponFire 代替
+        // 但保留以防需要基于伤害触发
+    }
+
+    /// <summary>
+    /// 处理武器开火事件
+    /// 在射击时使用射线追踪获取击中位置并创建爆炸
+    /// </summary>
+    public static void HandleWeaponFire(EventWeaponFire @event)
     {
         // 防止同一tick重复触发
         if (_lastTick == Server.TickCount)
             return;
 
-        // 检查伤害来源
-        if (info == null || info.Attacker == null || info.Attacker.Value == null)
+        var player = @event.Userid;
+        if (player == null || !player.IsValid)
             return;
 
-        var attackerPawn = new CCSPlayerPawn(info.Attacker.Value.Handle);
-        if (attackerPawn == null || !attackerPawn.IsValid)
-            return;
-
-        // 检查是否是玩家造成的伤害
-        if (attackerPawn.DesignerName != "player")
-            return;
-
-        if (attackerPawn.Controller == null || attackerPawn.Controller.Value == null)
-            return;
-
-        var attacker = attackerPawn.Controller.Value.As<CCSPlayerController>();
-        if (attacker == null || !attacker.IsValid)
+        var pawn = player.PlayerPawn.Value;
+        if (pawn == null || !pawn.IsValid || !player.PawnIsAlive)
             return;
 
         // 检查攻击者是否有爆炸射击技能
-        if (!_playerChances.TryGetValue(attacker.SteamID, out float chance))
+        if (!_playerChances.TryGetValue(player.SteamID, out float chance))
             return;
 
         // 20%-30%概率触发爆炸
         if (_staticRandom.NextDouble() > chance)
             return;
 
-        // 获取伤害位置
-        var damagePosition = info.DamagePosition;
+        // 获取玩家眼位置和视角
+        var origin = pawn.AbsOrigin;
+        if (origin == null)
+            return;
 
-        Console.WriteLine($"[爆炸射击] {attacker.PlayerName} 的射击触发了爆炸效果");
+        // 简单的视点位置计算（在玩家位置上方）
+        var eyePosition = new Vector(origin.X, origin.Y, origin.Z + 64.0f); // 64 units 是玩家大致的视点高度
+        var eyeAngles = pawn.EyeAngles;
+
+        // 计算射击方向
+        Vector shootDirection = GetForwardVector(eyeAngles);
+
+        // 射线追踪获取击中位置
+        Vector? hitPosition = TraceRay(eyePosition, shootDirection);
+
+        if (hitPosition == null)
+        {
+            Console.WriteLine($"[爆炸射击] {player.PlayerName} 的射击未击中任何物体");
+            return;
+        }
+
+        Console.WriteLine($"[爆炸射击] {player.PlayerName} 的射击触发了爆炸效果");
 
         // 创建爆炸
-        SpawnExplosion(damagePosition);
+        SpawnExplosion(hitPosition);
 
-        attacker.PrintToChat($"💥 你的射击引发了爆炸！");
+        player.PrintToChat($"💥 你的射击引发了爆炸！");
     }
 
     /// <summary>
@@ -136,6 +154,50 @@ public class ExplosiveShotSkill : PlayerSkill
         _lastTick = Server.TickCount;
         CreateHEGrenadeProjectile(position, IDENTIFIER_ANGLE, new Vector(0, 0, 0), 0);
         Console.WriteLine($"[爆炸射击] 在位置 ({position.X:F1}, {position.Y:F1}, {position.Z:F1}) 创建了爆炸");
+    }
+
+    /// <summary>
+    /// 使用射线追踪获取射击击中位置
+    /// 由于API限制，使用简化方法：向玩家视线方向延伸一定距离
+    /// </summary>
+    private static Vector? TraceRay(Vector start, Vector direction)
+    {
+        try
+        {
+            // 简化实现：向射击方向延伸固定距离（2000单位）
+            // 这不是真正的射线追踪，但对于大多数情况足够有效
+            float maxDistance = 2000.0f;
+
+            Vector end = new Vector(
+                start.X + direction.X * maxDistance,
+                start.Y + direction.Y * maxDistance,
+                start.Z + direction.Z * maxDistance
+            );
+
+            return end;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[爆炸射击] 计算爆炸位置失败: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// 根据角度获取前向向量
+    /// </summary>
+    private static Vector GetForwardVector(QAngle angles)
+    {
+        float radiansX = angles.X * (MathF.PI / 180f);
+        float radiansY = angles.Y * (MathF.PI / 180f);
+
+        float sinX = MathF.Sin(radiansX);
+        float cosX = MathF.Cos(radiansX);
+
+        float sinY = MathF.Sin(radiansY);
+        float cosY = MathF.Cos(radiansY);
+
+        return new Vector(cosY * cosX, sinY * cosX, -sinX);
     }
 
     /// <summary>

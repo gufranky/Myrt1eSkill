@@ -43,85 +43,162 @@ public class MeitoSkill : PlayerSkill
     }
 
     /// <summary>
-    /// 在伤害造成前处理（Pre阶段）
-    /// 如果伤害致命且本回合未使用过名刀，则取消伤害并给予无敌
+    /// 处理玩家受伤事件（在伤害造成后触发）
+    /// 如果血量<=0且本回合未使用过名刀，则恢复血量并给予无敌
+    /// 参考第二次机会的实现，使用 EventPlayerHurt 而不是 OnPlayerTakeDamagePre
     /// </summary>
-    public static float? HandleDamagePre(CCSPlayerPawn player, CTakeDamageInfo info, float currentMultiplier = 1.0f)
+    public static void HandlePlayerHurt(EventPlayerHurt @event)
     {
-        // 获取受害者控制器
-        var victimController = player.Controller.Value;
-        if (victimController == null || !victimController.IsValid)
-            return null;
+        Console.WriteLine($"[名刀-DEBUG] HandlePlayerHurt 被调用");
 
-        // 转换为 CCSPlayerController
-        if (victimController is not CCSPlayerController csVictimController)
-            return null;
+        var victim = @event.Userid;
+        if (victim == null || !victim.IsValid)
+        {
+            Console.WriteLine($"[名刀-DEBUG] victim 无效，返回");
+            return;
+        }
+
+        var victimPawn = victim.PlayerPawn.Value;
+        if (victimPawn == null || !victimPawn.IsValid)
+        {
+            Console.WriteLine($"[名刀-DEBUG] victimPawn 无效，返回");
+            return;
+        }
+
+        Console.WriteLine($"[名刀-DEBUG] 玩家: {victim.PlayerName}, 当前血量: {victimPawn.Health}");
 
         // 检查玩家是否有名刀技能
         var plugin = MyrtleSkill.Instance;
         if (plugin?.SkillManager == null)
-            return null;
+        {
+            Console.WriteLine($"[名刀-DEBUG] plugin 或 SkillManager 为 null，返回");
+            return;
+        }
 
-        var skill = plugin.SkillManager.GetPlayerSkill(csVictimController);
-        if (skill == null || skill.Name != "Meito")
-            return null;
+        var skill = plugin.SkillManager.GetPlayerSkill(victim);
+        if (skill == null)
+        {
+            Console.WriteLine($"[名刀-DEBUG] {victim.PlayerName} 没有技能，返回");
+            return;
+        }
+
+        Console.WriteLine($"[名刀-DEBUG] {victim.PlayerName} 的技能: {skill.Name}");
+
+        if (skill.Name != "Meito")
+        {
+            Console.WriteLine($"[名刀-DEBUG] {victim.PlayerName} 的技能不是名刀，返回");
+            return;
+        }
+
+        Console.WriteLine($"[名刀-DEBUG] {victim.PlayerName} 确认有名刀技能");
 
         // 检查是否在无敌状态
-        if (_invinciblePlayers.ContainsKey(csVictimController.Slot))
+        if (_invinciblePlayers.ContainsKey(victim.Slot))
         {
-            var invincibleExpireTime = _invinciblePlayers[csVictimController.Slot];
+            var invincibleExpireTime = _invinciblePlayers[victim.Slot];
+            var timeRemaining = (invincibleExpireTime - DateTime.Now).TotalSeconds;
+
+            Console.WriteLine($"[名刀-DEBUG] {victim.PlayerName} 在无敌状态中，剩余 {timeRemaining:F2} 秒");
+
             if (DateTime.Now < invincibleExpireTime)
             {
-                // 无敌状态中，取消所有伤害
-                Console.WriteLine($"[名刀] {csVictimController.PlayerName} 处于无敌状态，取消伤害");
-                return 0.0f;
+                // 无敌状态中，确保血量不低于1
+                if (victimPawn.Health <= 0)
+                {
+                    victimPawn.Health = 1;
+                    Utilities.SetStateChanged(victimPawn, "CBaseEntity", "m_iHealth");
+                    Console.WriteLine($"[名刀] {victim.PlayerName} 处于无敌状态，血量重置为1");
+                }
+                return;
             }
             else
             {
                 // 无敌状态已过期，清理
-                _invinciblePlayers.TryRemove(csVictimController.Slot, out _);
+                Console.WriteLine($"[名刀-DEBUG] {victim.PlayerName} 的无敌状态已过期，清理");
+                _invinciblePlayers.TryRemove(victim.Slot, out _);
             }
         }
 
         // 检查本回合是否已使用过名刀
-        if (_meitoUsed.ContainsKey(csVictimController.Slot))
-            return null;
+        if (_meitoUsed.ContainsKey(victim.Slot))
+        {
+            Console.WriteLine($"[名刀-DEBUG] {victim.PlayerName} 本回合已使用过名刀，返回");
+            return;
+        }
 
-        // 获取伤害值
-        float damage = info.Damage;
-        if (damage <= 0)
-            return null;
+        Console.WriteLine($"[名刀-DEBUG] {victim.PlayerName} 本回合未使用过名刀");
 
-        // 获取当前血量
-        int currentHealth = player.Health;
+        // 检查是否死亡（血量 <= 0）
+        if (victimPawn.Health > 0)
+        {
+            Console.WriteLine($"[名刀-DEBUG] {victim.PlayerName} 未死亡（血量: {victimPawn.Health}），返回");
+            return;
+        }
 
-        // 计算应用倍数后的实际伤害
-        float actualDamage = damage * currentMultiplier;
+        Console.WriteLine($"[名刀-DEBUG] {victim.PlayerName} 死亡！触发名刀复活！");
 
-        // 检查伤害是否致命（当前血量 - 实际伤害 <= 0）
-        if (currentHealth - actualDamage > 0)
-            return null; // 不是致命伤害，不处理
+        // 获取受伤害前的血量（EventPlayerHurt.DmgHealth是实际伤害值）
+        int damageTaken = @event.DmgHealth;
+        int healthBeforeDeath = victimPawn.Health + damageTaken;
 
-        Console.WriteLine($"[名刀] {csVictimController.PlayerName} 受到致命伤害 (血量:{currentHealth} 原始伤害:{damage} 倍数:{currentMultiplier} 实际:{actualDamage})，触发名刀效果");
+        Console.WriteLine($"[名刀-DEBUG] {victim.PlayerName} 受到 {damageTaken} 伤害，死亡前血量: {healthBeforeDeath}");
 
         // 标记本回合已使用
-        _meitoUsed.TryAdd(csVictimController.Slot, 0);
+        _meitoUsed.TryAdd(victim.Slot, 0);
+        Console.WriteLine($"[名刀-DEBUG] 已标记 {victim.PlayerName} 本回合使用过名刀");
+
+        // 恢复血量
+        victimPawn.Health = healthBeforeDeath;
+        Utilities.SetStateChanged(victimPawn, "CBaseEntity", "m_iHealth");
+        Console.WriteLine($"[名刀] {victim.PlayerName} 名刀触发！血量恢复为 {healthBeforeDeath}");
 
         // 设置无敌状态（0.5秒）
         DateTime expireTime = DateTime.Now.AddSeconds(INVINCIBLE_DURATION);
-        _invinciblePlayers[csVictimController.Slot] = expireTime;
-
-        // **关键修复**：保存原始血量，取消伤害后恢复（保持玩家原有血量）
-        player.Health = currentHealth;  // 恢复到受伤前的血量
-        Utilities.SetStateChanged(player, "CBaseEntity", "m_iHealth");
-        Console.WriteLine($"[名刀] {csVictimController.PlayerName} 保持原始血量 {currentHealth}，取消致命伤害");
+        _invinciblePlayers[victim.Slot] = expireTime;
+        Console.WriteLine($"[名刀-DEBUG] 设置 {victim.PlayerName} 无敌到 {expireTime:HH:mm:ss.fff}");
 
         // 显示提示
-        csVictimController.PrintToCenter("⚔️ 名刀御守！");
-        csVictimController.PrintToChat($"⚔️ 名刀抵消了致命伤害！保持 {currentHealth} 血！获得 {INVINCIBLE_DURATION} 秒无敌！");
+        victim.PrintToCenter("⚔️ 名刀御守！");
+        victim.PrintToChat($"⚔️ 名刀抵消了致命伤害！恢复 {healthBeforeDeath} 血！获得 {INVINCIBLE_DURATION} 秒无敌！");
 
-        // 返回0倍数，完全取消伤害
-        return 0.0f;
+        Server.PrintToChatAll($"⚔️ {victim.PlayerName} 使用了名刀！");
+    }
+
+    /// <summary>
+    /// 处理玩家死亡事件
+    /// 清理状态并显示名刀使用信息
+    /// </summary>
+    public static void HandlePlayerDeath(EventPlayerDeath @event)
+    {
+        var victim = @event.Userid;
+        if (victim == null || !victim.IsValid)
+            return;
+
+        // 检查玩家是否有名刀技能
+        var plugin = MyrtleSkill.Instance;
+        if (plugin?.SkillManager == null)
+            return;
+
+        var skill = plugin.SkillManager.GetPlayerSkill(victim);
+        if (skill == null || skill.Name != "Meito")
+            return;
+
+        // 检查本回合是否触发过名刀
+        bool usedMeito = _meitoUsed.ContainsKey(victim.Slot);
+
+        // 清理玩家的无敌状态（虽然已经死亡，但为了保持数据一致性）
+        _invinciblePlayers.TryRemove(victim.Slot, out _);
+
+        // 显示死亡提示
+        if (usedMeito)
+        {
+            Console.WriteLine($"[名刀] {victim.PlayerName} 死亡（本回合已触发过名刀）");
+            victim.PrintToChat("⚔️ 你本回合已使用过名刀，但最终仍战死沙场！");
+        }
+        else
+        {
+            Console.WriteLine($"[名刀] {victim.PlayerName} 死亡（本回合未触发名刀）");
+        }
     }
 
     /// <summary>

@@ -269,6 +269,10 @@ public class PlayerSkillManager
         {
             skill.OnRevert(player);
             _playerSkills.Remove(player.Slot);
+
+            // 清除冷却时间记录（避免跨回合影响）
+            _playerCooldowns.Remove(player.Slot);
+
             Console.WriteLine($"[技能管理器] 已移除 {player.PlayerName} 的技能: {skill.DisplayName}");
         }
     }
@@ -301,6 +305,10 @@ public class PlayerSkillManager
         }
 
         _playerSkills.Clear();
+
+        // 清除所有冷却时间记录（确保跨回合重置）
+        _playerCooldowns.Clear();
+
         // 注意：不清空历史记录，让玩家记住之前获得过的技能
     }
 

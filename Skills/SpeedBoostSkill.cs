@@ -42,18 +42,28 @@ public class SpeedBoostSkill : PlayerSkill
         if (player == null || !player.IsValid)
             return;
 
-        var pawn = player.PlayerPawn.Value;
-        if (pawn == null || !pawn.IsValid)
-            return;
+        Console.WriteLine($"[速度提升] {player.PlayerName} 的移动速度即将恢复");
 
-        // 恢复原始速度
-        if (_originalSpeed.ContainsKey(player.Slot))
+        // 使用 NextFrame 确保即使在回合结束时也能正确恢复
+        Server.NextFrame(() =>
         {
-            pawn.VelocityModifier = _originalSpeed[player.Slot];
-            Utilities.SetStateChanged(pawn, "CCSPlayerPawn", "m_flVelocityModifier");
-            _originalSpeed.Remove(player.Slot);
-        }
+            if (player == null || !player.IsValid)
+                return;
 
-        Console.WriteLine($"[速度提升] {player.PlayerName} 的移动速度已恢复");
+            var pawn = player.PlayerPawn.Value;
+            if (pawn == null || !pawn.IsValid)
+                return;
+
+            // 恢复原始速度
+            if (_originalSpeed.ContainsKey(player.Slot))
+            {
+                float originalSpeed = _originalSpeed[player.Slot];
+                pawn.VelocityModifier = originalSpeed;
+                Utilities.SetStateChanged(pawn, "CCSPlayerPawn", "m_flVelocityModifier");
+                _originalSpeed.Remove(player.Slot);
+
+                Console.WriteLine($"[速度提升] {player.PlayerName} 的移动速度已恢复为 {originalSpeed}");
+            }
+        });
     }
 }

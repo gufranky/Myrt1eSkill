@@ -88,62 +88,59 @@ public class OneShotEvent : EntertainmentEvent
     /// <summary>
     /// 恢复所有武器的MaxClip1
     /// </summary>
-    /// <summary>
-    /// 恢复所有武器的MaxClip1
-    /// </summary>
     private void RestoreAllWeaponMaxClip1()
     {
-        foreach (var player in Utilities.GetPlayers())
+        Console.WriteLine($"[一发AK] 开始恢复 {_cachedMaxClip1.Count} 种武器的MaxClip1");
+
+        // 遍历所有被修改过的武器类型
+        foreach (var kvp in _cachedMaxClip1)
         {
-            if (player == null || !player.IsValid || !player.PawnIsAlive)
-                continue;
+            string weaponName = kvp.Key;
+            int originalMaxClip1 = kvp.Value;
 
-            var pawn = player.PlayerPawn.Value;
-            if (pawn == null || !pawn.IsValid)
-                continue;
-
-            var weaponServices = pawn.WeaponServices;
-            if (weaponServices == null)
-                continue;
-
-            foreach (var weaponHandle in weaponServices.MyWeapons)
+            // 查找所有该类型的武器实例并恢复
+            foreach (var player in Utilities.GetPlayers())
             {
-                if (!weaponHandle.IsValid)
+                if (player == null || !player.IsValid || !player.PawnIsAlive)
                     continue;
 
-                var weapon = weaponHandle.Get();
-                if (weapon == null || !weapon.IsValid)
+                var pawn = player.PlayerPawn.Value;
+                if (pawn == null || !pawn.IsValid)
                     continue;
 
-                var weaponBase = weapon.As<CCSWeaponBase>();
-                if (weaponBase == null || weaponBase.VData == null)
+                var weaponServices = pawn.WeaponServices;
+                if (weaponServices == null)
                     continue;
 
-                var weaponType = weaponBase.VData.WeaponType;
-                if (weaponType == CSWeaponType.WEAPONTYPE_KNIFE ||
-                    weaponType == CSWeaponType.WEAPONTYPE_C4)
-                    continue;
-
-                string weaponName = weaponBase.DesignerName;
-                if (_cachedMaxClip1.TryGetValue(weaponName, out int originalMaxClip1))
+                foreach (var weaponHandle in weaponServices.MyWeapons)
                 {
-                    // 使用 NextFrame 确保武器实体仍然有效
-                    Server.NextFrame(() =>
+                    if (!weaponHandle.IsValid)
+                        continue;
+
+                    var weapon = weaponHandle.Get();
+                    if (weapon == null || !weapon.IsValid)
+                        continue;
+
+                    var weaponBase = weapon.As<CCSWeaponBase>();
+                    if (weaponBase == null || weaponBase.VData == null)
+                        continue;
+
+                    // 检查是否是目标武器
+                    if (weaponBase.DesignerName == weaponName)
                     {
-                        if (weaponBase.IsValid && weaponBase.VData != null)
-                        {
-                            // 恢复 MaxClip1
-                            weaponBase.VData.MaxClip1 = originalMaxClip1;
-                            
-                            // 强制通知客户端
-                            Utilities.SetStateChanged(weaponBase, "CBasePlayerWeapon", "m_iClip1");
-                            
-                            Console.WriteLine($"[一发AK] {player.PlayerName} 的武器 {weaponName} MaxClip1已恢复为 {originalMaxClip1}");
-                        }
-                    });
+                        // 立即恢复 MaxClip1（不使用 NextFrame）
+                        weaponBase.VData.MaxClip1 = originalMaxClip1;
+
+                        // 强制通知客户端
+                        Utilities.SetStateChanged(weaponBase, "CBasePlayerWeapon", "m_iClip1");
+
+                        Console.WriteLine($"[一发AK] {player.PlayerName} 的 {weaponName} MaxClip1已恢复为 {originalMaxClip1}");
+                    }
                 }
             }
         }
+
+        Console.WriteLine("[一发AK] 所有武器的MaxClip1恢复完成");
     }
 
     /// <summary>
