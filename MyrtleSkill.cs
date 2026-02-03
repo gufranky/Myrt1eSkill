@@ -670,6 +670,12 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 处理黑暗技能（检查持续时间）
         var darknessSkill = (Skills.DarknessSkill?)SkillManager.GetSkill("Darkness");
         darknessSkill?.OnTick();
+
+        // 处理永动机事件
+        if (CurrentEvent is KeepMovingEvent keepMovingEvent)
+        {
+            keepMovingEvent.OnTick();
+        }
     }
 
     /// <summary>
@@ -748,8 +754,6 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         AddCommand("css_pos_stats", "查看位置记录器统计信息", _commands.CommandPosStats);
         AddCommand("css_pos_clear_all", "清除所有玩家的位置历史", _commands.CommandPosClearAll);
     }
-
-    #endregion
 
     #endregion
 }

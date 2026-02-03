@@ -53,9 +53,10 @@ Myrtle Skill Plugin 是一个 Counter-Strike 2 (CS2) 娱乐插件，为服务器
 | HeadshotOnly         | 🎯 只有爆头     | 只有爆头才能造成伤害！                                           |
 | HighSpeed            | 高速移动        | 所有玩家移速翻倍！                                               |
 | InfiniteAmmo         | 无限弹药        | 弹药永不耗尽！                                                   |
-| Juggernaut           | 重装战士        | 所有玩家获得500生命、200护甲，但移速降低30%！                    |
+| Juggernaut           | 🛡️ 重装战士     | 所有玩家获得500生命、200护甲，但移速降低30%！                    |
 | JumpOnShoot          | 射击跳跃        | 开枪时会自动跳跃！仅在地面时触发！                               |
 | JumpPlusPlus         | 超级跳跃        | 开枪自动跳跃且无扩散！免疫落地伤害！                             |
+| KeepMoving           | 🏃 永动机       | 所有玩家必须持续按住 W 键！没按住的话每 0.75 秒扣 10 滴血！       |
 | LowGravity           | 低重力          | 玩家可以跳得更高！                                               |
 | LowGravityPlusPlus   | 超低重力        | 重力大幅降低，空中射击无扩散！                                   |
 | MiniSize             | 迷你尺寸        | 所有玩家变成迷你尺寸！                                           |
@@ -83,6 +84,7 @@ Myrtle Skill Plugin 是一个 Counter-Strike 2 (CS2) 娱乐插件，为服务器
 
 - **NoEvent**: 100
 - **NoSkill**: 100
+- **KeepMoving**: 10
 - **其他事件**: 10
 
 **概率计算**：
@@ -98,11 +100,32 @@ Myrtle Skill Plugin 是一个 Counter-Strike 2 (CS2) 娱乐插件，为服务器
 
 ### 技能快速参考表
 
-| 内部名称   | 显示名称    | 描述                     | 类型 | 冷却时间 | 互斥事件                                     |
-| ---------- | ----------- | ------------------------ | ---- | -------- | -------------------------------------------- |
-| HighJump   | 🦘 超级跳跃 | 跳跃高度大幅提升！       | 被动 | 无       | LowGravity, LowGravityPlusPlus, JumpPlusPlus |
-| SpeedBoost | ⚡ 速度提升 | 移动速度提升50%！        | 被动 | 无       | 无                                           |
-| Teleport   | 🌀 瞬间移动 | 传送到地图上的随机位置！ | 主动 | 15.0秒   | 无                                           |
+| 内部名称       | 显示名称          | 描述                                   | 类型 | 冷却时间 |
+| -------------- | ----------------- | -------------------------------------- | ---- | -------- |
+| AntiFlash      | 😎 防闪光         | 免疫闪光弹效果！                       | 被动 | 无       |
+| BotSummon      | 🤖 召唤队友       | 死后自动召唤一名队友机器人！           | 被动 | 无       |
+| Darkness       | 🌑 黑暗           | 所有玩家视野范围降低至 500！           | 被动 | 无       |
+| DecoyXRay      | 🎯 透视诱饵弹     | 诱饵弹让队友获得透视效果！              | 被动 | 无       |
+| Disarm         | 🤲 裁军           | 攻击敌人有40%几率使其掉落武器！        | 被动 | 无       |
+| DumbBot        | 🧠 笨笨机器人     | 机器人变得笨拙，伤害降低！             | 被动 | 无       |
+| EnemySpin      | 🔄 敌人旋转       | 攻击敌人有40%几率使其旋转180度！       | 被动 | 无       |
+| ExplosiveShot  | 💥 爆炸射击       | 子弹命中敌人时产生小范围爆炸！         | 被动 | 无       |
+| FlashJump      | ⚡ 闪光跳跃       | 被闪时自动向前方冲刺逃生！             | 被动 | 无       |
+| Glaz           | 👁️ 格拉兹         | 可以透过烟雾看到敌人！                 | 被动 | 无       |
+| HeavyArmor     | 🛡️ 重甲战士       | 受到的所有伤害降低 50%！               | 被动 | 无       |
+| HighJump       | 👨‍🚀 宇航员        | 重力降低至70%，跳跃更高！              | 被动 | 无       |
+| KillerFlash    | ⚡ 杀手闪电       | 被闪时立即对范围内敌人造成高额伤害！   | 被动 | 无       |
+| MasterThief    | 🦹 顶级小偷       | 可以拾取敌人的武器！                   | 被动 | 无       |
+| Meito          | ⚔️ 名刀           | 每10秒一次致命伤害保护，保留1滴血！    | 被动 | 无       |
+| QuickShot      | 🔫 速射           | 移动时射击无扩散！                     | 被动 | 无       |
+| RadarHack      | 📡 雷达黑客       | 敌人出现在你的雷达上！                 | 被动 | 无       |
+| SecondChance   | 💚 第二次机会     | 每回合受到致命伤害时触发一次复活！     | 被动 | 无       |
+| SpeedBoost     | ⚡ 速度提升       | 移动速度提升50%！                      | 被动 | 无       |
+| Sprint         | 💨 短跑           | 进行第二次跳跃以冲刺！                 | 被动 | 无       |
+| TeamWhip       | 🔥 鞭策队友       | 对队友造成伤害会治疗等量生命值！       | 被动 | 无       |
+| Teleport       | 🌀 瞬间移动       | 传送到地图上的随机位置！               | 主动 | 15.0秒   |
+| ToxicSmoke     | ☠️ 有毒烟雾弹     | 烟雾弹变成绿色，对敌造成持续伤害！     | 被动 | 无       |
+| Wallhack       | 👁️ 透视技能       | 可以透过墙壁看到敌人！                 | 被动 | 无       |
 
 ### 技能类型说明
 
@@ -113,17 +136,15 @@ Myrtle Skill Plugin 是一个 Counter-Strike 2 (CS2) 娱乐插件，为服务器
 
 默认权重（可配置）：
 
-- **Teleport**: 10
-- **SpeedBoost**: 10
-- **HighJump**: 10
+- **所有技能**: 10（除非特别指定）
 
 ### 事件互斥系统
 
-技能可以指定与哪些事件互斥。在特定事件激活时，互斥的技能不会被抽到。
+某些技能可以指定与哪些事件互斥。在特定事件激活时，互斥的技能不会被抽到。
 
-**示例**：
+**互斥示例**：
 
-- `HighJump` 技能与 `LowGravity`、`LowGravityPlusPlus`、`JumpPlusPlus` 事件互斥
+- `HighJump`（宇航员）与 `LowGravity`、`LowGravityPlusPlus`、`JumpPlusPlus` 事件互斥
 - 原因：这些效果都会影响跳跃/重力，避免效果重叠或冲突
 
 ---
@@ -316,10 +337,10 @@ MyrtleSkill/
 
 ### 命名空间
 
-- `MyrtleSkill` - 主命名空间
-- `MyrtleSkill.Core` - 核心功能
-- `MyrtleSkill.Skills` - 技能系统
-- `MyrtleSkill.Features` - 功能模块
+- **MyrtleSkill** - 主命名空间
+- **MyrtleSkill.Core** - 核心功能
+- **MyrtleSkill.Skills** - 技能系统
+- **MyrtleSkill.Features** - 功能模块
 
 ### 依赖项
 
@@ -418,22 +439,64 @@ A: 查看服务器控制台输出，所有重要操作都有日志记录。
 
 ## 许可证
 
-本插件遵循 Counter-Strike 2 的插件开发规范。
+本项目采用 **GNU General Public License v3.0 (GPLv3)** 开源。
 
-**注意事项**：
+© 2026 MyrtleSkill Plugin Contributors
+
+**许可证信息**：
+
+- ✅ 允许商业使用
+- ✅ 允许修改
+- ✅ 允许分发
+- ✅ 允许私人使用
+- ⚠️ **Copyleft 条款**：衍生作品必须使用相同的许可证
+- ⚠️ **必须披露源代码**：分发时必须提供源代码
+- ⚠️ **必须包含原始许可证**：复制和分发时必须包含 GPLv3 许可证
+
+**主要特点**：
+
+- 这是一个强 copyleft 许可证，要求所有修改和衍生作品也使用 GPLv3
+- 分发二进制形式时，必须同时提供源代码
+- 提供源代码的方式包括：与软件一起分发、或提供下载链接（至少保留 3 年）
+- 任何修改都必须明确标注，并注明修改日期
+
+**免责声明**：
+
+本插件按"原样"提供，不提供任何形式的明示或暗示保证。作者不对任何索赔或损害负责。
+
+**使用说明**：
 
 - 本插件仅供娱乐和教育用途
-- 请在官方服务器上测试后再部署到生产环境
-- 某些功能可能影响游戏平衡性，请谨慎使用
+- 请在测试服务器上充分测试后再部署到生产环境
+- 某些功能可能影响游戏平衡性，请根据实际情况调整配置
+- 任何基于本代码的修改和衍生作品都必须同样使用 GPLv3 许可证
+
+**完整许可证文本**：
+
+请查看项目根目录下的 `LICENSE` 文件，或访问：
+https://www.gnu.org/licenses/gpl-3.0.txt
 
 ---
 
-## 支持与
+## 支持与贡献
 
-如有问题、建议或 Bug 报告，请联系开发者。
+### 如何贡献
 
-**项目位置**: E:\cs-plugin\HelloWorldPlugin
-**Git 仓库**: [待添加]
+欢迎提交 Issue 和 Pull Request！
+
+1. Fork 本项目
+2. 创建特性分支 (`git checkout -b feature/AmazingFeature`)
+3. 提交更改 (`git commit -m 'Add some AmazingFeature'`)
+4. 推送到分支 (`git push origin feature/AmazingFeature`)
+5. 开启 Pull Request
+
+### 联系方式
+
+如有问题、建议或 Bug 报告，请通过以下方式联系：
+
+- **提交 Issue**: [GitHub Issues](待添加)
+- **讨论区**: [GitHub Discussions](待添加)
+- **项目位置**: E:\cs-plugin\HelloWorldPlugin
 
 ---
 
