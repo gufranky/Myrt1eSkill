@@ -43,21 +43,6 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
     // 静态实例（供技能访问）
     public static MyrtleSkill? Instance { get; private set; }
 
-    // 友军伤害踢人保护
-    private bool _originalAutoKickValue = false;
-
-    // 友军伤害设置
-    private ConVar? _friendlyFireConVar;
-    private bool _originalFriendlyFireValue = false;
-
-    // 坠落伤害设置
-    private ConVar? _fallDamageConVar;
-    private bool _originalFallDamageValue = false;
-
-    // 作弊保护
-    private ConVar? _svCheatConVar;
-    private bool _originalSvCheat = false;
-
     public void OnConfigParsed(EventWeightsConfig config)
     {
         Config = config;
@@ -70,14 +55,8 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 设置静态实例
         Instance = this;
 
-        // 启用作弊功能
-        EnableCheatMode();
-
-        // 启用友军伤害、禁用坠落伤害并启用派对模式
-        EnableFriendlyFire();
-        DisableFallDamage();
-        DisableFriendlyFireKick();
-        EnablePartyMode();
+        // 初始化娱乐服务器全局设置
+        Utils.ServerSettings.InitializeAllSettings();
 
         // 初始化管理器
         HeavyArmorManager = new HeavyArmorManager(this);
@@ -147,6 +126,9 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
     private HookResult OnRoundStart(EventRoundStart @event, GameEventInfo info)
     {
+        // -1. 重新应用娱乐服务器全局设置（防止被其他插件或游戏机制覆盖）
+        Utils.ServerSettings.InitializeAllSettings();
+
         // 0. 开局福利系统（最优先执行）
         WelfareManager.OnRoundStart();
 
@@ -765,237 +747,6 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         AddCommand("css_pos_clear", "清除你的位置历史", _commands.CommandPosClear);
         AddCommand("css_pos_stats", "查看位置记录器统计信息", _commands.CommandPosStats);
         AddCommand("css_pos_clear_all", "清除所有玩家的位置历史", _commands.CommandPosClearAll);
-    }
-
-    #region 友军伤害保护
-
-    /// <summary>
-    /// 启用作弊模式
-    /// </summary>
-    private void EnableCheatMode()
-    {
-        try
-        {
-            _svCheatConVar = ConVar.Find("sv_cheat");
-            if (_svCheatConVar != null)
-            {
-                _originalSvCheat = _svCheatConVar.GetPrimitiveValue<bool>();
-                _svCheatConVar.SetValue(true);
-                Console.WriteLine($"[作弊模式] sv_cheat 已设置为 true (原值: {_originalSvCheat})");
-            }
-            else
-            {
-                Console.WriteLine("[作弊模式] 警告：无法找到 sv_cheat ConVar");
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[作弊模式] 错误：{ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// 恢复作弊模式设置
-    /// </summary>
-    private void RestoreCheatMode()
-    {
-        try
-        {
-            if (_svCheatConVar != null)
-            {
-                _svCheatConVar.SetValue(_originalSvCheat);
-                Console.WriteLine($"[作弊模式] sv_cheat 已恢复为 {_originalSvCheat}");
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[作弊模式] 错误：{ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// 启用友军伤害
-    /// </summary>
-    private void EnableFriendlyFire()
-    {
-        try
-        {
-            _friendlyFireConVar = ConVar.Find("mp_friendlyfire");
-            if (_friendlyFireConVar != null)
-            {
-                _originalFriendlyFireValue = _friendlyFireConVar.GetPrimitiveValue<bool>();
-
-                // 启用友军伤害
-                _friendlyFireConVar.SetValue(true);
-                Console.WriteLine($"[友军伤害] ⚔️ 已启用 mp_friendlyfire (原始值: {_originalFriendlyFireValue})");
-            }
-            else
-            {
-                Console.WriteLine("[友军伤害] 警告：无法找到 mp_friendlyfire ConVar");
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[友军伤害] 错误：{ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// 禁用坠落伤害
-    /// </summary>
-    private void DisableFallDamage()
-    {
-        try
-        {
-            _fallDamageConVar = ConVar.Find("mp_falldamage");
-            if (_fallDamageConVar != null)
-            {
-                _originalFallDamageValue = _fallDamageConVar.GetPrimitiveValue<bool>();
-
-                // 禁用坠落伤害
-                _fallDamageConVar.SetValue(false);
-                Console.WriteLine($"[坠落伤害] 🪽 已禁用 mp_falldamage (原始值: {_originalFallDamageValue})");
-            }
-            else
-            {
-                Console.WriteLine("[坠落伤害] 警告：无法找到 mp_falldamage ConVar");
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[坠落伤害] 错误：{ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// 禁用友军伤害自动踢人功能
-    /// </summary>
-    private void DisableFriendlyFireKick()
-    {
-        try
-        {
-            // 获取当前的 mp_autokick 值
-            var autoKickConVar = ConVar.Find("mp_autokick");
-            if (autoKickConVar != null)
-            {
-                _originalAutoKickValue = autoKickConVar.GetPrimitiveValue<bool>();
-
-                // 禁用自动踢人
-                autoKickConVar.SetValue(false);
-                Console.WriteLine($"[友军伤害保护] 已禁用 mp_autokick (原始值: {_originalAutoKickValue})");
-            }
-            else
-            {
-                Console.WriteLine("[友军伤害保护] 警告：无法找到 mp_autokick ConVar");
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[友军伤害保护] 错误：{ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// 启用派对模式
-    /// </summary>
-    private void EnablePartyMode()
-    {
-        try
-        {
-            var partyModeConVar = ConVar.Find("sv_partymode");
-            if (partyModeConVar != null)
-            {
-                partyModeConVar.SetValue(true);
-                Console.WriteLine("[派对模式] 已启用 sv_partymode");
-            }
-            else
-            {
-                Console.WriteLine("[派对模式] 警告：无法找到 sv_partymode ConVar");
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[派对模式] 错误：{ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// 恢复友军伤害
-    /// </summary>
-    private void RestoreFriendlyFire()
-    {
-        try
-        {
-            if (_friendlyFireConVar != null)
-            {
-                _friendlyFireConVar.SetValue(_originalFriendlyFireValue);
-                Console.WriteLine($"[友军伤害] 已恢复 mp_friendlyfire 为 {_originalFriendlyFireValue}");
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[友军伤害] 错误：{ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// 恢复坠落伤害
-    /// </summary>
-    private void RestoreFallDamage()
-    {
-        try
-        {
-            if (_fallDamageConVar != null)
-            {
-                _fallDamageConVar.SetValue(_originalFallDamageValue);
-                Console.WriteLine($"[坠落伤害] 已恢复 mp_falldamage 为 {_originalFallDamageValue}");
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[坠落伤害] 错误：{ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// 恢复友军伤害自动踢人功能
-    /// </summary>
-    private void RestoreFriendlyFireKick()
-    {
-        try
-        {
-            var autoKickConVar = ConVar.Find("mp_autokick");
-            if (autoKickConVar != null)
-            {
-                autoKickConVar.SetValue(_originalAutoKickValue);
-                Console.WriteLine($"[友军伤害保护] 已恢复 mp_autokick 为 {_originalAutoKickValue}");
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[友军伤害保护] 错误：{ex.Message}");
-        }
-    }
-
-    public override void Unload(bool hotReload)
-    {
-        // 恢复作弊模式设置
-        RestoreCheatMode();
-
-        // 恢复友军伤害
-        RestoreFriendlyFire();
-
-        // 恢复坠落伤害
-        RestoreFallDamage();
-
-        // 恢复友军伤害自动踢人功能
-        RestoreFriendlyFireKick();
-
-        // 清理机器人管理器
-        BotManager.Dispose();
-
-        base.Unload(hotReload);
-        Console.WriteLine("[Myrtle技能插件] 已卸载，所有设置已恢复原值");
     }
 
     #endregion
