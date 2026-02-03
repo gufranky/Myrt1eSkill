@@ -20,6 +20,10 @@ public class TeamWhipSkill : PlayerSkill
     public override void OnApply(CCSPlayerController player)
     {
         Console.WriteLine($"[鞭策队友] {player.PlayerName} 获得了鞭策队友技能");
+
+        // 禁用自动踢出，防止友军伤害被踢
+        Server.ExecuteCommand("mp_autokick 0");
+
         player.PrintToChat("💉 你获得了鞭策队友技能！");
         player.PrintToChat("💡 射击队友可以治疗他们！");
         player.PrintToChat("⚠️ 伤害量100%转化为治疗量！不会造成友军伤害！");

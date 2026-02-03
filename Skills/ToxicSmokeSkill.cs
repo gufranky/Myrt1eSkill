@@ -114,18 +114,16 @@ public class ToxicSmokeSkill : PlayerSkill
     /// <summary>
     /// 处理烟雾弹实体生成（修改烟雾颜色为紫色）
     /// 参考 jRandomSkills 实现
+    /// 注意：MyrtleSkill.cs 已经做了所有检查，这里只需要设置颜色
     /// </summary>
     public void OnEntitySpawned(CEntityInstance entity)
     {
         try
         {
-            var smoke = entity.As<CSmokeGrenadeProjectile>();
-            if (smoke == null || !smoke.IsValid)
-                return;
-
             // 使用 NextFrame 延迟设置颜色（参考 jRandomSkills）
             Server.NextFrame(() =>
             {
+                var smoke = entity.As<CSmokeGrenadeProjectile>();
                 if (smoke == null || !smoke.IsValid)
                     return;
 
@@ -134,22 +132,7 @@ public class ToxicSmokeSkill : PlayerSkill
                 smoke.SmokeColor.Y = 0;   // G
                 smoke.SmokeColor.Z = 255; // B
 
-                // 注意：参考 jRandomSkills，不需要调用 SetStateChanged
-                // Utilities.SetStateChanged(smoke, "CSmokeGrenadeProjectile", "m_SmokeColor");
-
-                // 获取玩家信息用于日志
-                if (smoke.Thrower != null && smoke.Thrower.IsValid)
-                {
-                    var throwerPawn = smoke.Thrower.Value;
-                    if (throwerPawn != null && throwerPawn.Controller != null && throwerPawn.Controller.IsValid)
-                    {
-                        var player = throwerPawn.Controller.Value;
-                        if (player != null && player.IsValid)
-                        {
-                            Console.WriteLine($"[有毒烟雾弹] {player.PlayerName} 的烟雾弹已设置为紫色");
-                        }
-                    }
-                }
+                Console.WriteLine($"[有毒烟雾弹] 烟雾颜色已设置为紫色");
             });
         }
         catch (Exception ex)

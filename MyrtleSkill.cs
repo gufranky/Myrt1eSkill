@@ -524,18 +524,22 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         Skills.ExplosiveShotSkill.OnEntitySpawned(entity);
 
         // 处理有毒烟雾弹技能（修改烟雾颜色）
-        // 只处理烟雾弹实体，且只调用一次（针对投掷者）
+        // 参考 jRandomSkills 使用 OwnerEntity 而不是 Thrower
         var name = entity.DesignerName;
         if (name == "smokegrenade_projectile")
         {
             var grenade = entity.As<CBaseCSGrenadeProjectile>();
-            if (grenade != null && grenade.IsValid && grenade.Thrower != null && grenade.Thrower.IsValid)
+            if (grenade != null && grenade.IsValid &&
+                grenade.OwnerEntity != null && grenade.OwnerEntity.IsValid &&
+                grenade.OwnerEntity.Value != null && grenade.OwnerEntity.Value.IsValid)
             {
-                var throwerPawn = grenade.Thrower.Value;
-                if (throwerPawn != null && throwerPawn.IsValid)
+                var pawn = grenade.OwnerEntity.Value.As<CCSPlayerPawn>();
+                if (pawn != null && pawn.IsValid &&
+                    pawn.Controller != null && pawn.Controller.IsValid &&
+                    pawn.Controller.Value != null && pawn.Controller.Value.IsValid)
                 {
-                    var controller = throwerPawn.Controller.Value;
-                    if (controller != null && controller.IsValid && controller is CCSPlayerController player)
+                    var player = pawn.Controller.Value.As<CCSPlayerController>();
+                    if (player != null && player.IsValid)
                     {
                         var skill = SkillManager.GetPlayerSkill(player);
                         if (skill?.Name == "ToxicSmoke")
