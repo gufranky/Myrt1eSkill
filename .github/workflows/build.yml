@@ -1,0 +1,119 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # 触发条件：推送版本标签（如 v1.0.0）
+  workflow_dispatch:  # 允许手动触发
+
+env:
+  DOTNET_VERSION: '8.0.x'
+  CONFIGURATION: Release
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 检出代码
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 安装 .NET SDK
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      # 编译项目
+      - name: Build Project
+        run: |
+          dotnet build MyrtleSkill.csproj --configuration ${{ env.CONFIGURATION }} --no-restore
+
+      # 创建发布目录结构
+      - name: Create Release Structure
+        run: |
+          mkdir -p release/plugins/MyrtleSkill
+          mkdir -p release/gamedata
+          mkdir -p release/addons/counterstrikesharp/addons/MyrtleSkill
+
+      # 复制编译好的 DLL
+      - name: Copy DLL
+        run: |
+          cp bin/${{ env.CONFIGURATION }}/net8.0/MyrtleSkill.dll release/addons/counterstrikesharp/addons/MyrtleSkill/
+
+      # 复制 gamedata 文件
+      - name: Copy GameData
+        run: |
+          cp gamedata/MyrtleSkill.gamedata.json release/gamedata/
+
+      # 复制配置文件（如果存在）
+      - name: Copy Config Files
+        run: |
+          if [ -f config.json ]; then
+            cp config.json release/addons/counterstrikesharp/addons/MyrtleSkill/
+          fi
+
+      # 创建版本信息文件
+      - name: Create Version Info
+        run: |
+          echo "MyrtleSkill Plugin" > release/VERSION.txt
+          echo "Build Date: $(date -u +'%Y-%m-%d %H:%M:%S UTC')" >> release/VERSION.txt
+          echo "Git Commit: ${{ github.sha }}" >> release/VERSION.txt
+          echo "Git Tag: ${{ github.ref_name }}" >> release/VERSION.txt
+
+      # 创建 ZIP 包
+      - name: Create ZIP Package
+        run: |
+          cd release
+          zip -r ../MyrtleSkill-${{ github.ref_name }}.zip .
+          cd ..
+
+      # 获取版本号（用于 Release 标题）
+      - name: Get Version
+        id: get_version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+
+      # 创建 GitHub Release
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: MyrtleSkill Plugin ${{ steps.get_version.outputs.VERSION }}
+          body: |
+            ## 🎮 MyrtleSkill Plugin ${{ steps.get_version.outputs.VERSION }}
+
+            ### 📦 下载说明
+            1. 下载 `MyrtleSkill-${{ steps.get_version.outputs.VERSION }}.zip`
+            2. 解压到服务器的 `csgo/addons/counterstrikesharp/` 目录
+            3. 重启服务器或加载插件
+
+            ### 📋 安装路径
+            - **插件 DLL**: `addons/counterstrikesharp/addons/MyrtleSkill/MyrtleSkill.dll`
+            - **配置文件**: `addons/counterstrikesharp/addons/MyrtleSkill/config.json`
+            - **游戏数据**: `gamedata/MyrtleSkill.gamedata.json`
+
+            ### ✨ 功能特性
+            - 37 个随机娱乐事件
+            - 24 个玩家技能
+            - 开局福利系统
+            - 机器人控制
+            - 位置记录器
+
+            ### 📄 许可证
+            GNU General Public License v3.0
+
+            ---
+            **完整变更日志**: https://github.com/${{ github.repository }}/commits/${{ steps.get_version.outputs.VERSION }}
+          files: MyrtleSkill-${{ github.ref_name }}.zip
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 上传构建产物（用于调试）
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: MyrtleSkill-${{ github.ref_name }}
+          path: MyrtleSkill-${{ github.ref_name }}.zip
+          retention-days: 30
