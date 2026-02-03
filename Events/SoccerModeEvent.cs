@@ -23,6 +23,12 @@ public class SoccerModeEvent : EntertainmentEvent
     private CPhysicsProp? _soccerBall = null;
     private ConVar? _buyAllowGunsConVar;
     private int _originalBuyAllowGuns = 1;
+    private ConVar? _buyTimeConVar;
+    private float _originalBuyTime = 90.0f;
+
+    // 物理相关 ConVar
+    private ConVar? _turbophysicsConVar;
+    private bool _originalTurbophysics = false;
 
     // 标志：事件是否激活
     private bool _isActive = false;
@@ -36,13 +42,31 @@ public class SoccerModeEvent : EntertainmentEvent
         _isActive = true;
         _hasEnteredCTZone = false;
 
-        // 1. 禁用商店
+        // 1. 禁用商店（彻底禁用购买）
         _buyAllowGunsConVar = ConVar.Find("mp_buy_allow_guns");
         if (_buyAllowGunsConVar != null)
         {
             _originalBuyAllowGuns = _buyAllowGunsConVar.GetPrimitiveValue<int>();
             _buyAllowGunsConVar.SetValue(0);
             Console.WriteLine($"[足球模式] mp_buy_allow_guns 已设置为 0 (原值: {_originalBuyAllowGuns})");
+        }
+
+        // 禁用购买时间（设为0秒，彻底禁用商店）
+        _buyTimeConVar = ConVar.Find("mp_buytime");
+        if (_buyTimeConVar != null)
+        {
+            _originalBuyTime = _buyTimeConVar.GetPrimitiveValue<float>();
+            _buyTimeConVar.SetValue(0.0f);
+            Console.WriteLine($"[足球模式] mp_buytime 已设置为 0 (原值: {_originalBuyTime})");
+        }
+
+        // 启用物理模拟（使足球可以被踢动）
+        _turbophysicsConVar = ConVar.Find("sv_turbophysics");
+        if (_turbophysicsConVar != null)
+        {
+            _originalTurbophysics = _turbophysicsConVar.GetPrimitiveValue<bool>();
+            _turbophysicsConVar.SetValue(true);
+            Console.WriteLine($"[足球模式] sv_turbophysics 已设置为 true (原值: {_originalTurbophysics})");
         }
 
         // 2. 没收所有玩家物品
@@ -76,38 +100,72 @@ public class SoccerModeEvent : EntertainmentEvent
     public override void OnRevert()
     {
         Console.WriteLine("[足球模式] 事件已恢复");
+
+        // 首先停止tick检查（防止在恢复过程中继续执行）
         _isActive = false;
 
-        // 1. 恢复商店设置
-        if (_buyAllowGunsConVar != null)
+        // 延迟执行恢复操作，避免在监听器中使用
+        Server.NextFrame(() =>
         {
-            _buyAllowGunsConVar.SetValue(_originalBuyAllowGuns);
-            Console.WriteLine($"[足球模式] mp_buy_allow_guns 已恢复为 {_originalBuyAllowGuns}");
-        }
-
-        // 2. 移除足球
-        if (_soccerBall != null && _soccerBall.IsValid)
-        {
-            _soccerBall.Remove();
-            _soccerBall = null;
-            Console.WriteLine("[足球模式] 足球已移除");
-        }
-
-        // 3. 移除事件监听
-        if (Plugin != null)
-        {
-            Plugin.DeregisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn, HookMode.Post);
-            Plugin.RemoveListener<Listeners.OnTick>(OnTick);
-        }
-
-        // 显示提示
-        foreach (var player in Utilities.GetPlayers())
-        {
-            if (player.IsValid)
+            try
             {
-                player.PrintToChat("⚽ 足球模式已结束");
+                // 1. 恢复商店设置
+                if (_buyAllowGunsConVar != null)
+                {
+                    _buyAllowGunsConVar.SetValue(_originalBuyAllowGuns);
+                    Console.WriteLine($"[足球模式] mp_buy_allow_guns 已恢复为 {_originalBuyAllowGuns}");
+                }
+
+                if (_buyTimeConVar != null)
+                {
+                    _buyTimeConVar.SetValue(_originalBuyTime);
+                    Console.WriteLine($"[足球模式] mp_buytime 已恢复为 {_originalBuyTime}");
+                }
+
+                // 恢复物理模拟设置
+                if (_turbophysicsConVar != null)
+                {
+                    _turbophysicsConVar.SetValue(_originalTurbophysics);
+                    Console.WriteLine($"[足球模式] sv_turbophysics 已恢复为 {_originalTurbophysics}");
+                }
+
+                // 2. 移除足球（使用 try-catch 保护）
+                try
+                {
+                    if (_soccerBall != null && _soccerBall.IsValid)
+                    {
+                        _soccerBall.Remove();
+                        _soccerBall = null;
+                        Console.WriteLine("[足球模式] 足球已移除");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"[足球模式] 移除足球时出错: {ex.Message}");
+                }
+
+                // 3. 移除事件监听
+                if (Plugin != null)
+                {
+                    Plugin.DeregisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn, HookMode.Post);
+                    Plugin.RemoveListener<Listeners.OnTick>(OnTick);
+                    Console.WriteLine("[足球模式] 事件监听器已移除");
+                }
+
+                // 显示提示
+                foreach (var player in Utilities.GetPlayers())
+                {
+                    if (player.IsValid)
+                    {
+                        player.PrintToChat("⚽ 足球模式已结束");
+                    }
+                }
             }
-        }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[足球模式] 恢复时出错: {ex.Message}");
+            }
+        });
     }
 
     /// <summary>
@@ -251,7 +309,11 @@ public class SoccerModeEvent : EntertainmentEvent
     /// </summary>
     private void OnTick()
     {
-        if (!_isActive || _soccerBall == null || !_soccerBall.IsValid)
+        // 立即检查是否激活，防止在恢复过程中执行
+        if (!_isActive)
+            return;
+
+        if (_soccerBall == null || !_soccerBall.IsValid)
             return;
 
         // 检查足球是否在CT区域

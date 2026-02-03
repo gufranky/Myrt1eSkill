@@ -22,16 +22,22 @@ public class TeleportOnDamageEvent : EntertainmentEvent
     }
 
     /// <summary>
-    /// 处理玩家受伤后事件（在主文件的 OnPlayerTakeDamagePost 中调用）
+    /// 处理玩家受伤事件（在主文件的 OnPlayerHurt 中调用）
     /// </summary>
-    public void HandlePlayerDamage(CCSPlayerPawn player, CTakeDamageInfo info, CTakeDamageResult result)
+    public void HandlePlayerHurt(EventPlayerHurt @event)
     {
-        if (player == null || !player.IsValid)
+        var controller = @event.Userid;
+        if (controller == null || !controller.IsValid)
             return;
 
-        var controller = player.Controller.Value as CCSPlayerController;
-        if (controller == null || !controller.IsValid || !controller.PawnIsAlive)
+        if (!controller.PawnIsAlive)
             return;
+
+        var pawn = controller.PlayerPawn.Value;
+        if (pawn == null || !pawn.IsValid)
+            return;
+
+        Console.WriteLine($"[受伤传送-DEBUG] {controller.PlayerName} 受到伤害，检查是否传送");
 
         // 获取插件实例
         var plugin = MyrtleSkill.Instance;

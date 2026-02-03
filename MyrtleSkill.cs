@@ -357,11 +357,8 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
     private void OnPlayerTakeDamagePost(CCSPlayerPawn player, CTakeDamageInfo info, CTakeDamageResult result)
     {
-        // 处理 TeleportOnDamage 事件
-        if (CurrentEvent is TeleportOnDamageEvent teleportEvent)
-        {
-            teleportEvent.HandlePlayerDamage(player, info, result);
-        }
+        // 这个监听器可能不工作，改用 OnPlayerHurt
+        // 保留此方法以防万一
     }
 
     private HookResult OnWeaponFire(EventWeaponFire @event, GameEventInfo info)
@@ -444,6 +441,12 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         if (CurrentEvent is SwapOnHitEvent swapEvent)
         {
             swapEvent.HandlePlayerHurt(@event);
+        }
+
+        // 处理受伤传送事件
+        if (CurrentEvent is TeleportOnDamageEvent teleportEvent)
+        {
+            teleportEvent.HandlePlayerHurt(@event);
         }
 
         // 处理第二次机会技能

@@ -17,10 +17,14 @@ public class AntiFlashSkill : PlayerSkill
 
     // 闪光弹持续时间和数量
     private const float FLASH_DURATION = 7.0f;
-    private const int FLASHBANG_COUNT = 3;
+    private const int FLASHBANG_COUNT = 1;
+    private const int MAX_REPLENISH_COUNT = 2; // 最多补充2次
 
     // 计数器：跟踪每个玩家的闪光弹数量
     private static readonly Dictionary<ulong, int> _flashbangCounters = new();
+
+    // 跟踪每回合已补充次数
+    private static readonly Dictionary<ulong, int> _replenishedCount = new();
 
     public override void OnApply(CCSPlayerController player)
     {
@@ -29,8 +33,9 @@ public class AntiFlashSkill : PlayerSkill
 
         Console.WriteLine($"[防闪光] {player.PlayerName} 获得了防闪光技能");
 
-        // 设置计数器为3
+        // 设置计数器为3，补充次数为0
         _flashbangCounters[player.SteamID] = FLASHBANG_COUNT;
+        _replenishedCount[player.SteamID] = 0; // 初始化补充次数为0
 
         // 给予3个闪光弹
         GiveFlashbangs(player, FLASHBANG_COUNT);
@@ -47,12 +52,13 @@ public class AntiFlashSkill : PlayerSkill
 
         // 清除计数器
         _flashbangCounters.Remove(player.SteamID);
+        _replenishedCount.Remove(player.SteamID);
 
         Console.WriteLine($"[防闪光] {player.PlayerName} 失去了防闪光技能");
     }
 
     /// <summary>
-    /// 监听闪光弹投掷事件 - 自动补充
+    /// 监听闪光弹投掷事件 - 自动补充1次
     /// </summary>
     public void OnFlashbangDetonate(EventFlashbangDetonate @event)
     {
@@ -69,14 +75,23 @@ public class AntiFlashSkill : PlayerSkill
         if (!_flashbangCounters.ContainsKey(player.SteamID))
             return;
 
+        // 检查是否已经补充达到上限
+        if (_replenishedCount.TryGetValue(player.SteamID, out var count) && count >= MAX_REPLENISH_COUNT)
+        {
+            Console.WriteLine($"[防闪光] {player.PlayerName} 本回合已补充{count}次，达到上限({MAX_REPLENISH_COUNT}次)，不再补充");
+            return;
+        }
+
         // 立即补充1个闪光弹
         Server.NextFrame(() =>
         {
             if (player.IsValid && player.PawnIsAlive)
             {
                 GiveFlashbangs(player, 1);
-                // 计数器始终保持为 FLASHBANG_COUNT（因为我们总是补充到满）
-                _flashbangCounters[player.SteamID] = FLASHBANG_COUNT;
+                _replenishedCount[player.SteamID] = count + 1; // 增加补充次数
+
+                player.PrintToChat($"✨ 闪光弹已补充！({_replenishedCount[player.SteamID]}/{MAX_REPLENISH_COUNT})");
+                Console.WriteLine($"[防闪光] {player.PlayerName} 的闪光弹已补充 ({_replenishedCount[player.SteamID]}/{MAX_REPLENISH_COUNT})");
             }
         });
     }

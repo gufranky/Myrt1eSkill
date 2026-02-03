@@ -117,31 +117,31 @@ public class ExplosiveShotSkill : PlayerSkill
         if (_staticRandom.NextDouble() > chance)
             return;
 
-        // 获取玩家眼位置和视角
+        // 获取玩家当前位置和视角
         var origin = pawn.AbsOrigin;
         if (origin == null)
             return;
 
-        // 简单的视点位置计算（在玩家位置上方）
-        var eyePosition = new Vector(origin.X, origin.Y, origin.Z + 64.0f); // 64 units 是玩家大致的视点高度
         var eyeAngles = pawn.EyeAngles;
 
         // 计算射击方向
         Vector shootDirection = GetForwardVector(eyeAngles);
 
-        // 射线追踪获取击中位置
-        Vector? hitPosition = TraceRay(eyePosition, shootDirection);
+        // 使用较短的距离（800单位），更接近实际射击距离
+        float explosionDistance = 800.0f;
 
-        if (hitPosition == null)
-        {
-            Console.WriteLine($"[爆炸射击] {player.PlayerName} 的射击未击中任何物体");
-            return;
-        }
+        // 计算爆炸位置（从玩家位置延伸）
+        var explosionPosition = new Vector(
+            origin.X + shootDirection.X * explosionDistance,
+            origin.Y + shootDirection.Y * explosionDistance,
+            origin.Z + shootDirection.Z * explosionDistance
+        );
 
-        Console.WriteLine($"[爆炸射击] {player.PlayerName} 的射击触发了爆炸效果");
+        Console.WriteLine($"[爆炸射击] {player.PlayerName} 射击方向: ({shootDirection.X:F2}, {shootDirection.Y:F2}, {shootDirection.Z:F2})");
+        Console.WriteLine($"[爆炸射击] {player.PlayerName} 在 ({explosionPosition.X:F1}, {explosionPosition.Y:F1}, {explosionPosition.Z:F1}) 创建爆炸");
 
         // 创建爆炸
-        SpawnExplosion(hitPosition);
+        SpawnExplosion(explosionPosition);
 
         player.PrintToChat($"💥 你的射击引发了爆炸！");
     }

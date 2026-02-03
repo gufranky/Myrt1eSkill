@@ -46,11 +46,11 @@ public class ToxicSmokeSkill : PlayerSkill
         _usedThisRound[slot] = false;
         _replenishedThisRound[slot] = false;
 
-        // 给予3个烟雾弹
-        GiveSmokeGrenades(player, 3);
+        // 给予1个烟雾弹
+        GiveSmokeGrenades(player, 1);
 
         Console.WriteLine($"[有毒烟雾弹] {player.PlayerName} 获得了有毒烟雾弹能力");
-        player.PrintToChat("☠️ 你获得了3个有毒烟雾弹！烟雾持续伤害敌人！");
+        player.PrintToChat("☠️ 你获得了1个有毒烟雾弹！烟雾持续伤害敌人！");
         player.PrintToChat("💡 投掷后自动补充1个烟雾弹！");
     }
 
