@@ -46,14 +46,6 @@ public class MeitoSkill : PlayerSkill
     /// 在伤害造成前处理（Pre阶段）
     /// 如果伤害致命且本回合未使用过名刀，则取消伤害并给予无敌
     /// </summary>
-    /// <summary>
-    /// 在伤害造成前处理（Pre阶段）
-    /// 如果伤害致命且本回合未使用过名刀，则取消伤害并给予无敌
-    /// </summary>
-    /// <summary>
-    /// 在伤害造成前处理（Pre阶段）
-    /// 如果伤害致命且本回合未使用过名刀，则取消伤害并给予无敌
-    /// </summary>
     public static float? HandleDamagePre(CCSPlayerPawn player, CTakeDamageInfo info, float currentMultiplier = 1.0f)
     {
         // 获取受害者控制器
@@ -115,16 +107,18 @@ public class MeitoSkill : PlayerSkill
         // 标记本回合已使用
         _meitoUsed.TryAdd(csVictimController.Slot, 0);
 
-        // 设置无敌状态
+        // 设置无敌状态（0.5秒）
         DateTime expireTime = DateTime.Now.AddSeconds(INVINCIBLE_DURATION);
         _invinciblePlayers[csVictimController.Slot] = expireTime;
 
-        // 取消此次伤害
-        Console.WriteLine($"[名刀] {csVictimController.PlayerName} 取消了致命伤害，获得 {INVINCIBLE_DURATION} 秒无敌");
+        // **关键修复**：保存原始血量，取消伤害后恢复（保持玩家原有血量）
+        player.Health = currentHealth;  // 恢复到受伤前的血量
+        Utilities.SetStateChanged(player, "CBaseEntity", "m_iHealth");
+        Console.WriteLine($"[名刀] {csVictimController.PlayerName} 保持原始血量 {currentHealth}，取消致命伤害");
 
         // 显示提示
         csVictimController.PrintToCenter("⚔️ 名刀御守！");
-        csVictimController.PrintToChat($"⚔️ 名刀抵消了致命伤害！获得 {INVINCIBLE_DURATION} 秒无敌！");
+        csVictimController.PrintToChat($"⚔️ 名刀抵消了致命伤害！保持 {currentHealth} 血！获得 {INVINCIBLE_DURATION} 秒无敌！");
 
         // 返回0倍数，完全取消伤害
         return 0.0f;
