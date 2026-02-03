@@ -478,6 +478,53 @@ https://www.gnu.org/licenses/gpl-3.0.txt
 
 ---
 
+## 致谢与来源
+
+### 原始项目
+
+本项目参考并使用了以下开源项目的代码和实现思路：
+
+**[jRandomSkills](https://github.com/Juzlus/jRandomSkills)** by Juzlus
+
+- 许可证：GNU General Public License v3.0
+- GitHub: https://github.com/Juzlus/jRandomSkills
+- 项目描述：CS2 随机技能插件，为游戏添加混乱和乐趣
+
+**特别感谢以下功能的参考实现**：
+
+- **爆炸射击技能** (`ExplosiveShotSkill.cs`)
+  - 参考了 jRandomSkills 的爆炸子弹实现
+  - 使用了相同的 HEGrenadeProjectile_CreateFunc 签名
+  - 采用了特殊角度标识和参数传递机制
+
+### 修改说明
+
+本项目基于 jRandomSkills 的实现进行了以下修改和扩展：
+
+1. **架构重构**：
+   - 采用面向对象的事件和技能基类设计
+   - 实现了完整的插件化架构
+
+2. **功能扩展**：
+   - 添加了永动机事件（KeepMovingEvent）
+   - 实现了独立的事件和技能管理系统
+   - 新增了多个原创技能和事件
+
+3. **代码优化**：
+   - 改进了代码组织和可维护性
+   - 添加了详细的中文注释和文档
+   - 优化了部分功能的实现逻辑
+
+4. **本地化**：
+   - 完全中文化的界面和文档
+   - 针对中文用户进行了优化
+
+**修改日期**：2026年2月
+
+**修改者**：MyrtleSkill Plugin Contributors
+
+---
+
 ## 支持与贡献
 
 ### 如何贡献

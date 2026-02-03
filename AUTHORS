@@ -1,0 +1,35 @@
+# MyrtleSkill Plugin Contributors
+
+## Primary Contributors
+- myrt1e <g2676536169@gmail.com> - Project lead, architecture, event system, skill system
+
+## Acknowledgments
+
+### jRandomSkills Project
+This project includes code and design concepts from jRandomSkills by Juzlus.
+
+- **Author**: Juzlus
+- **Repository**: https://github.com/Juzlus/jRandomSkills
+- **License**: GNU General Public License v3.0
+
+### dRandomSkills Project (Original)
+jRandomSkills is a fork of dRandomSkills created by Jakub Bartosik (D3X).
+
+- **Author**: Jakub Bartosik (D3X)
+- **Repository**: https://github.com/jakubbartosik/dRandomSkills
+
+## Specific Contributions
+
+The following components include code or design derived from jRandomSkills:
+
+### ExplosiveShotSkill.cs
+- **Original Author**: Juzlus (jRandomSkills)
+- **File**: src/player/skills/ExplosiveShot.cs
+- **Modifications**: Adapted to MyrtleSkill architecture, added error handling
+- **License**: GNU General Public License v3.0
+
+## Translation Contributors
+- Simplified Chinese translations powered by AI assistance (GrokAI / ChatGPT)
+
+## Version History
+- v2.0.0 (2026) - Initial release with event and skill systems

@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+//
+// Copyright (C) 2026 MyrtleSkill Plugin Contributors
+//
+// This file is part of MyrtleSkill Plugin
+// Full license text: see LICENSE file
+// Attribution: see ATTRIBUTION.md file
+//
+// This project includes code from jRandomSkills by Juzlus
+// Original: https://github.com/Juzlus/jRandomSkills
+// Licensed under GNU GPL v3.0

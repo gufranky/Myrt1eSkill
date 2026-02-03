@@ -1,3 +1,30 @@
+// ExplosiveShotSkill.cs
+// Copyright (C) 2026 MyrtleSkill Plugin Contributors
+//
+// This file is part of MyrtleSkill Plugin
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//
+// This skill includes code derived from jRandomSkills by Juzlus
+// Original project: https://github.com/Juzlus/jRandomSkills
+// Licensed under GNU General Public License v3.0
+//
+// Modifications:
+// - Adapted to MyrtleSkill plugin architecture
+// - Added proper error handling and logging
+// - Integrated with PlayerSkill base class
+
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Memory;
@@ -163,7 +190,8 @@ public class ExplosiveShotSkill : PlayerSkill
             var function = new MemoryFunctionWithReturn<IntPtr, IntPtr, IntPtr, IntPtr, IntPtr, IntPtr, IntPtr, int>(
                 GameData.GetSignature("HEGrenadeProjectile_CreateFunc")
             );
-            function.Invoke(pos.Handle, angle.Handle, vel.Handle, vel.Handle, IntPtr.Zero, IntPtr.Zero, teamNum);
+            // 参数6使用44（与jRandomSkills保持一致）
+            function.Invoke(pos.Handle, angle.Handle, vel.Handle, vel.Handle, IntPtr.Zero, new IntPtr(44), teamNum);
         }
         catch (Exception ex)
         {

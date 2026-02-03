@@ -1,3 +1,7 @@
+// MyrtleSkill Plugin - GNU GPL v3.0
+// See LICENSE and ATTRIBUTION.md for details
+// Based on jRandomSkills by Juzlus (DecoyXray skill)
+
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Entities;
