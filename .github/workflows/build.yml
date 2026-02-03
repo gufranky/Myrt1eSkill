@@ -25,6 +25,10 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
+      # 恢复 NuGet 包
+      - name: Restore Dependencies
+        run: dotnet restore MyrtleSkill.csproj
+
       # 编译项目
       - name: Build Project
         run: |
