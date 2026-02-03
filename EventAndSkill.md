@@ -6,7 +6,7 @@
 
 ## 统计信息
 
-- **事件总数**: 36 个
+- **事件总数**: 37 个
 - **技能总数**: 24 个
 
 ---
@@ -401,6 +401,24 @@
   - 客户端状态同步：`Utilities.SetStateChanged(pawn, "CBaseEntity", "m_vecAbsVelocity")`
   - 物理原理：基于牛顿第三定律（作用力与反作用力）
   - 反冲力 = 反向向量 × 力度因子
+
+### 36. SuperKnockback (超强推背)
+- **文件名**: SuperKnockbackEvent.cs
+- **内部名称**: SuperKnockback
+- **显示名称**: 💪 超强推背
+- **描述**: 造成伤害时强力击退敌人！把你打飞！
+- **特殊机制**:
+  - 监听 `EventPlayerHurt` 事件（玩家受伤）
+  - 获取攻击者和受害者的位置
+  - 计算从攻击者指向受害者的方向向量
+  - 击退力度：1500（非常强的击退力）
+  - 最大速度限制：1000单位/帧
+  - 距离缩放：距离越近，击退越强（`scale = KNOCKBACK_FORCE / distance`）
+  - 添加向上分量（+100.0f）让敌人被击飞到空中
+  - 修改受害者 `AbsVelocity` 实现击退
+  - 客户端状态同步：`Utilities.SetStateChanged(victimPawn, "CBaseEntity", "m_vecAbsVelocity")`
+  - 物理原理：基于牛顿第三定律和动量传递
+  - 击退力 = 方向向量 × 力度因子 / 距离
 
 ---
 
