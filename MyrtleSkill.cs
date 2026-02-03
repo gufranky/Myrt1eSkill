@@ -111,6 +111,7 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         RegisterEventHandler<EventDecoyStarted>(OnDecoyStarted, HookMode.Post);
         RegisterEventHandler<EventSmokegrenadeDetonate>(OnSmokegrenadeDetonate, HookMode.Post);
         RegisterEventHandler<EventSmokegrenadeExpired>(OnSmokegrenadeExpired, HookMode.Post);
+        RegisterEventHandler<EventFlashbangDetonate>(OnFlashbangDetonate, HookMode.Post);
         RegisterEventHandler<EventPlayerBlind>(OnPlayerBlind, HookMode.Post);
         RegisterEventHandler<EventPlayerJump>(OnPlayerJump, HookMode.Post);
         RegisterListener<Listeners.OnPlayerButtonsChanged>(OnPlayerButtonsChanged);
@@ -494,6 +495,30 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         if (skill?.Name == "Glaz")
         {
             Skills.GlazSkill.OnSmokegrenadeExpired(@event);
+        }
+
+        return HookResult.Continue;
+    }
+
+    private HookResult OnFlashbangDetonate(EventFlashbangDetonate @event, GameEventInfo info)
+    {
+        var player = @event.Userid;
+        if (player == null || !player.IsValid)
+            return HookResult.Continue;
+
+        // 处理防闪光技能
+        var skill = SkillManager.GetPlayerSkill(player);
+        if (skill?.Name == "AntiFlash")
+        {
+            var antiFlashSkill = (Skills.AntiFlashSkill)skill;
+            antiFlashSkill.OnFlashbangDetonate(@event);
+        }
+
+        // 处理闪光跳跃技能
+        if (skill?.Name == "FlashJump")
+        {
+            var flashJumpSkill = (Skills.FlashJumpSkill)skill;
+            flashJumpSkill.OnFlashbangDetonate(@event);
         }
 
         return HookResult.Continue;

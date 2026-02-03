@@ -1,11 +1,13 @@
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
+using CounterStrikeSharp.API.Modules.Utils;
 
 namespace MyrtleSkill.Skills;
 
 /// <summary>
 /// 闪光跳跃技能 - 被动技能
 /// 被你的闪光弹闪到的玩家会根据致盲时长获得向上的跳跃速度
+/// 自动补充闪光弹，始终保持3个
 /// </summary>
 public class FlashJumpSkill : PlayerSkill
 {
@@ -22,6 +24,9 @@ public class FlashJumpSkill : PlayerSkill
     // 给予的闪光弹数量
     private const int FLASHBANG_COUNT = 3;
 
+    // 计数器：跟踪每个玩家的闪光弹数量
+    private static readonly Dictionary<ulong, int> _flashbangCounters = new();
+
     public override void OnApply(CCSPlayerController player)
     {
         if (player == null || !player.IsValid)
@@ -29,7 +34,10 @@ public class FlashJumpSkill : PlayerSkill
 
         Console.WriteLine($"[闪光跳跃] {player.PlayerName} 获得了闪光跳跃技能");
 
-        // 给予闪光弹
+        // 设置计数器为3
+        _flashbangCounters[player.SteamID] = FLASHBANG_COUNT;
+
+        // 给予3个闪光弹
         GiveFlashbangs(player, FLASHBANG_COUNT);
 
         player.PrintToChat("✈️ 你获得了闪光跳跃技能！");
@@ -42,7 +50,40 @@ public class FlashJumpSkill : PlayerSkill
         if (player == null || !player.IsValid)
             return;
 
+        // 清除计数器
+        _flashbangCounters.Remove(player.SteamID);
+
         Console.WriteLine($"[闪光跳跃] {player.PlayerName} 失去了闪光跳跃技能");
+    }
+
+    /// <summary>
+    /// 监听闪光弹投掷事件 - 自动补充
+    /// </summary>
+    public void OnFlashbangDetonate(EventFlashbangDetonate @event)
+    {
+        var player = @event.Userid;
+        if (player == null || !player.IsValid)
+            return;
+
+        // 检查玩家是否有闪光跳跃技能
+        var skill = Plugin?.SkillManager.GetPlayerSkill(player);
+        if (skill?.Name != "FlashJump")
+            return;
+
+        // 检查计数器是否存在
+        if (!_flashbangCounters.ContainsKey(player.SteamID))
+            return;
+
+        // 立即补充1个闪光弹
+        Server.NextFrame(() =>
+        {
+            if (player.IsValid && player.PawnIsAlive)
+            {
+                GiveFlashbangs(player, 1);
+                // 计数器始终保持为 FLASHBANG_COUNT（因为我们总是补充到满）
+                _flashbangCounters[player.SteamID] = FLASHBANG_COUNT;
+            }
+        });
     }
 
     /// <summary>
@@ -110,54 +151,5 @@ public class FlashJumpSkill : PlayerSkill
         // 显示提示
         player.PrintToCenter($"✈️ 你被闪到了！向上飞起！");
         attacker.PrintToChat($"✈️ {player.PlayerName} 被闪到了，飞向天空！");
-
-        // 自动补充闪光弹给投掷者（但不超过最大数量）
-        Server.NextFrame(() =>
-        {
-            if (attacker.IsValid && attacker.PawnIsAlive && attackerSkill is FlashJumpSkill flashJumpSkill)
-            {
-                // 检查当前闪光弹数量
-                int currentFlashCount = flashJumpSkill.GetFlashbangCount(attacker);
-
-                if (currentFlashCount < FLASHBANG_COUNT)
-                {
-                    flashJumpSkill.GiveFlashbangs(attacker, 1);
-                    attacker.PrintToChat($"✈️ 闪光弹已补充！({currentFlashCount + 1}/{FLASHBANG_COUNT})");
-                }
-                else
-                {
-                    Console.WriteLine($"[闪光跳跃] {attacker.PlayerName} 闪光弹已满 ({currentFlashCount}/{FLASHBANG_COUNT})，不补充");
-                }
-            }
-        });
-    }
-
-    /// <summary>
-    /// 获取玩家当前闪光弹数量
-    /// </summary>
-    private int GetFlashbangCount(CCSPlayerController player)
-    {
-        if (player == null || !player.IsValid)
-            return 0;
-
-        var pawn = player.PlayerPawn.Value;
-        if (pawn == null || !pawn.IsValid || pawn.WeaponServices == null)
-            return 0;
-
-        int count = 0;
-        foreach (var weapon in pawn.WeaponServices.MyWeapons)
-        {
-            if (weapon != null && weapon.IsValid)
-            {
-                var weaponEntity = weapon.Value;
-                if (weaponEntity != null && weaponEntity.IsValid &&
-                    weaponEntity.DesignerName == "weapon_flashbang")
-                {
-                    count++;
-                }
-            }
-        }
-
-        return count;
     }
 }
