@@ -31,6 +31,7 @@ Myrtle Skill Plugin 是一个 Counter-Strike 2 (CS2) 娱乐插件，为服务器
 ### 5. 执行顺序
 
 系统按以下顺序初始化：
+
 1. **开局福利** - 为玩家分配初始福利
 2. **娱乐事件** - 随机选择全局事件
 3. **玩家技能** - 为每个玩家分配个人技能（延迟1秒确保事件已完全应用）
@@ -41,49 +42,51 @@ Myrtle Skill Plugin 是一个 Counter-Strike 2 (CS2) 娱乐插件，为服务器
 
 ### 事件快速参考表
 
-| 内部名称 | 显示名称 | 描述 |
-|---------|---------|------|
-| AnywhereBombPlant | 任意下包 | 可以在地图任意位置下包！ |
-| AutoBhop | 🐰 自动Bhop | 自动连跳启用！移动速度提升！跳跃更流畅！ |
-| Blitzkrieg | ⚡ 闪击行动 | 游戏速度提升至2倍，一切都在加速进行！ |
-| ChickenMode | 🐔 我是小鸡 | 所有玩家都变成了小鸡！移速1.1倍，血量50%！ |
-| DeadlyGrenades | 💣 更致命的手雷 | 无限高爆手雷！移除主副武器！禁用商店！手雷伤害和范围增加！ |
-| DecoyTeleport | 🎯 TP弹模式 | 投掷诱饵弹后会传送到落点！每回合自动获得诱饵弹！ |
-| HeadshotOnly | 🎯 只有爆头 | 只有爆头才能造成伤害！ |
-| HighSpeed | 高速移动 | 所有玩家移速翻倍！ |
-| InfiniteAmmo | 无限弹药 | 弹药永不耗尽！ |
-| Juggernaut | 重装战士 | 所有玩家获得500生命、200护甲，但移速降低30%！ |
-| JumpOnShoot | 射击跳跃 | 开枪时会自动跳跃！仅在地面时触发！ |
-| JumpPlusPlus | 超级跳跃 | 开枪自动跳跃且无扩散！免疫落地伤害！ |
-| LowGravity | 低重力 | 玩家可以跳得更高！ |
-| LowGravityPlusPlus | 超低重力 | 重力大幅降低，空中射击无扩散！ |
-| MiniSize | 迷你尺寸 | 所有玩家变成迷你尺寸！ |
-| NoEvent | 正常回合 | 本回合无特殊效果，正常进行 |
-| NoSkill | 😌 没有技能 | 这是更加平静的一天，所有人都没有技能！ |
-| OneShot | 💥 一发AK | 所有玩家的枪都只有一发子弹（弹夹）！备用弹药保留！ |
-| RainyDay | 🌧️ 下雨天 | 所有玩家隐身！随机每隔3~10秒显形2秒！ |
-| ScreamingRabbit | 🐰 尖叫兔 | 每隔15秒所有玩家发出定位音效！暴露位置！ |
-| SlowMotion | 🎬 慢动作 | 游戏速度变为0.5倍！一切都变慢了！ |
-| SmallAndDeadly | 小而致命 | 玩家体型缩小至0.4倍，只有1滴血！一击必杀！ |
-| StayQuiet | 🤫 保持安静 | 保持安静时隐身！发出声音会现身！ |
-| Strangers | 👥 不认识的人 | 所有人模型都一样！可以对友军造成伤害！不显示小地图！随机出生点！ |
-| SuperpowerXray | 🦸 超能力者 | 双方各有一名玩家获得透视能力！只有超能力者能看到敌人位置！ |
-| SwapOnHit | 击中交换 | 击中敌人时会交换位置！ |
-| TeleportOnDamage | 受伤传送 | 受到伤害时会随机传送到地图上的其他位置！ |
-| TopTierParty | 🎊 顶级狂欢 | 顶级狂欢！同时启用两个随机事件！混乱与乐趣并存！ |
-| TopTierPartyPlusPlus | 🎊🎊 极顶狂欢++ | 终极狂欢！同时启用三个随机事件！绝对的混乱与极致的乐趣！ |
-| UnluckyCouples | 💑 苦命鸳鸯 | 玩家两两配对！配对玩家互相可见且伤害增加！单数玩家将被忽略！ |
-| Vampire | 吸血鬼 | 造成伤害时吸取等量生命值！ |
-| Xray | 👁️ 全员透视 | 所有玩家可以透过墙壁看到彼此！敌我位置一览无余！ |
+| 内部名称             | 显示名称        | 描述                                                             |
+| -------------------- | --------------- | ---------------------------------------------------------------- |
+| AnywhereBombPlant    | 任意下包        | 可以在地图任意位置下包！                                         |
+| AutoBhop             | 🐰 自动Bhop     | 自动连跳启用！移动速度提升！跳跃更流畅！                         |
+| Blitzkrieg           | ⚡ 闪击行动     | 游戏速度提升至2倍，一切都在加速进行！                            |
+| ChickenMode          | 🐔 我是小鸡     | 所有玩家都变成了小鸡！移速1.1倍，血量50%！                       |
+| DeadlyGrenades       | 💣 更致命的手雷 | 无限高爆手雷！移除主副武器！禁用商店！手雷伤害和范围增加！       |
+| DecoyTeleport        | 🎯 TP弹模式     | 投掷诱饵弹后会传送到落点！每回合自动获得诱饵弹！                 |
+| HeadshotOnly         | 🎯 只有爆头     | 只有爆头才能造成伤害！                                           |
+| HighSpeed            | 高速移动        | 所有玩家移速翻倍！                                               |
+| InfiniteAmmo         | 无限弹药        | 弹药永不耗尽！                                                   |
+| Juggernaut           | 重装战士        | 所有玩家获得500生命、200护甲，但移速降低30%！                    |
+| JumpOnShoot          | 射击跳跃        | 开枪时会自动跳跃！仅在地面时触发！                               |
+| JumpPlusPlus         | 超级跳跃        | 开枪自动跳跃且无扩散！免疫落地伤害！                             |
+| LowGravity           | 低重力          | 玩家可以跳得更高！                                               |
+| LowGravityPlusPlus   | 超低重力        | 重力大幅降低，空中射击无扩散！                                   |
+| MiniSize             | 迷你尺寸        | 所有玩家变成迷你尺寸！                                           |
+| NoEvent              | 正常回合        | 本回合无特殊效果，正常进行                                       |
+| NoSkill              | 😌 没有技能     | 这是更加平静的一天，所有人都没有技能！                           |
+| OneShot              | 💥 一发AK       | 所有玩家的枪都只有一发子弹（弹夹）！备用弹药保留！               |
+| RainyDay             | 🌧️ 下雨天     | 所有玩家隐身！随机每隔3~10秒显形2秒！                            |
+| ScreamingRabbit      | 🐰 尖叫兔       | 每隔15秒所有玩家发出定位音效！暴露位置！                         |
+| SlowMotion           | 🎬 慢动作       | 游戏速度变为0.5倍！一切都变慢了！                                |
+| SmallAndDeadly       | 小而致命        | 玩家体型缩小至0.4倍，只有1滴血！一击必杀！                       |
+| StayQuiet            | 🤫 保持安静     | 保持安静时隐身！发出声音会现身！                                 |
+| Strangers            | 👥 不认识的人   | 所有人模型都一样！可以对友军造成伤害！不显示小地图！随机出生点！ |
+| SuperpowerXray       | 🦸 超能力者     | 双方各有一名玩家获得透视能力！只有超能力者能看到敌人位置！       |
+| SwapOnHit            | 击中交换        | 击中敌人时会交换位置！                                           |
+| TeleportOnDamage     | 受伤传送        | 受到伤害时会随机传送到地图上的其他位置！                         |
+| TopTierParty         | 🎊 顶级狂欢     | 顶级狂欢！同时启用两个随机事件！混乱与乐趣并存！                 |
+| TopTierPartyPlusPlus | 🎊🎊 顶级狂欢++ | 终极狂欢！同时启用三个随机事件！绝对的混乱与极致的乐趣！         |
+| UnluckyCouples       | 💑 苦命鸳鸯     | 玩家两两配对！配对玩家互相可见且伤害增加！单数玩家将被忽略！     |
+| Vampire              | 吸血鬼          | 造成伤害时吸取等量生命值！                                       |
+| Xray                 | 👁️ 全员透视   | 所有玩家可以透过墙壁看到彼此！敌我位置一览无余！                 |
 
 ### 事件权重配置
 
 默认权重分布（可配置）：
+
 - **NoEvent**: 100
 - **NoSkill**: 100
 - **其他事件**: 10
 
 **概率计算**：
+
 - 总权重 = 470
 - NoEvent 概率 = 21.3%
 - NoSkill 概率 = 21.3%
@@ -95,11 +98,11 @@ Myrtle Skill Plugin 是一个 Counter-Strike 2 (CS2) 娱乐插件，为服务器
 
 ### 技能快速参考表
 
-| 内部名称 | 显示名称 | 描述 | 类型 | 冷却时间 | 互斥事件 |
-|---------|---------|------|------|---------|----------|
-| HighJump | 🦘 超级跳跃 | 跳跃高度大幅提升！ | 被动 | 无 | LowGravity, LowGravityPlusPlus, JumpPlusPlus |
-| SpeedBoost | ⚡ 速度提升 | 移动速度提升50%！ | 被动 | 无 | 无 |
-| Teleport | 🌀 瞬间移动 | 传送到地图上的随机位置！ | 主动 | 15.0秒 | 无 |
+| 内部名称   | 显示名称    | 描述                     | 类型 | 冷却时间 | 互斥事件                                     |
+| ---------- | ----------- | ------------------------ | ---- | -------- | -------------------------------------------- |
+| HighJump   | 🦘 超级跳跃 | 跳跃高度大幅提升！       | 被动 | 无       | LowGravity, LowGravityPlusPlus, JumpPlusPlus |
+| SpeedBoost | ⚡ 速度提升 | 移动速度提升50%！        | 被动 | 无       | 无                                           |
+| Teleport   | 🌀 瞬间移动 | 传送到地图上的随机位置！ | 主动 | 15.0秒   | 无                                           |
 
 ### 技能类型说明
 
@@ -109,6 +112,7 @@ Myrtle Skill Plugin 是一个 Counter-Strike 2 (CS2) 娱乐插件，为服务器
 ### 技能权重配置
 
 默认权重（可配置）：
+
 - **Teleport**: 10
 - **SpeedBoost**: 10
 - **HighJump**: 10
@@ -118,6 +122,7 @@ Myrtle Skill Plugin 是一个 Counter-Strike 2 (CS2) 娱乐插件，为服务器
 技能可以指定与哪些事件互斥。在特定事件激活时，互斥的技能不会被抽到。
 
 **示例**：
+
 - `HighJump` 技能与 `LowGravity`、`LowGravityPlusPlus`、`JumpPlusPlus` 事件互斥
 - 原因：这些效果都会影响跳跃/重力，避免效果重叠或冲突
 
@@ -127,63 +132,63 @@ Myrtle Skill Plugin 是一个 Counter-Strike 2 (CS2) 娱乐插件，为服务器
 
 ### 娱乐事件系统
 
-| 命令 | 说明 |
-|-------|------|
-| `css_event_enable` | 启用娱乐事件系统 |
-| `css_event_disable` | 禁用娱乐事件系统 |
-| `css_event_status` | 查看当前事件信息 |
-| `css_event_list` | 列出所有可用事件 |
-| `css_event_weight <事件名> [权重]` | 查看/设置事件权重 |
-| `css_event_weights` | 查看所有事件权重 |
-| `css_forceevent <事件名>` | 强制下回合触发指定事件（调试用） |
+| 命令                                 | 说明                             |
+| ------------------------------------ | -------------------------------- |
+| `css_event_enable`                 | 启用娱乐事件系统                 |
+| `css_event_disable`                | 禁用娱乐事件系统                 |
+| `css_event_status`                 | 查看当前事件信息                 |
+| `css_event_list`                   | 列出所有可用事件                 |
+| `css_event_weight <事件名> [权重]` | 查看/设置事件权重                |
+| `css_event_weights`                | 查看所有事件权重                 |
+| `css_forceevent <事件名>`          | 强制下回合触发指定事件（调试用） |
 
 ### 玩家技能系统
 
-| 命令 | 说明 |
-|-------|------|
-| `css_skill_enable` | 启用玩家技能系统 |
-| `css_skill_disable` | 禁用玩家技能系统 |
-| `css_skill_status` | 查看技能系统状态和当前技能 |
-| `css_skill_list` | 列出所有可用技能 |
-| `css_skill_weight <技能名> [权重]` | 查看/设置技能权重 |
-| `css_skill_weights` | 查看所有技能权重 |
-| `css_useskill` | 使用/激活你的技能（主动技能） |
+| 命令                                 | 说明                           |
+| ------------------------------------ | ------------------------------ |
+| `css_skill_enable`                 | 启用玩家技能系统               |
+| `css_skill_disable`                | 禁用玩家技能系统               |
+| `css_skill_status`                 | 查看技能系统状态和当前技能     |
+| `css_skill_list`                   | 列出所有可用技能               |
+| `css_skill_weight <技能名> [权重]` | 查看/设置技能权重              |
+| `css_skill_weights`                | 查看所有技能权重               |
+| `css_useskill`                     | 使用/激活你的技能（主动技能）  |
 | `css_forceskill <技能名> [玩家名]` | 强制赋予玩家指定技能（调试用） |
 
 ### 开局福利系统
 
-| 命令 | 说明 |
-|-------|------|
-| `css_welfare_enable` | 启用开局福利系统 |
-| `css_welfare_disable` | 禁用开局福利系统 |
-| `css_welfare_status` | 查看开局福利系统状态 |
+| 命令                    | 说明                 |
+| ----------------------- | -------------------- |
+| `css_welfare_enable`  | 启用开局福利系统     |
+| `css_welfare_disable` | 禁用开局福利系统     |
+| `css_welfare_status`  | 查看开局福利系统状态 |
 
 ### 机器人控制系统
 
-| 命令 | 说明 |
-|-------|------|
-| `css_botcontrol_enable` | 启用玩家控制机器人 |
+| 命令                       | 说明               |
+| -------------------------- | ------------------ |
+| `css_botcontrol_enable`  | 启用玩家控制机器人 |
 | `css_botcontrol_disable` | 禁用玩家控制机器人 |
-| `css_botcontrol_status` | 查看机器人控制状态 |
+| `css_botcontrol_status`  | 查看机器人控制状态 |
 
 ### 位置记录器系统
 
-| 命令 | 说明 |
-|-------|------|
-| `css_pos_history` | 查看你的位置历史（最近10条） |
-| `css_pos_clear` | 清除你的位置历史 |
-| `css_pos_stats` | 查看位置记录器统计信息 |
-| `css_pos_clear_all` | 清除所有玩家的位置历史 |
+| 命令                  | 说明                         |
+| --------------------- | ---------------------------- |
+| `css_pos_history`   | 查看你的位置历史（最近10条） |
+| `css_pos_clear`     | 清除你的位置历史             |
+| `css_pos_stats`     | 查看位置记录器统计信息       |
+| `css_pos_clear_all` | 清除所有玩家的位置历史       |
 
 ### 炸弹相关功能
 
-| 命令 | 说明 |
-|-------|------|
-| `css_allowanywhereplant_enable` | 启用任意下包功能 |
-| `css_allowanywhereplant_disable` | 禁用任意下包功能 |
-| `css_allowanywhereplant_status` | 查看任意下包功能状态 |
-| `css_bombtimer_set <秒数>` | 设置炸弹爆炸时间（秒） |
-| `css_bombtimer_status` | 查看炸弹爆炸时间 |
+| 命令                               | 说明                   |
+| ---------------------------------- | ---------------------- |
+| `css_allowanywhereplant_enable`  | 启用任意下包功能       |
+| `css_allowanywhereplant_disable` | 禁用任意下包功能       |
+| `css_allowanywhereplant_status`  | 查看任意下包功能状态   |
+| `css_bombtimer_set <秒数>`       | 设置炸弹爆炸时间（秒） |
+| `css_bombtimer_status`           | 查看炸弹爆炸时间       |
 
 ---
 
@@ -194,6 +199,7 @@ Myrtle Skill Plugin 是一个 Counter-Strike 2 (CS2) 娱乐插件，为服务器
 **配置文件位置**: `/addons/counterstrikesharp/addons/MyrtleSkill/config.json`
 
 **配置结构**:
+
 ```json
 {
   "EventWeights": {
@@ -225,10 +231,10 @@ Myrtle Skill Plugin 是一个 Counter-Strike 2 (CS2) 娱乐插件，为服务器
 ### 1. 安装插件
 
 1. 将编译好的 `MyrtleSkill.dll` 文件复制到：
+
    ```
    /addons/counterstrikesharp/addons/MyrtleSkill/
    ```
-
 2. 确保 `config.json` 文件也在同一目录
 
 ### 2. 启用功能
@@ -236,21 +242,25 @@ Myrtle Skill Plugin 是一个 Counter-Strike 2 (CS2) 娱乐插件，为服务器
 在服务器控制台输入：
 
 **启用娱乐事件系统**：
+
 ```
 css_event_enable
 ```
 
 **启用玩家技能系统**：
+
 ```
 css_skill_enable
 ```
 
 **启用开局福利系统**：
+
 ```
 css_welfare_enable
 ```
 
 **启用机器人控制**：
+
 ```
 css_botcontrol_enable
 ```
@@ -258,15 +268,18 @@ css_botcontrol_enable
 ### 3. 玩家使用技能
 
 **获得技能**：
+
 - 回合开始时自动获得随机技能
 - 系统会在聊天框显示技能名称和描述
 
 **使用主动技能**：
+
 - 在聊天框输入：`!useskill` 或 `css_useskill`
 - 等待冷却时间结束
 - 技能效果立即生效
 
 **查看状态**：
+
 ```
 css_skill_status
 ```
@@ -334,6 +347,7 @@ A: 目前冷却时间是硬编码在技能类中（`Cooldown` 属性）。未来
 ### Q: 为什么我的技能没有被分配？
 
 A: 检查以下情况：
+
 1. 技能系统是否已启用（`css_skill_enable`）
 2. 技能权重是否大于 0
 3. 当前激活的事件是否与技能互斥
@@ -341,6 +355,7 @@ A: 检查以下情况：
 ### Q: 可以同时运行事件和技能吗？
 
 A: 可以！系统设计为独立运行，可以：
+
 - 只有事件，没有技能
 - 只有技能，没有事件
 - 事件 + 技能 同时运行
@@ -358,12 +373,13 @@ A: 查看服务器控制台输出，所有重要操作都有日志记录。
 #### 新增功能
 
 - ✅ 添加完整的玩家技能系统
+
   - 支持主动和被动技能
   - 实现技能冷却机制
   - 添加事件互斥系统
   - 新增 `css_useskill` 命令
-
 - ✅ 新增 32 个娱乐事件
+
   - AutoBhop, Blitzkrieg, ChickenMode, DeadlyGrenades
   - DecoyTeleport, HeadshotOnly, OneShot, RainyDay
   - ScreamingRabbit, SlowMotion, StayQuiet
@@ -371,8 +387,8 @@ A: 查看服务器控制台输出，所有重要操作都有日志记录。
   - TopTierPartyPlusPlus, UnluckyCouples, Xray
   - AnywhereBombPlant, InfiniteAmmo, Juggernaut
   - 以及更多...
-
 - ✅ 新增 25 个玩家技能
+
   - Teleport（主动技能 - 瞬间移动）
   - SpeedBoost（被动技能 - 速度提升）
   - HighJump（被动技能，带事件互斥）
@@ -405,6 +421,7 @@ A: 查看服务器控制台输出，所有重要操作都有日志记录。
 本插件遵循 Counter-Strike 2 的插件开发规范。
 
 **注意事项**：
+
 - 本插件仅供娱乐和教育用途
 - 请在官方服务器上测试后再部署到生产环境
 - 某些功能可能影响游戏平衡性，请谨慎使用
