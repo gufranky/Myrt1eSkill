@@ -7,9 +7,9 @@ Myrtle Skill Plugin 是一个 Counter-Strike 2 (CS2) 娱乐插件，为服务器
 ## 版本信息
 
 - **插件名称**: Myrtle Skill Plugin
-- **当前版本**: v2.1.0
+- **当前版本**: v2.2.0
 - **CS2Sharp API 版本**: 1.0.362
-- **事件数量**: 34 个
+- **事件数量**: 36 个
 - **技能数量**: 24 个
 
 ## 功能概述
@@ -18,7 +18,7 @@ Myrtle Skill Plugin 是一个 Counter-Strike 2 (CS2) 娱乐插件，为服务器
 
 每回合随机选择一个全局事件，影响所有玩家。
 
-**当前事件数量**: 34 个（包括 NoEvent 和 NoSkill）
+**当前事件数量**: 36 个（包括 NoEvent 和 NoSkill）
 
 ### 2. 玩家技能系统
 
@@ -77,6 +77,8 @@ Myrtle Skill Plugin 是一个 Counter-Strike 2 (CS2) 娱乐插件，为服务器
 | Strangers            | 👥 不认识的人   | 所有人模型都一样！可以对友军造成伤害！不显示小地图！随机出生点！ |
 | SuperpowerXray       | 🦸 超能力者     | 双方各有一名玩家获得透视能力！只有超能力者能看到敌人位置！       |
 | SwapOnHit            | 击中交换        | 击中敌人时会交换位置！                                           |
+| SoccerMode           | ⚽ 足球模式       | 没收所有物品！禁用商店！T家生成足球！球进CT区给T发AK！           |
+| SuperRecoil           | 💥 超强反冲     | 开枪时会有超强后坐力！把自己弹飞！                                   |
 | TeleportOnDamage     | 受伤传送        | 受到伤害时会随机传送到地图上的其他位置！                         |
 | TopTierParty         | 🎊 顶级狂欢     | 顶级狂欢！同时启用两个随机事件！混乱与乐趣并存！                 |
 | TopTierPartyPlusPlus | 🎊🎊 顶级狂欢++ | 终极狂欢！同时启用三个随机事件！绝对的混乱与极致的乐趣！         |
@@ -91,19 +93,23 @@ Myrtle Skill Plugin 是一个 Counter-Strike 2 (CS2) 娱乐插件，为服务器
 - **NoEvent**: 100
 - **NoSkill**: 100
 - **KeepMoving**: 10
+- **SoccerMode**: 10
+- **SuperRecoil**: 10
 - **TopTierParty**: 5
 - **TopTierPartyPlusPlus**: 2
 - **其他事件**: 10
 
 **概率计算**：
 
-- 总权重 ≈ 570
-- NoEvent 概率 ≈ 17.5%
-- NoSkill 概率 ≈ 17.5%
-- KeepMoving 概率 ≈ 1.8%
-- TopTierParty 概率 ≈ 0.9%
-- TopTierPartyPlusPlus 概率 ≈ 0.4%
-- 其他每个事件概率 ≈ 1.8%
+- 总权重 ≈ 607
+- NoEvent 概率 ≈ 16.5%
+- NoSkill 概率 ≈ 16.5%
+- KeepMoving 概率 ≈ 1.6%
+- SoccerMode 概率 ≈ 1.6%
+- SuperRecoil 概率 ≈ 1.6%
+- TopTierParty 概率 ≈ 0.8%
+- TopTierPartyPlusPlus 概率 ≈ 0.3%
+- 其他每个事件概率 ≈ 1.6%
 
 ---
 

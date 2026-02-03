@@ -369,6 +369,39 @@
   - 设置 `Plugin.DisableSkillsThisRound = true`
   - 禁用本回合的技能分配
 
+### 34. SoccerMode (足球模式)
+- **文件名**: SoccerModeEvent.cs
+- **内部名称**: SoccerMode
+- **显示名称**: ⚽ 足球模式
+- **描述**: 没收所有物品！禁用商店！T家生成足球！球进CT区给T发AK！
+- **特殊机制**:
+  - 禁用商店：`mp_buy_allow_guns = 0`
+  - 没收所有玩家物品（移除所有武器）
+  - 玩家生成时自动没收
+  - 在T家随机出生点生成足球
+  - 足球模型：`models/props/de_dust/hr_dust/dust_soccerball/dust_soccer_ball001.vmdl`
+  - 监听足球位置（每帧检测）
+  - CT区域判定：距离任意CT出生点 < 200 单位
+  - 足球进入CT区时触发：给所有T发AK47
+  - 一次性奖励（已进入标记）
+
+### 35. SuperRecoil (超强反冲)
+- **文件名**: SuperRecoilEvent.cs
+- **内部名称**: SuperRecoil
+- **显示名称**: 💥 超强反冲
+- **描述**: 开枪时会有超强后坐力！把自己弹飞！
+- **特殊机制**:
+  - 监听 `EventWeaponFire` 事件（武器射击）
+  - 获取玩家视角方向（AbsRotation.Y 偏航角）
+  - 将偏航角转换为方向向量：`cos(yaw), sin(yaw)`
+  - 计算反方向向量：`(-cosYaw, -sinYaw, 0.3)`
+  - 反冲力度：500（比普通反冲强5倍）
+  - 最大速度限制：600单位/帧（防止弹飞太远）
+  - 修改玩家 `AbsVelocity` 实现反冲力
+  - 客户端状态同步：`Utilities.SetStateChanged(pawn, "CBaseEntity", "m_vecAbsVelocity")`
+  - 物理原理：基于牛顿第三定律（作用力与反作用力）
+  - 反冲力 = 反向向量 × 力度因子
+
 ---
 
 ## 技能列表
