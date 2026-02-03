@@ -39,10 +39,10 @@ public class HighJumpSkill : PlayerSkill
 
         // 降低重力以实现高跳效果（50%重力 = 2倍跳跃高度）
         pawn.GravityScale = 0.5f;
-        Utilities.SetStateChanged(pawn, "CBasePlayerPawn", "m_flGravityScale");
+        Utilities.SetStateChanged(pawn, "CBaseEntity", "m_flGravityScale");
 
         Console.WriteLine($"[超级跳跃] {player.PlayerName} 获得了超级跳跃能力 (重力: 0.5f)");
-        player.PrintToCenter("🦘 超级跳跃！");
+        player.PrintToChat("🦘 超级跳跃已激活！");
     }
 
     public override void OnRevert(CCSPlayerController player)
@@ -58,7 +58,7 @@ public class HighJumpSkill : PlayerSkill
         if (_originalGravity.ContainsKey(player.Slot))
         {
             pawn.GravityScale = _originalGravity[player.Slot];
-            Utilities.SetStateChanged(pawn, "CBasePlayerPawn", "m_flGravityScale");
+            Utilities.SetStateChanged(pawn, "CBaseEntity", "m_flGravityScale");
             _originalGravity.Remove(player.Slot);
         }
 
