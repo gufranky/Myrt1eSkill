@@ -22,7 +22,9 @@ using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Cvars;
 using CounterStrikeSharp.API.Modules.Commands;
 using CounterStrikeSharp.API.Modules.Utils;
+using CounterStrikeSharp.API.Modules.UserMessages;
 using MyrtleSkill.Core;
+using MyrtleSkill.Events;
 using MyrtleSkill.Features;
 using MyrtleSkill.Skills;
 
@@ -358,9 +360,9 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         }
 
         // 处理反向爆头事件
-        if (CurrentEvent is InverseHeadshotEvent inverseHeadshotEvent)
+        if (CurrentEvent is InverseHeadshotEvent)
         {
-            float? inverseMultiplier = inverseHeadshotEvent.HandleDamagePre(player, info);
+            float? inverseMultiplier = InverseHeadshotEvent.HandleDamagePre(player, info);
             if (inverseMultiplier.HasValue)
             {
                 totalMultiplier *= inverseMultiplier.Value;
@@ -432,6 +434,12 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             if (skill?.Name == "Meito")
             {
                 Skills.MeitoSkill.HandlePlayerDeath(@event);
+            }
+
+            // 处理穆罕默德技能（死后爆炸）
+            if (skill?.Name == "Muhammad")
+            {
+                Skills.MuhammadSkill.HandlePlayerDeath(@event);
             }
         }
 
@@ -610,6 +618,9 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
     {
         // 处理爆炸射击技能
         Skills.ExplosiveShotSkill.OnEntitySpawned(entity);
+
+        // 处理穆罕默德技能（修改HE手雷属性）
+        Skills.MuhammadSkill.OnEntitySpawned(entity);
 
         // 处理有毒烟雾弹技能（修改烟雾颜色）
         // 参考 jRandomSkills 使用 OwnerEntity 而不是 Thrower
@@ -903,79 +914,6 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
         // 合并所有行
         return eventLine + eventDetailLine + "<br>" + skillLine + skillDetailLine;
-    }
-
-    #endregion
-
-    #region UserMessage Hook
-
-    // UserMessage Hook 委托字典（存储每个消息ID的处理函数）
-    private readonly Dictionary<int, List<Func<UserMessage, HookResult>>> _userMessageHooks = new();
-
-    /// <summary>
-    /// 注册 UserMessage Hook
-    /// </summary>
-    public void HookUserMessage(int messageId, Func<UserMessage, HookResult> handler)
-    {
-        if (!_userMessageHooks.ContainsKey(messageId))
-        {
-            _userMessageHooks[messageId] = new List<Func<UserMessage, HookResult>>();
-        }
-        _userMessageHooks[messageId].Add(handler);
-
-        // 如果这是第一个 Hook，注册全局监听
-        if (_userMessageHooks[messageId].Count == 1)
-        {
-            RegisterEventHandler<EventUserMessage>(OnUserMessage, HookMode.Pre);
-        }
-
-        Console.WriteLine($"[UserMessage Hook] 注册消息ID {messageId}，当前Hook数量: {_userMessageHooks[messageId].Count}");
-    }
-
-    /// <summary>
-    /// 注销 UserMessage Hook
-    /// </summary>
-    public void UnhookUserMessage(int messageId, Func<UserMessage, HookResult> handler)
-    {
-        if (_userMessageHooks.ContainsKey(messageId))
-        {
-            _userMessageHooks[messageId].Remove(handler);
-
-            // 如果没有 Hook 了，移除消息ID
-            if (_userMessageHooks[messageId].Count == 0)
-            {
-                _userMessageHooks.Remove(messageId);
-            }
-        }
-
-        Console.WriteLine($"[UserMessage Hook] 注销消息ID {messageId}");
-    }
-
-    /// <summary>
-    /// 处理 UserMessage 事件
-    /// </summary>
-    private HookResult OnUserMessage(EventUserMessage @event, GameEventInfo info)
-    {
-        int messageId = @event.MsgId;
-
-        // 检查是否有这个消息ID的 Hook
-        if (!_userMessageHooks.ContainsKey(messageId))
-            return HookResult.Continue;
-
-        // 创建 UserMessage 对象并传递给所有 Hook
-        var um = new UserMessage(messageId, @event.Passthrough through);
-
-        // 调用所有 Hook
-        foreach (var handler in _userMessageHooks[messageId])
-        {
-            var result = handler(um);
-            if (result == HookResult.Stop)
-            {
-                return HookResult.Stop;
-            }
-        }
-
-        return HookResult.Continue;
     }
 
     #endregion

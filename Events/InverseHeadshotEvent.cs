@@ -1,6 +1,7 @@
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Entities.Constants;
+using CounterStrikeSharp.API.Modules.Memory;
 
 namespace MyrtleSkill.Events;
 
@@ -46,8 +47,9 @@ public class InverseHeadshotEvent : EntertainmentEvent
         if (plugin?.CurrentEvent?.Name != "InverseHeadshot")
             return null;
 
-        // 获取命中部位
-        var hitgroup = (HitGroup_t)info.Hitgroup;
+        // 获取命中部位（使用Schema访问）
+        var hitgroupValue = Schema.GetSchemaValue<int>(info.Handle, "CTakeDamageInfo", "m_nHitgroup");
+        var hitgroup = (HitGroup_t)hitgroupValue;
 
         // 根据命中部位返回伤害倍数
         float damageMultiplier;

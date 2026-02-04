@@ -31,6 +31,9 @@ using CounterStrikeSharp.API.Modules.Entities;
 using CounterStrikeSharp.API.Modules.Memory;
 using CounterStrikeSharp.API.Modules.Memory.DynamicFunctions;
 using CounterStrikeSharp.API.Modules.Utils;
+using CS2TraceRay.Class;
+using CS2TraceRay.Enum;
+using Vector3 = System.Numerics.Vector3;
 
 namespace MyrtleSkill.Skills;
 
@@ -117,32 +120,53 @@ public class ExplosiveShotSkill : PlayerSkill
         if (_staticRandom.NextDouble() > chance)
             return;
 
-        // 获取玩家当前位置和视角
+        // 获取玩家位置和视角
         var origin = pawn.AbsOrigin;
         if (origin == null)
             return;
 
         var eyeAngles = pawn.EyeAngles;
+        if (eyeAngles == null)
+            return;
 
-        // 计算射击方向
-        Vector shootDirection = GetForwardVector(eyeAngles);
-
-        // 使用较短的距离（800单位），更接近实际射击距离
-        float explosionDistance = 800.0f;
-
-        // 计算爆炸位置（从玩家位置延伸）
-        var explosionPosition = new Vector(
-            origin.X + shootDirection.X * explosionDistance,
-            origin.Y + shootDirection.Y * explosionDistance,
-            origin.Z + shootDirection.Z * explosionDistance
+        // 使用 CS2TraceRay 进行射线追踪
+        // 跳过射击者自己的实体，检测墙壁和玩家
+        var traceResult = TraceRay.TraceShape(
+            origin,
+            eyeAngles,
+            TraceMask.MaskShot,  // 检测墙壁、玩家、实体
+            Contents.Solid,
+            pawn  // 跳过射击者自己
         );
 
-        Console.WriteLine($"[爆炸射击] {player.PlayerName} 射击方向: ({shootDirection.X:F2}, {shootDirection.Y:F2}, {shootDirection.Z:F2})");
+        // 获取爆炸位置（射线追踪的击中点）
+        Vector explosionPosition;
+        if (traceResult.Fraction < 1.0f)
+        {
+            // 射线击中了物体，使用击中位置
+            var hitPos = traceResult.EndPos;
+            explosionPosition = new Vector(hitPos.X, hitPos.Y, hitPos.Z);
+
+            Console.WriteLine($"[爆炸射击] {player.PlayerName} 射线击中物体，距离: {traceResult.Fraction * 8192:F1} 单位");
+        }
+        else
+        {
+            // 没有击中任何东西（距离太远），使用最大射程
+            float maxDistance = 2000.0f;
+            Vector shootDirection = GetForwardVector(eyeAngles);
+            explosionPosition = new Vector(
+                origin.X + shootDirection.X * maxDistance,
+                origin.Y + shootDirection.Y * maxDistance,
+                origin.Z + shootDirection.Z * maxDistance
+            );
+
+            Console.WriteLine($"[爆炸射击] {player.PlayerName} 射线未击中，使用最大距离: {maxDistance} 单位");
+        }
+
         Console.WriteLine($"[爆炸射击] {player.PlayerName} 在 ({explosionPosition.X:F1}, {explosionPosition.Y:F1}, {explosionPosition.Z:F1}) 创建爆炸");
 
         // 创建爆炸
         SpawnExplosion(explosionPosition);
-
         player.PrintToChat($"💥 你的射击引发了爆炸！");
     }
 
@@ -154,33 +178,6 @@ public class ExplosiveShotSkill : PlayerSkill
         _lastTick = Server.TickCount;
         CreateHEGrenadeProjectile(position, IDENTIFIER_ANGLE, new Vector(0, 0, 0), 0);
         Console.WriteLine($"[爆炸射击] 在位置 ({position.X:F1}, {position.Y:F1}, {position.Z:F1}) 创建了爆炸");
-    }
-
-    /// <summary>
-    /// 使用射线追踪获取射击击中位置
-    /// 由于API限制，使用简化方法：向玩家视线方向延伸一定距离
-    /// </summary>
-    private static Vector? TraceRay(Vector start, Vector direction)
-    {
-        try
-        {
-            // 简化实现：向射击方向延伸固定距离（2000单位）
-            // 这不是真正的射线追踪，但对于大多数情况足够有效
-            float maxDistance = 2000.0f;
-
-            Vector end = new Vector(
-                start.X + direction.X * maxDistance,
-                start.Y + direction.Y * maxDistance,
-                start.Z + direction.Z * maxDistance
-            );
-
-            return end;
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[爆炸射击] 计算爆炸位置失败: {ex.Message}");
-            return null;
-        }
     }
 
     /// <summary>

@@ -1,6 +1,7 @@
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using System.Text.Json.Serialization;
+using MyrtleSkill.Events;
 
 namespace MyrtleSkill;
 

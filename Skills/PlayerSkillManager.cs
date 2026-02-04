@@ -69,13 +69,13 @@ public class PlayerSkillManager
         RegisterSkill(new KillerFlashSkill());   // 杀手闪电技能
         RegisterSkill(new SuperFlashSkill());    // 超级闪光技能
         RegisterSkill(new TeamWhipSkill());      // 鞭策队友技能
-        RegisterSkill(new InverseHeadshotSkill());  // 反向爆头技能
         RegisterSkill(new SprintSkill());        // 短跑技能
         RegisterSkill(new DarknessSkill());      // 黑暗技能
         RegisterSkill(new AntiFlashSkill());     // 防闪光技能
         RegisterSkill(new RadarHackSkill());     // 雷达黑客技能
         RegisterSkill(new SecondChanceSkill());  // 第二次机会技能
         RegisterSkill(new EnemySpinSkill());     // 敌人旋转技能
+        RegisterSkill(new MuhammadSkill());      // 穆罕默德技能
         RegisterSkill(new DisarmSkill());       // 裁军技能
         RegisterSkill(new MasterThiefSkill());  // 顶级小偷技能
         RegisterSkill(new ExplosiveShotSkill()); // 爆炸射击技能
