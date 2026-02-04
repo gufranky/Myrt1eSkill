@@ -6,20 +6,20 @@ namespace MyrtleSkill.Skills;
 
 /// <summary>
 /// 防闪光技能 - 被动技能
-/// 免疫闪光弹，你的闪光弹持续7秒，获得3颗闪光弹（投掷后自动补充）
+/// 免疫闪光弹，你的闪光弹时长增加50%，获得3颗闪光弹（投掷后自动补充）
 /// </summary>
 public class AntiFlashSkill : PlayerSkill
 {
     public override string Name => "AntiFlash";
     public override string DisplayName => "✨ 防闪光";
-    public override string Description => "免疫闪光弹！你的闪光弹持续7秒！获得3颗闪光弹（投掷后自动补充）！";
+    public override string Description => "免疫闪光弹！你的闪光弹时长增加50%！获得3颗闪光弹（投掷后自动补充）！";
     public override bool IsActive => false; // 被动技能
 
     // 与其他闪光弹技能互斥
     public override List<string> ExcludedSkills => new() { "FlashJump", "KillerFlash" };
 
-    // 闪光弹持续时间和数量
-    private const float FLASH_DURATION = 7.0f;
+    // 闪光弹时长倍数和数量
+    private const float FLASH_MULTIPLIER = 1.5f;  // 时长增加50%
     private const int FLASHBANG_COUNT = 1;
     private const int MAX_REPLENISH_COUNT = 2; // 最多补充2次
 
@@ -45,7 +45,7 @@ public class AntiFlashSkill : PlayerSkill
 
         player.PrintToChat("✨ 你获得了防闪光技能！");
         player.PrintToChat($"💣 获得了 {FLASHBANG_COUNT} 颗闪光弹（投掷后自动补充）！");
-        player.PrintToChat($"💡 你的闪光弹持续 {FLASH_DURATION} 秒！");
+        player.PrintToChat($"💡 你的闪光弹时长增加 50%！");
     }
 
     public override void OnRevert(CCSPlayerController player)
@@ -161,9 +161,10 @@ public class AntiFlashSkill : PlayerSkill
             }
             else
             {
-                // 是别人，增强闪光弹效果
-                playerPawn.FlashDuration = FLASH_DURATION;
-                Console.WriteLine($"[防闪光] {attacker.PlayerName} 的强力闪光弹致盲了 {player.PlayerName}，持续时间 {FLASH_DURATION} 秒");
+                // 是别人，增强闪光弹效果（原时长 * 1.5倍）
+                float originalDuration = playerPawn.FlashDuration;
+                playerPawn.FlashDuration = originalDuration * FLASH_MULTIPLIER;
+                Console.WriteLine($"[防闪光] {attacker.PlayerName} 的强力闪光弹致盲了 {player.PlayerName}，原时长 {originalDuration:F2}秒 -> 增强后 {playerPawn.FlashDuration:F2}秒");
             }
         }
     }
