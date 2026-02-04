@@ -556,6 +556,13 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             flashJumpSkill.OnFlashbangDetonate(@event);
         }
 
+        // 处理超级闪光技能
+        if (skill?.Name == "SuperFlash")
+        {
+            var superFlashSkill = (Skills.SuperFlashSkill)skill;
+            superFlashSkill.OnFlashbangDetonate(@event);
+        }
+
         return HookResult.Continue;
     }
 

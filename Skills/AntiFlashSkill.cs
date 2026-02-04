@@ -16,7 +16,7 @@ public class AntiFlashSkill : PlayerSkill
     public override bool IsActive => false; // 被动技能
 
     // 与其他闪光弹技能互斥
-    public override List<string> ExcludedSkills => new() { "FlashJump", "KillerFlash" };
+    public override List<string> ExcludedSkills => new() { "FlashJump", "KillerFlash", "SuperFlash" };
 
     // 闪光弹时长倍数和数量
     private const float FLASH_MULTIPLIER = 1.5f;  // 时长增加50%

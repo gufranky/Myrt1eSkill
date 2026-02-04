@@ -12,7 +12,7 @@ public class PlayerSkillManager
 {
     private readonly MyrtleSkill _plugin;
     private readonly Dictionary<string, PlayerSkill> _skills = new();
-    private readonly Dictionary<int, PlayerSkill> _playerSkills = new(); // 玩家槽位 -> 当前技能
+    private readonly Dictionary<int, List<PlayerSkill>> _playerSkills = new(); // 玩家槽位 -> 当前技能列表
     private readonly Dictionary<int, DateTime> _playerCooldowns = new(); // 玩家槽位 -> 冷却结束时间
     private readonly Dictionary<int, Queue<string>> _playerSkillHistory = new(); // 玩家槽位 -> 最近3个技能
     private const int MAX_HISTORY = 3; // 只记录最近3个技能
@@ -22,6 +22,11 @@ public class PlayerSkillManager
     /// 技能系统是否启用
     /// </summary>
     public bool IsEnabled { get; set; } = true; // 默认启用
+
+    /// <summary>
+    /// 每个玩家每回合获得的技能数量（默认1个）
+    /// </summary>
+    public int SkillsPerPlayer { get; set; } = 1;
 
     /// <summary>
     /// 技能激活按键（默认为 E 键）
@@ -56,6 +61,7 @@ public class PlayerSkillManager
         RegisterSkill(new DecoyXRaySkill());     // 透视诱饵弹技能
         RegisterSkill(new ToxicSmokeSkill());    // 有毒烟雾弹技能
         RegisterSkill(new KillerFlashSkill());   // 杀手闪电技能
+        RegisterSkill(new SuperFlashSkill());    // 超级闪光技能
         RegisterSkill(new TeamWhipSkill());      // 鞭策队友技能
         RegisterSkill(new SprintSkill());        // 短跑技能
         RegisterSkill(new DarknessSkill());      // 黑暗技能
@@ -174,8 +180,6 @@ public class PlayerSkillManager
     }
 
     /// <summary>
-    /// 为玩家应用技能
-    /// <summary>
     /// 为指定的玩家应用指定的技能
     /// </summary>
     public void ApplySpecificSkillToPlayer(CCSPlayerController player, string skillName)
@@ -196,8 +200,11 @@ public class PlayerSkillManager
         // 如果玩家已有技能，先移除
         RemoveSkillFromPlayer(player);
 
+        // 初始化技能列表
+        _playerSkills[player.Slot] = new List<PlayerSkill>();
+
         // 应用技能
-        _playerSkills[player.Slot] = skill;
+        _playerSkills[player.Slot].Add(skill);
         skill.OnApply(player);
 
         // 记录到历史
@@ -228,33 +235,132 @@ public class PlayerSkillManager
         // 如果玩家已有技能，先移除
         RemoveSkillFromPlayer(player);
 
-        // 随机选择技能（传递玩家参数以避免重复）
-        var skill = SelectRandomSkill(player);
-        if (skill == null)
+        // 初始化玩家的技能列表
+        _playerSkills[player.Slot] = new List<PlayerSkill>();
+
+        // 获取应该获得的技能数量
+        int skillCount = SkillsPerPlayer;
+        Console.WriteLine($"[技能管理器] {player.PlayerName} 将获得 {skillCount} 个技能");
+
+        // 选择并应用第一个技能
+        var firstSkill = SelectRandomSkill(player);
+        if (firstSkill == null)
         {
-            Console.WriteLine($"[技能管理器] 无法为 {player.PlayerName} 选择技能");
+            Console.WriteLine($"[技能管理器] 无法为 {player.PlayerName} 选择第一个技能");
             return;
         }
 
+        // 应用第一个技能
+        ApplySingleSkill(player, firstSkill, 1);
+
+        // 如果需要第二个技能
+        if (skillCount >= 2)
+        {
+            var secondSkill = SelectSecondSkill(player, firstSkill);
+            if (secondSkill != null)
+            {
+                ApplySingleSkill(player, secondSkill, 2);
+            }
+            else
+            {
+                Console.WriteLine($"[技能管理器] 无法为 {player.PlayerName} 选择第二个技能（无合适技能可用）");
+            }
+        }
+
+        // 显示总结
+        var skills = _playerSkills[player.Slot];
+        player.PrintToChat($"───────────────────");
+        player.PrintToChat($"🎁 你获得了 {skills.Count} 个技能！");
+        for (int i = 0; i < skills.Count; i++)
+        {
+            player.PrintToChat($"  {i + 1}. {skills[i].DisplayName}");
+        }
+        player.PrintToChat($"───────────────────");
+    }
+
+    /// <summary>
+    /// 为玩家应用单个技能
+    /// </summary>
+    private void ApplySingleSkill(CCSPlayerController player, PlayerSkill skill, int index)
+    {
         // 应用技能
-        _playerSkills[player.Slot] = skill;
+        _playerSkills[player.Slot].Add(skill);
         skill.OnApply(player);
 
         // 记录到历史
         AddToPlayerHistory(player, skill.Name);
 
-        Console.WriteLine($"[技能管理器] {player.PlayerName} 获得技能: {skill.DisplayName} ({(skill.IsActive ? "主动" : "被动")})");
+        Console.WriteLine($"[技能管理器] {player.PlayerName} 获得第{index}个技能: {skill.DisplayName} ({(skill.IsActive ? "主动" : "被动")})");
 
         // 显示提示
-        player.PrintToChat($"💫 你获得了技能：{skill.DisplayName}");
-        player.PrintToChat($"📝 {skill.Description}");
+        player.PrintToChat($"💫 技能{index}: {skill.DisplayName} - {skill.Description}");
 
         // 如果是主动技能，提示如何使用
         if (skill.IsActive)
         {
-            player.PrintToChat($"⌨️ 输入 !useskill 或按键激活技能");
-            player.PrintToChat($"⏱️ 冷却时间：{skill.Cooldown}秒");
+            player.PrintToChat($"   ⌨️ 输入 !useskill 或按键激活技能");
+            player.PrintToChat($"   ⏱️ 冷却时间：{skill.Cooldown}秒");
         }
+    }
+
+    /// <summary>
+    /// 选择第二个技能（考虑互斥和主动技能限制）
+    /// </summary>
+    private PlayerSkill? SelectSecondSkill(CCSPlayerController player, PlayerSkill firstSkill)
+    {
+        if (_skills.Count == 0)
+            return null;
+
+        // 获取当前事件名称
+        string? currentEventName = _plugin?.CurrentEvent?.Name;
+
+        // 获取玩家最近获得的技能历史
+        Queue<string>? playerHistory = null;
+        if (player.IsValid && _playerSkillHistory.TryGetValue(player.Slot, out var history))
+        {
+            playerHistory = history;
+        }
+
+        // 收集第一个技能的互斥技能名称
+        var excludedByFirstSkill = new HashSet<string>(firstSkill.ExcludedSkills);
+
+        // 过滤可用技能
+        var availableSkills = _skills.Values
+            .Where(s => s.Weight > 0) // 权重大于0
+            .Where(s => s.Name != firstSkill.Name) // 不能是同一个技能
+            .Where(s => string.IsNullOrEmpty(currentEventName) || !s.ExcludedEvents.Contains(currentEventName)) // 不与当前事件互斥
+            .Where(s => playerHistory == null || !playerHistory.Contains(s.Name)) // 玩家最近3回合未获得
+            .Where(s => !excludedByFirstSkill.Contains(s.Name)) // 不与第一个技能互斥
+            .Where(s => !firstSkill.IsActive || !s.IsActive) // 如果第一个是主动，第二个必须是被动
+            .ToList();
+
+        if (availableSkills.Count == 0)
+        {
+            Console.WriteLine("[技能管理器] 警告：没有可用的第二个技能（互斥/主动技能限制）");
+            return null;
+        }
+
+        // 计算总权重
+        int totalWeight = availableSkills.Sum(s => s.Weight);
+
+        if (totalWeight <= 0)
+            return null;
+
+        // 随机选择
+        int randomWeight = _random.Next(totalWeight);
+        int currentWeight = 0;
+
+        foreach (var skill in availableSkills)
+        {
+            currentWeight += skill.Weight;
+            if (randomWeight < currentWeight)
+            {
+                Console.WriteLine($"[技能管理器] 为 {player.PlayerName} 选择第二个技能: {skill.Name} (权重: {skill.Weight})");
+                return skill;
+            }
+        }
+
+        return availableSkills.FirstOrDefault();
     }
 
     /// <summary>
@@ -265,15 +371,18 @@ public class PlayerSkillManager
         if (player == null || !player.IsValid)
             return;
 
-        if (_playerSkills.TryGetValue(player.Slot, out var skill))
+        if (_playerSkills.TryGetValue(player.Slot, out var skills))
         {
-            skill.OnRevert(player);
+            foreach (var skill in skills)
+            {
+                skill.OnRevert(player);
+            }
             _playerSkills.Remove(player.Slot);
 
             // 清除冷却时间记录（避免跨回合影响）
             _playerCooldowns.Remove(player.Slot);
 
-            Console.WriteLine($"[技能管理器] 已移除 {player.PlayerName} 的技能: {skill.DisplayName}");
+            Console.WriteLine($"[技能管理器] 已移除 {player.PlayerName} 的 {skills.Count} 个技能");
         }
     }
 
@@ -313,14 +422,31 @@ public class PlayerSkillManager
     }
 
     /// <summary>
-    /// 获取玩家当前技能
+    /// 获取玩家当前技能列表
+    /// </summary>
+    public List<PlayerSkill> GetPlayerSkills(CCSPlayerController player)
+    {
+        if (player == null || !player.IsValid)
+            return new List<PlayerSkill>();
+
+        return _playerSkills.TryGetValue(player.Slot, out var skills) ? skills : new List<PlayerSkill>();
+    }
+
+    /// <summary>
+    /// 获取玩家的第一个技能（兼容旧代码）
     /// </summary>
     public PlayerSkill? GetPlayerSkill(CCSPlayerController player)
     {
         if (player == null || !player.IsValid)
             return null;
 
-        return _playerSkills.TryGetValue(player.Slot, out var skill) ? skill : null;
+        if (_playerSkills.TryGetValue(player.Slot, out var skills) && skills.Count > 0)
+        {
+            // 优先返回主动技能，否则返回第一个
+            return skills.FirstOrDefault(s => s.IsActive) ?? skills[0];
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -378,17 +504,27 @@ public class PlayerSkillManager
         if (player == null || !player.IsValid || !player.PawnIsAlive)
             return;
 
-        // 获取玩家技能
-        if (!_playerSkills.TryGetValue(player.Slot, out var skill))
+        // 获取玩家技能列表
+        if (!_playerSkills.TryGetValue(player.Slot, out var skills) || skills.Count == 0)
         {
             player.PrintToChat("💫 你当前没有技能！");
             return;
         }
 
-        // 检查是否为主动技能
-        if (!skill.IsActive)
+        // 找到第一个可用的主动技能
+        PlayerSkill? activeSkill = null;
+        foreach (var skill in skills)
         {
-            player.PrintToChat($"💫 {skill.DisplayName} 是被动技能，无需激活！");
+            if (skill.IsActive)
+            {
+                activeSkill = skill;
+                break;
+            }
+        }
+
+        if (activeSkill == null)
+        {
+            player.PrintToChat("💫 你当前没有主动技能！");
             return;
         }
 
@@ -406,23 +542,23 @@ public class PlayerSkillManager
         // 使用技能
         try
         {
-            skill.OnUse(player);
+            activeSkill.OnUse(player);
 
             // 设置冷却
-            _playerCooldowns[player.Slot] = DateTime.Now.AddSeconds(skill.Cooldown);
+            _playerCooldowns[player.Slot] = DateTime.Now.AddSeconds(activeSkill.Cooldown);
 
-            Console.WriteLine($"[技能管理器] {player.PlayerName} 使用了技能: {skill.DisplayName}");
-            player.PrintToChat($"💫 已使用技能：{skill.DisplayName}");
+            Console.WriteLine($"[技能管理器] {player.PlayerName} 使用了技能: {activeSkill.DisplayName}");
+            player.PrintToChat($"💫 已使用技能：{activeSkill.DisplayName}");
 
             // 显示冷却时间
-            if (skill.Cooldown > 0)
+            if (activeSkill.Cooldown > 0)
             {
-                player.PrintToCenter($"💫 技能冷却：{skill.Cooldown}秒");
+                player.PrintToCenter($"💫 技能冷却：{activeSkill.Cooldown}秒");
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[技能管理器] 错误：{player.PlayerName} 使用技能 {skill.DisplayName} 时出错: {ex.Message}");
+            Console.WriteLine($"[技能管理器] 错误：{player.PlayerName} 使用技能 {activeSkill.DisplayName} 时出错: {ex.Message}");
             player.PrintToChat($"💫 技能使用失败！");
         }
     }

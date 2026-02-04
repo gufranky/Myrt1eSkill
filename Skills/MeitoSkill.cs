@@ -13,14 +13,14 @@ public class MeitoSkill : PlayerSkill
 {
     public override string Name => "Meito";
     public override string DisplayName => "⚔️ 名刀";
-    public override string Description => "致命伤害时取消伤害并获得0.5秒无敌！每回合限用一次！";
+    public override string Description => "致命伤害时取消伤害并获得0.75秒无敌！每回合限用一次！";
     public override bool IsActive => false; // 被动技能
 
     // 与第二次机会互斥
     public override List<string> ExcludedSkills => new() { "SecondChance" };
 
     // 无敌持续时间（秒）
-    private const float INVINCIBLE_DURATION = 0.5f;
+    private const float INVINCIBLE_DURATION = 0.75f;
 
     // 跟踪每回合已使用名刀的玩家
     private static readonly ConcurrentDictionary<int, byte> _meitoUsed = new();
@@ -28,11 +28,14 @@ public class MeitoSkill : PlayerSkill
     // 跟踪无敌状态到期的玩家
     private static readonly ConcurrentDictionary<int, DateTime> _invinciblePlayers = new();
 
+    // 跟踪名刀恢复后的血量（用于无敌期间保护）
+    private static readonly ConcurrentDictionary<int, int> _protectedHealth = new();
+
     public override void OnApply(CCSPlayerController player)
     {
         Console.WriteLine($"[名刀] {player.PlayerName} 获得了名刀技能");
         player.PrintToChat("⚔️ 你获得了名刀技能！");
-        player.PrintToChat("💡 致命伤害会被抵消并获得0.5秒无敌！");
+        player.PrintToChat("💡 致命伤害会被抵消并获得0.75秒无敌！");
         player.PrintToChat("⚠️ 每回合只能触发一次！");
     }
 
@@ -41,6 +44,7 @@ public class MeitoSkill : PlayerSkill
         // 移除技能时清理记录
         _meitoUsed.TryRemove(player.Slot, out _);
         _invinciblePlayers.TryRemove(player.Slot, out _);
+        _protectedHealth.TryRemove(player.Slot, out _);
 
         Console.WriteLine($"[名刀] {player.PlayerName} 失去了名刀技能");
     }
@@ -105,12 +109,15 @@ public class MeitoSkill : PlayerSkill
 
             if (DateTime.Now < invincibleExpireTime)
             {
-                // 无敌状态中，确保血量不低于1
+                // 无敌状态中，恢复到名刀保存的血量
                 if (victimPawn.Health <= 0)
                 {
-                    victimPawn.Health = 1;
-                    Utilities.SetStateChanged(victimPawn, "CBaseEntity", "m_iHealth");
-                    Console.WriteLine($"[名刀] {victim.PlayerName} 处于无敌状态，血量重置为1");
+                    if (_protectedHealth.TryGetValue(victim.Slot, out int savedHealth))
+                    {
+                        victimPawn.Health = savedHealth;
+                        Utilities.SetStateChanged(victimPawn, "CBaseEntity", "m_iHealth");
+                        Console.WriteLine($"[名刀] {victim.PlayerName} 处于无敌状态，血量恢复为 {savedHealth}");
+                    }
                 }
                 return;
             }
@@ -154,6 +161,9 @@ public class MeitoSkill : PlayerSkill
         victimPawn.Health = healthBeforeDeath;
         Utilities.SetStateChanged(victimPawn, "CBaseEntity", "m_iHealth");
         Console.WriteLine($"[名刀] {victim.PlayerName} 名刀触发！血量恢复为 {healthBeforeDeath}");
+
+        // 保存恢复后的血量（用于无敌期间保护）
+        _protectedHealth[victim.Slot] = healthBeforeDeath;
 
         // 设置无敌状态（0.5秒）
         DateTime expireTime = DateTime.Now.AddSeconds(INVINCIBLE_DURATION);
@@ -211,6 +221,7 @@ public class MeitoSkill : PlayerSkill
     {
         _meitoUsed.Clear();
         _invinciblePlayers.Clear();
+        _protectedHealth.Clear();
         Console.WriteLine("[名刀] 新回合开始，清空使用记录");
     }
 }
