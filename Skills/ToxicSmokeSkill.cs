@@ -11,7 +11,7 @@ using System.Collections.Concurrent;
 namespace MyrtleSkill.Skills;
 
 /// <summary>
-/// 有毒烟雾弹技能 - 主动技能
+/// 有毒烟雾弹技能 - 被动技能
 /// 开局获得3个有毒烟雾弹，烟雾范围内的敌人持续受到伤害
 /// 参考实现：jRandomSkills ToxicSmoke
 /// </summary>
@@ -19,16 +19,13 @@ public class ToxicSmokeSkill : PlayerSkill
 {
     public override string Name => "ToxicSmoke";
     public override string DisplayName => "☠️ 有毒烟雾弹";
-    public override string Description => "开局3个有毒烟雾弹，持续伤害敌人！";
-    public override bool IsActive => true;
-    public override float Cooldown => 9999f; // 一局只能用一次
+    public override string Description => "开局1个有毒烟雾弹，持续伤害敌人！投掷后补充1次！";
+    public override bool IsActive => false; // 被动技能
+    public override float Cooldown => 0f; // 被动技能无冷却
     public override List<string> ExcludedEvents => new() { };
 
     // 与格拉兹互斥
     public override List<string> ExcludedSkills => new() { "Glaz" };
-
-    // 追踪每回合是否已使用
-    private readonly Dictionary<uint, bool> _usedThisRound = new();
 
     // 追踪每回合是否已补充过（只补充1次）
     private readonly Dictionary<uint, bool> _replenishedThisRound = new();
@@ -46,7 +43,6 @@ public class ToxicSmokeSkill : PlayerSkill
             return;
 
         var slot = player.Index;
-        _usedThisRound[slot] = false;
         _replenishedThisRound[slot] = false;
 
         // 给予1个烟雾弹
@@ -54,7 +50,7 @@ public class ToxicSmokeSkill : PlayerSkill
 
         Console.WriteLine($"[有毒烟雾弹] {player.PlayerName} 获得了有毒烟雾弹能力");
         player.PrintToChat("☠️ 你获得了1个有毒烟雾弹！烟雾持续伤害敌人！");
-        player.PrintToChat("💡 投掷后自动补充1个烟雾弹！");
+        player.PrintToChat("💡 投掷后可补充1次！");
     }
 
     public override void OnRevert(CCSPlayerController player)
@@ -63,7 +59,6 @@ public class ToxicSmokeSkill : PlayerSkill
             return;
 
         var slot = player.Index;
-        _usedThisRound.Remove(slot);
         _replenishedThisRound.Remove(slot);
 
         // 清理该玩家可能残留的有毒烟雾记录
@@ -89,7 +84,6 @@ public class ToxicSmokeSkill : PlayerSkill
 
         var slot = player.Index;
 
-        // 自动补充逻辑
         // 检查是否已经补充过
         if (_replenishedThisRound.TryGetValue(slot, out var replenished) && replenished)
         {
@@ -97,7 +91,7 @@ public class ToxicSmokeSkill : PlayerSkill
         }
         else
         {
-            // 立即补充1个烟雾弹
+            // 自动补充1个烟雾弹
             Server.NextFrame(() =>
             {
                 if (player.IsValid && player.PawnIsAlive)
@@ -117,33 +111,6 @@ public class ToxicSmokeSkill : PlayerSkill
 
         Console.WriteLine($"[有毒烟雾弹] {player.PlayerName} 的有毒烟雾在 ({@event.X}, {@event.Y}, {@event.Z}) 爆炸");
         player.PrintToChat("☠️ 有毒烟雾已扩散！");
-    }
-
-    public override void OnUse(CCSPlayerController player)
-    {
-        if (player == null || !player.IsValid)
-            return;
-
-        var slot = player.Index;
-
-        // 检查本回合是否已使用
-        if (_usedThisRound.TryGetValue(slot, out var used) && used)
-        {
-            player.PrintToCenter("❌ 本回合已使用过有毒烟雾弹！");
-            player.PrintToChat("❌ 本回合已使用过有毒烟雾弹技能！");
-            return;
-        }
-
-        // 给予3个烟雾弹
-        GiveSmokeGrenades(player, 3);
-
-        // 标记为已使用
-        _usedThisRound[slot] = true;
-
-        player.PrintToCenter("☠️ 获得了3个有毒烟雾弹！");
-        player.PrintToChat("☠️ 投掷烟雾弹，范围内敌人持续受到伤害！");
-
-        Console.WriteLine($"[有毒烟雾弹] {player.PlayerName} 使用了技能，获得3个烟雾弹");
     }
 
     /// <summary>

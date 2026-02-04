@@ -19,6 +19,12 @@ public class PlayerSkillManager
     private readonly Random _random = new();
 
     /// <summary>
+    /// 强制技能列表（用于事件强制分配特定技能）
+    /// 如果列表不为空，系统将使用此列表而非随机选择
+    /// </summary>
+    private List<string>? _forcedSkillNames = null;
+
+    /// <summary>
     /// 技能系统是否启用
     /// </summary>
     public bool IsEnabled { get; set; } = true; // 默认启用
@@ -63,6 +69,7 @@ public class PlayerSkillManager
         RegisterSkill(new KillerFlashSkill());   // 杀手闪电技能
         RegisterSkill(new SuperFlashSkill());    // 超级闪光技能
         RegisterSkill(new TeamWhipSkill());      // 鞭策队友技能
+        RegisterSkill(new InverseHeadshotSkill());  // 反向爆头技能
         RegisterSkill(new SprintSkill());        // 短跑技能
         RegisterSkill(new DarknessSkill());      // 黑暗技能
         RegisterSkill(new AntiFlashSkill());     // 防闪光技能
@@ -79,6 +86,7 @@ public class PlayerSkillManager
         RegisterSkill(new MeitoSkill());        // 名刀技能
         RegisterSkill(new WallhackSkill());      // 透视技能
         RegisterSkill(new DeafSkill());          // 失聪技能
+        RegisterSkill(new BigStomachSkill());    // 大胃袋技能
 
         Console.WriteLine("[技能管理器] 已注册 " + _skills.Count + " 个玩家技能");
     }
@@ -225,6 +233,71 @@ public class PlayerSkillManager
     }
 
     /// <summary>
+    /// 为指定的玩家应用指定的多个技能（按顺序）
+    /// </summary>
+    public void ApplySkillsToPlayer(CCSPlayerController player, List<string> skillNames)
+    {
+        if (player == null || !player.IsValid)
+        {
+            Console.WriteLine($"[技能管理器] 玩家无效，无法应用技能");
+            return;
+        }
+
+        if (skillNames == null || skillNames.Count == 0)
+        {
+            Console.WriteLine($"[技能管理器] 技能名称列表为空");
+            return;
+        }
+
+        // 如果玩家已有技能，先移除
+        RemoveSkillFromPlayer(player);
+
+        // 初始化玩家的技能列表
+        _playerSkills[player.Slot] = new List<PlayerSkill>();
+
+        Console.WriteLine($"[技能管理器] {player.PlayerName} 将获得 {skillNames.Count} 个强制技能");
+
+        // 按顺序应用所有技能
+        for (int i = 0; i < skillNames.Count; i++)
+        {
+            var skillName = skillNames[i];
+            var skill = GetSkill(skillName);
+
+            if (skill == null)
+            {
+                Console.WriteLine($"[技能管理器] 警告：未找到技能: {skillName}");
+                continue;
+            }
+
+            // 应用技能
+            _playerSkills[player.Slot].Add(skill);
+            skill.OnApply(player);
+
+            Console.WriteLine($"[技能管理器] {player.PlayerName} 获得第{i + 1}个强制技能: {skill.DisplayName}");
+
+            // 显示提示
+            player.PrintToChat($"💫 技能{i + 1}: {skill.DisplayName} - {skill.Description}");
+
+            // 如果是主动技能，提示如何使用
+            if (skill.IsActive)
+            {
+                player.PrintToChat($"   ⌨️ 输入 !useskill 或按键激活技能");
+                player.PrintToChat($"   ⏱️ 冷却时间：{skill.Cooldown}秒");
+            }
+        }
+
+        // 显示总结
+        var skills = _playerSkills[player.Slot];
+        player.PrintToChat($"───────────────────");
+        player.PrintToChat($"🎁 你获得了 {skills.Count} 个技能！");
+        for (int i = 0; i < skills.Count; i++)
+        {
+            player.PrintToChat($"  {i + 1}. {skills[i].DisplayName}");
+        }
+        player.PrintToChat($"───────────────────");
+    }
+
+    /// <summary>
     /// 为指定的玩家应用指定的技能
     /// </summary>
     public void ApplySkillToPlayer(CCSPlayerController player)
@@ -234,6 +307,14 @@ public class PlayerSkillManager
 
         // 如果玩家已有技能，先移除
         RemoveSkillFromPlayer(player);
+
+        // 检查是否有强制技能列表
+        if (HasForcedSkills() && _forcedSkillNames != null)
+        {
+            Console.WriteLine($"[技能管理器] {player.PlayerName} 使用强制技能列表");
+            ApplySkillsToPlayer(player, _forcedSkillNames);
+            return;
+        }
 
         // 初始化玩家的技能列表
         _playerSkills[player.Slot] = new List<PlayerSkill>();
@@ -483,6 +564,12 @@ public class PlayerSkillManager
                 ApplySkillToPlayer(player);
             }
         }
+
+        // 所有玩家分配完技能后，清除强制技能列表
+        if (HasForcedSkills())
+        {
+            ClearForcedSkills();
+        }
     }
 
     /// <summary>
@@ -722,6 +809,35 @@ public class PlayerSkillManager
     {
         _playerSkillHistory.Clear();
         Console.WriteLine("[技能管理器] 已清空所有玩家的技能历史");
+    }
+
+    /// <summary>
+    /// 设置强制技能列表（用于事件强制分配特定技能）
+    /// </summary>
+    public void SetForcedSkills(List<string> skillNames)
+    {
+        _forcedSkillNames = new List<string>(skillNames);
+        Console.WriteLine($"[技能管理器] 已设置强制技能列表: {string.Join(", ", skillNames)}");
+    }
+
+    /// <summary>
+    /// 清除强制技能列表
+    /// </summary>
+    public void ClearForcedSkills()
+    {
+        if (_forcedSkillNames != null)
+        {
+            Console.WriteLine($"[技能管理器] 已清除强制技能列表: {string.Join(", ", _forcedSkillNames)}");
+            _forcedSkillNames = null;
+        }
+    }
+
+    /// <summary>
+    /// 检查是否有强制技能列表
+    /// </summary>
+    public bool HasForcedSkills()
+    {
+        return _forcedSkillNames != null && _forcedSkillNames.Count > 0;
     }
 }
 

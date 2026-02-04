@@ -357,6 +357,16 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             }
         }
 
+        // 处理反向爆头事件
+        if (CurrentEvent is InverseHeadshotEvent inverseHeadshotEvent)
+        {
+            float? inverseMultiplier = inverseHeadshotEvent.HandleDamagePre(player, info);
+            if (inverseMultiplier.HasValue)
+            {
+                totalMultiplier *= inverseMultiplier.Value;
+            }
+        }
+
         // 应用伤害倍数
         if (totalMultiplier != 1.0f)
         {
@@ -893,6 +903,79 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
         // 合并所有行
         return eventLine + eventDetailLine + "<br>" + skillLine + skillDetailLine;
+    }
+
+    #endregion
+
+    #region UserMessage Hook
+
+    // UserMessage Hook 委托字典（存储每个消息ID的处理函数）
+    private readonly Dictionary<int, List<Func<UserMessage, HookResult>>> _userMessageHooks = new();
+
+    /// <summary>
+    /// 注册 UserMessage Hook
+    /// </summary>
+    public void HookUserMessage(int messageId, Func<UserMessage, HookResult> handler)
+    {
+        if (!_userMessageHooks.ContainsKey(messageId))
+        {
+            _userMessageHooks[messageId] = new List<Func<UserMessage, HookResult>>();
+        }
+        _userMessageHooks[messageId].Add(handler);
+
+        // 如果这是第一个 Hook，注册全局监听
+        if (_userMessageHooks[messageId].Count == 1)
+        {
+            RegisterEventHandler<EventUserMessage>(OnUserMessage, HookMode.Pre);
+        }
+
+        Console.WriteLine($"[UserMessage Hook] 注册消息ID {messageId}，当前Hook数量: {_userMessageHooks[messageId].Count}");
+    }
+
+    /// <summary>
+    /// 注销 UserMessage Hook
+    /// </summary>
+    public void UnhookUserMessage(int messageId, Func<UserMessage, HookResult> handler)
+    {
+        if (_userMessageHooks.ContainsKey(messageId))
+        {
+            _userMessageHooks[messageId].Remove(handler);
+
+            // 如果没有 Hook 了，移除消息ID
+            if (_userMessageHooks[messageId].Count == 0)
+            {
+                _userMessageHooks.Remove(messageId);
+            }
+        }
+
+        Console.WriteLine($"[UserMessage Hook] 注销消息ID {messageId}");
+    }
+
+    /// <summary>
+    /// 处理 UserMessage 事件
+    /// </summary>
+    private HookResult OnUserMessage(EventUserMessage @event, GameEventInfo info)
+    {
+        int messageId = @event.MsgId;
+
+        // 检查是否有这个消息ID的 Hook
+        if (!_userMessageHooks.ContainsKey(messageId))
+            return HookResult.Continue;
+
+        // 创建 UserMessage 对象并传递给所有 Hook
+        var um = new UserMessage(messageId, @event.Passthrough through);
+
+        // 调用所有 Hook
+        foreach (var handler in _userMessageHooks[messageId])
+        {
+            var result = handler(um);
+            if (result == HookResult.Stop)
+            {
+                return HookResult.Stop;
+            }
+        }
+
+        return HookResult.Continue;
     }
 
     #endregion

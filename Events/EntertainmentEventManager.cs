@@ -79,6 +79,8 @@ public class EntertainmentEventManager
         RegisterEvent(new DeafEvent());
         RegisterEvent(new MoreSkillsEvent());
         RegisterEvent(new SkillsPlusPlusEvent());
+        RegisterEvent(new KillerSatelliteEvent());
+        RegisterEvent(new InverseHeadshotEvent());
 
         Console.WriteLine("[事件管理器] 已注册 " + _events.Count + " 个娱乐事件");
     }

@@ -37,14 +37,14 @@ using CounterStrikeSharp.API.Modules.Utils;
 namespace MyrtleSkill;
 
 /// <summary>
-/// 失聪事件 - 随机敌人听不到所有声音
+/// 失聪事件 - 所有人都听不到所有声音
 /// 参考 jRandomSkills 的 Deaf 技能实现
 /// </summary>
 public class DeafEvent : EntertainmentEvent
 {
     public override string Name => "Deaf";
     public override string DisplayName => "🔇 失聪";
-    public override string Description => "随机敌人听不到所有声音！";
+    public override string Description => "所有人都听不到所有声音！全员失聪！";
 
     // 被静音的玩家列表
     private readonly HashSet<CCSPlayerController> _deafPlayers = new();
@@ -66,22 +66,11 @@ public class DeafEvent : EntertainmentEvent
             return;
         }
 
-        // 随机选择一半的玩家作为失聪者
-        var random = new Random();
-        int deafCount = Math.Max(1, players.Count / 2);
-
-        // 随机打乱玩家列表
-        for (int i = 0; i < players.Count; i++)
+        // 让所有玩家都失聪
+        foreach (var player in players)
         {
-            int j = random.Next(i, players.Count);
-            (players[i], players[j]) = (players[j], players[i]);
-        }
-
-        // 选择前 deafCount 个玩家
-        for (int i = 0; i < deafCount && i < players.Count; i++)
-        {
-            _deafPlayers.Add(players[i]);
-            players[i].PrintToChat("🔇 你失聪了！听不到任何声音！");
+            _deafPlayers.Add(player);
+            player.PrintToChat("🔇 你失聪了！听不到任何声音！");
         }
 
         // 注册 UserMessage 监听（拦截所有声音）
@@ -90,7 +79,7 @@ public class DeafEvent : EntertainmentEvent
             Plugin.HookUserMessage(208, OnPlayerMakeSound);
         }
 
-        Console.WriteLine($"[失聪] 已让 {_deafPlayers.Count} 名玩家失聪");
+        Console.WriteLine($"[失聪] 已让 {_deafPlayers.Count} 名玩家失聪（全员失聪）");
     }
 
     public override void OnRevert()
