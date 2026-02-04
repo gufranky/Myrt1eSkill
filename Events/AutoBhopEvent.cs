@@ -68,12 +68,11 @@ public class AutoBhopEvent : EntertainmentEvent
             Plugin.RegisterListener<Listeners.OnTick>(OnTick);
         }
 
-        // 显示提示
+        // 显示提示（保留聊天框提示，移除屏幕中间提示，统一由HUD显示）
         foreach (var player in Utilities.GetPlayers())
         {
             if (player.IsValid)
             {
-                player.PrintToCenter("🐰 真正的自动Bhop！\n按住跳跃键连续跳跃！速度倍数放大！");
                 player.PrintToChat("🐰 自动Bhop模式已启用！");
                 player.PrintToChat("⚡ 按住空格键自动连跳！速度提升2倍！");
             }

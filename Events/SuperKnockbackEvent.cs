@@ -36,12 +36,11 @@ public class SuperKnockbackEvent : EntertainmentEvent
             Plugin.RegisterEventHandler<EventPlayerHurt>(OnPlayerHurt, HookMode.Post);
         }
 
-        // 显示提示
+        // 显示提示（保留聊天框提示，移除屏幕中间提示，统一由HUD显示）
         foreach (var player in Utilities.GetPlayers())
         {
             if (player.IsValid)
             {
-                player.PrintToCenter("💪 超强推背！\n造成伤害会击退敌人！");
                 player.PrintToChat("💪 超强推背模式已启用！");
                 player.PrintToChat("⚠️ 造成伤害时会强力击退敌人！");
             }

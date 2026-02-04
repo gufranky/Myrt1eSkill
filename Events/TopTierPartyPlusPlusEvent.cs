@@ -111,16 +111,7 @@ public class TopTierPartyPlusPlusEvent : EntertainmentEvent
             }
         }
 
-        Plugin?.AddTimer(3.0f, () =>
-        {
-            foreach (var p in Utilities.GetPlayers())
-            {
-                if (p.IsValid)
-                {
-                    p.PrintToCenter($"━━━━━━━━━━━━━━━━\n 🎊 {_firstEvent.DisplayName}\n 🎊 {_secondEvent.DisplayName}\n 🎊 {_thirdEvent.DisplayName}\n━━━━━━━━━━━━━━━━");
-                }
-            }
-        });
+        // 移除旧的 PrintToCenter，统一使用回合开始 HUD
 
         // 额外的延时提示
         Plugin?.AddTimer(6.0f, () =>
@@ -182,5 +173,20 @@ public class TopTierPartyPlusPlusEvent : EntertainmentEvent
         _firstEvent = null;
         _secondEvent = null;
         _thirdEvent = null;
+    }
+
+    /// <summary>
+    /// 获取子事件列表
+    /// </summary>
+    public override List<EntertainmentEvent> GetSubEvents()
+    {
+        var subEvents = new List<EntertainmentEvent>();
+        if (_firstEvent != null)
+            subEvents.Add(_firstEvent);
+        if (_secondEvent != null)
+            subEvents.Add(_secondEvent);
+        if (_thirdEvent != null)
+            subEvents.Add(_thirdEvent);
+        return subEvents;
     }
 }

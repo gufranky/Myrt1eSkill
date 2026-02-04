@@ -95,16 +95,7 @@ public class TopTierPartyEvent : EntertainmentEvent
             }
         }
 
-        Plugin?.AddTimer(3.0f, () =>
-        {
-            foreach (var p in Utilities.GetPlayers())
-            {
-                if (p.IsValid)
-                {
-                    p.PrintToCenter($"━━━━━━━━━━━━━━━━\n 🎊 {_firstEvent.DisplayName}\n 🎊 {_secondEvent.DisplayName}\n━━━━━━━━━━━━━━━━");
-                }
-            }
-        });
+        // 移除旧的 PrintToCenter，统一使用回合开始 HUD
     }
 
     public override void OnRevert()
@@ -140,5 +131,18 @@ public class TopTierPartyEvent : EntertainmentEvent
 
         _firstEvent = null;
         _secondEvent = null;
+    }
+
+    /// <summary>
+    /// 获取子事件列表
+    /// </summary>
+    public override List<EntertainmentEvent> GetSubEvents()
+    {
+        var subEvents = new List<EntertainmentEvent>();
+        if (_firstEvent != null)
+            subEvents.Add(_firstEvent);
+        if (_secondEvent != null)
+            subEvents.Add(_secondEvent);
+        return subEvents;
     }
 }

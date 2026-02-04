@@ -80,12 +80,11 @@ public class DeadlyGrenadesEvent : EntertainmentEvent
             Plugin.RegisterEventHandler<EventWeaponFire>(OnWeaponFire, HookMode.Post);
         }
 
-        // 显示提示
+        // 显示提示（保留聊天框提示，移除屏幕中间提示，统一由HUD显示）
         foreach (var player in Utilities.GetPlayers())
         {
             if (player.IsValid)
             {
-                player.PrintToCenter("💣 更致命的手雷！\n无限高爆手雷 + 3倍伤害 + 5倍范围！");
                 player.PrintToChat("💣 更致命的手雷模式已启用！");
                 player.PrintToChat("🚫 商店已禁用！主副武器已移除！");
                 player.PrintToChat("💡 投掷手雷会自动补充！");

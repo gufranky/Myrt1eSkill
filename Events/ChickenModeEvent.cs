@@ -178,7 +178,6 @@ public class ChickenModeEvent : EntertainmentEvent
         // 禁用武器
         SetWeaponAttack(player, true);
 
-        player.PrintToCenter("🐔 咕咕咕！你变成了小鸡！");
     }
 
     /// <summary>

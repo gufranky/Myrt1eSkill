@@ -260,6 +260,20 @@ public class PlayerSkillManager
             if (secondSkill != null)
             {
                 ApplySingleSkill(player, secondSkill, 2);
+
+                // 如果需要第三个技能
+                if (skillCount >= 3)
+                {
+                    var thirdSkill = SelectThirdSkill(player, firstSkill, secondSkill);
+                    if (thirdSkill != null)
+                    {
+                        ApplySingleSkill(player, thirdSkill, 3);
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[技能管理器] 无法为 {player.PlayerName} 选择第三个技能（无合适技能可用）");
+                    }
+                }
             }
             else
             {
@@ -356,6 +370,77 @@ public class PlayerSkillManager
             if (randomWeight < currentWeight)
             {
                 Console.WriteLine($"[技能管理器] 为 {player.PlayerName} 选择第二个技能: {skill.Name} (权重: {skill.Weight})");
+                return skill;
+            }
+        }
+
+        return availableSkills.FirstOrDefault();
+    }
+
+    /// <summary>
+    /// 选择第三个技能（考虑与前两个技能的互斥和主动技能限制）
+    /// </summary>
+    private PlayerSkill? SelectThirdSkill(CCSPlayerController player, PlayerSkill firstSkill, PlayerSkill secondSkill)
+    {
+        if (_skills.Count == 0)
+            return null;
+
+        // 获取当前事件名称
+        string? currentEventName = _plugin?.CurrentEvent?.Name;
+
+        // 获取玩家最近获得的技能历史
+        Queue<string>? playerHistory = null;
+        if (player.IsValid && _playerSkillHistory.TryGetValue(player.Slot, out var history))
+        {
+            playerHistory = history;
+        }
+
+        // 收集第一个和第二个技能的互斥技能名称
+        var excludedByFirstSkill = new HashSet<string>(firstSkill.ExcludedSkills);
+        var excludedBySecondSkill = new HashSet<string>(secondSkill.ExcludedSkills);
+
+        // 合并互斥集合
+        var allExcludedSkills = new HashSet<string>(excludedByFirstSkill);
+        foreach (var excluded in excludedBySecondSkill)
+        {
+            allExcludedSkills.Add(excluded);
+        }
+
+        // 检查前两个技能是否有主动技能
+        bool hasActiveSkill = firstSkill.IsActive || secondSkill.IsActive;
+
+        // 过滤可用技能
+        var availableSkills = _skills.Values
+            .Where(s => s.Weight > 0) // 权重大于0
+            .Where(s => s.Name != firstSkill.Name && s.Name != secondSkill.Name) // 不能是前两个技能
+            .Where(s => string.IsNullOrEmpty(currentEventName) || !s.ExcludedEvents.Contains(currentEventName)) // 不与当前事件互斥
+            .Where(s => playerHistory == null || !playerHistory.Contains(s.Name)) // 玩家最近3回合未获得
+            .Where(s => !allExcludedSkills.Contains(s.Name)) // 不与前两个技能互斥
+            .Where(s => !hasActiveSkill || !s.IsActive) // 如果前两个中有主动，第三个必须是被动
+            .ToList();
+
+        if (availableSkills.Count == 0)
+        {
+            Console.WriteLine("[技能管理器] 警告：没有可用的第三个技能（互斥/主动技能限制）");
+            return null;
+        }
+
+        // 计算总权重
+        int totalWeight = availableSkills.Sum(s => s.Weight);
+
+        if (totalWeight <= 0)
+            return null;
+
+        // 随机选择
+        int randomWeight = _random.Next(totalWeight);
+        int currentWeight = 0;
+
+        foreach (var skill in availableSkills)
+        {
+            currentWeight += skill.Weight;
+            if (randomWeight < currentWeight)
+            {
+                Console.WriteLine($"[技能管理器] 为 {player.PlayerName} 选择第三个技能: {skill.Name} (权重: {skill.Weight})");
                 return skill;
             }
         }

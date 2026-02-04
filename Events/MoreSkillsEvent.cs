@@ -29,12 +29,11 @@ public class MoreSkillsEvent : EntertainmentEvent
             Console.WriteLine("[更多技能] 每个玩家将获得 2 个技能");
         }
 
-        // 显示提示
+        // 显示提示（保留聊天框提示，移除屏幕中间提示，统一由HUD显示）
         foreach (var player in Utilities.GetPlayers())
         {
             if (player.IsValid)
             {
-                player.PrintToCenter("🎁 更多技能！\n你将获得 2 个技能！");
                 player.PrintToChat("🎁 更多技能事件已激活！");
                 player.PrintToChat("💡 本回合你将获得 2 个技能！");
             }

@@ -213,7 +213,7 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
                 Console.WriteLine("[娱乐事件] 保存本回合事件: " + CurrentEvent.Name + " 为PreviousEvent");
                 PreviousEvent = CurrentEvent;
 
-                // 显示事件提示（包括 NoEvent）
+                // 显示事件提示（聊天框）
                 foreach (var p in Utilities.GetPlayers())
                 {
                     if (p.IsValid)
@@ -224,16 +224,8 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
                         p.PrintToChat("───────────────────");
                     }
                 }
-                AddTimer(3.0f, () =>
-                {
-                    foreach (var p in Utilities.GetPlayers())
-                    {
-                        if (p.IsValid)
-                        {
-                            p.PrintToCenter("━━━━━━━━━━━━━━━━\n " + CurrentEvent.DisplayName + "\n━━━━━━━━━━━━━━━━");
-                        }
-                    }
-                });
+
+                // 移除旧的 PrintToCenter，统一在技能应用后显示 HUD
             }
         }
 
@@ -245,6 +237,13 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             {
                 Console.WriteLine("[技能系统] 开始应用技能到所有玩家");
                 SkillManager.ApplySkillsToAllPlayers();
+
+                // 技能应用完成后，显示 HUD（延迟2秒确保所有技能都已应用）
+                AddTimer(2.0f, () =>
+                {
+                    Console.WriteLine("[HUD] 准备显示回合开始 HUD");
+                    ShowRoundStartHUD();
+                });
             });
         }
         else if (DisableSkillsThisRound)
@@ -257,10 +256,22 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
                     p.PrintToChat("🚫 本回合技能已被禁用！");
                 }
             }
+
+            // 仍然显示 HUD（显示无技能）
+            AddTimer(1.0f, () =>
+            {
+                ShowRoundStartHUD();
+            });
         }
         else
         {
             Console.WriteLine("[技能系统] 技能系统未启用");
+
+            // 仍然显示 HUD（显示无技能）
+            AddTimer(1.0f, () =>
+            {
+                ShowRoundStartHUD();
+            });
         }
 
         return HookResult.Continue;
@@ -789,6 +800,99 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
                 toxicSmokeSkill.OnTick();
             }
         }
+    }
+
+    #endregion
+
+    #region HUD 显示
+
+    /// <summary>
+    /// 显示回合开始 HUD（事件 + 技能）
+    /// </summary>
+    private void ShowRoundStartHUD()
+    {
+        if (CurrentEvent == null)
+            return;
+
+        foreach (var player in Utilities.GetPlayers())
+        {
+            if (!player.IsValid)
+                continue;
+
+            // 获取玩家的技能列表
+            var skills = SkillManager.GetPlayerSkills(player);
+
+            // 构建 HTML 内容
+            string htmlContent = BuildRoundStartHtml(CurrentEvent, skills);
+
+            // 显示 HUD
+            player.PrintToCenterHtml(htmlContent);
+        }
+
+        Console.WriteLine("[HUD] 已显示回合开始 HUD");
+    }
+
+    /// <summary>
+    /// 构建回合开始的 HTML 内容
+    /// </summary>
+    private string BuildRoundStartHtml(EntertainmentEvent eventData, List<PlayerSkill> skills)
+    {
+        // 第一行：当前事件
+        string eventLine = $"<font class='fontWeight-Bold fontSize-l' color='#FFFF00'>🎲 当前事件: {eventData.DisplayName}</font><br>";
+
+        // 第二行：事件效果（或子事件列表）
+        string eventDetailLine;
+        var subEvents = eventData.GetSubEvents();
+        if (subEvents.Count > 0)
+        {
+            // 顶级狂欢事件：显示子事件列表
+            string subEventsList = string.Join(", ", subEvents.Select(e => e.DisplayName));
+            eventDetailLine = $"<font class='fontSize-ml' color='#FFFFFF'>{subEventsList}</font><br>";
+        }
+        else
+        {
+            // 普通事件：显示描述
+            eventDetailLine = $"<font class='fontSize-ml' color='#CCCCCC'>📝 事件效果: {eventData.Description}</font><br>";
+        }
+
+        // 第三行：当前技能
+        string skillLine;
+        if (skills.Count == 0)
+        {
+            skillLine = $"<font class='fontWeight-Bold fontSize-l' color='#FFFF00'>🎁 当前技能: 无</font><br>";
+        }
+        else if (skills.Count == 1)
+        {
+            skillLine = $"<font class='fontWeight-Bold fontSize-l' color='#FFFF00'>🎁 当前技能: {skills[0].DisplayName}</font><br>";
+        }
+        else
+        {
+            // 多个技能：显示技能列表
+            string skillsList = string.Join(", ", skills.Select(s => s.DisplayName));
+            skillLine = $"<font class='fontWeight-Bold fontSize-l' color='#FFFF00'>🎁 当前技能: {skillsList}</font><br>";
+        }
+
+        // 第四行：技能效果（或技能列表）
+        string skillDetailLine;
+        if (skills.Count == 0)
+        {
+            skillDetailLine = "<font class='fontSize-ml' color='#CCCCCC'>本回合没有技能</font><br>";
+        }
+        else if (skills.Count == 1)
+        {
+            // 单个技能：显示描述
+            skillDetailLine = $"<font class='fontSize-ml' color='#CCCCCC'>📝 技能效果: {skills[0].Description}</font><br>";
+        }
+        else
+        {
+            // 多个技能：显示所有技能的描述
+            var skillDescriptions = skills.Select(s => $"• {s.DisplayName}: {s.Description}");
+            string allDescriptions = string.Join("<br>", skillDescriptions);
+            skillDetailLine = $"<font class='fontSize-sm' color='#CCCCCC'>{allDescriptions}</font><br>";
+        }
+
+        // 合并所有行
+        return eventLine + eventDetailLine + "<br>" + skillLine + skillDetailLine;
     }
 
     #endregion

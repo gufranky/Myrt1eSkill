@@ -41,7 +41,6 @@ public class BankruptcyEvent : EntertainmentEvent
             Utilities.SetStateChanged(player, "CCSPlayerController", "m_pInGameMoneyServices");
 
             // 发送提示
-            player.PrintToCenter($"💸 破产了！金币已重置为 {BANKRUPTCY_MONEY}");
             player.PrintToChat($"💸 全员破产！你的金币现在是 {BANKRUPTCY_MONEY}");
         }
 

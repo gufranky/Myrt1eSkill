@@ -313,7 +313,6 @@ public class StayQuietEvent : EntertainmentEvent
         };
 
         SetPlayerVisibility(player, false);
-        player.PrintToCenter("🤫 保持安静隐身模式！");
 
         return HookResult.Continue;
     }

@@ -41,7 +41,6 @@ public class ScreamingRabbitEvent : EntertainmentEvent
         {
             if (player.IsValid)
             {
-                player.PrintToCenter("🐰 怪叫兔事件开始！\n每15秒会发出定位音效！");
                 player.PrintToChat("🐰 怪叫兔：每隔15秒你会自动发出音效暴露位置！");
             }
         }
@@ -129,7 +128,6 @@ public class ScreamingRabbitEvent : EntertainmentEvent
         {
             if (player.IsValid)
             {
-                player.PrintToCenter($"🐰 {number}");
             }
         }
     }
@@ -163,7 +161,6 @@ public class ScreamingRabbitEvent : EntertainmentEvent
             {
                 if (player.IsValid)
                 {
-                    player.PrintToCenter("🐰 嘎嘎！！！");
                 }
             }
         });
@@ -178,7 +175,6 @@ public class ScreamingRabbitEvent : EntertainmentEvent
         if (player == null || !player.IsValid)
             return HookResult.Continue;
 
-        player.PrintToCenter("🐰 怪叫兔事件进行中！\n每15秒会发出定位音效！");
         player.PrintToChat("🐰 怪叫兔：每隔15秒你会自动发出音效暴露位置！");
 
         return HookResult.Continue;

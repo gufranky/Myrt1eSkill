@@ -78,7 +78,6 @@ public class SuperpowerXrayEvent : EntertainmentEvent
         {
             _tSuperpower = tPlayers[_random.Next(tPlayers.Count)];
             _tSuperpower.PrintToChat("🦸 你是T队的超能力者！你可以看到所有CT队员的位置！");
-            _tSuperpower.PrintToCenter("🦸 你获得了透视能力！");
             Console.WriteLine($"[超能力者] T队超能力者: {_tSuperpower.PlayerName}");
         }
 
@@ -86,7 +85,6 @@ public class SuperpowerXrayEvent : EntertainmentEvent
         {
             _ctSuperpower = ctPlayers[_random.Next(ctPlayers.Count)];
             _ctSuperpower.PrintToChat("🦸 你是CT队的超能力者！你可以看到所有T队员的位置！");
-            _ctSuperpower.PrintToCenter("🦸 你获得了透视能力！");
             Console.WriteLine($"[超能力者] CT队超能力者: {_ctSuperpower.PlayerName}");
         }
     }

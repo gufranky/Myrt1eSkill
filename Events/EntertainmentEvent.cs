@@ -54,4 +54,13 @@ public abstract class EntertainmentEvent
     {
         // 默认不做任何操作，子类可以重写以实现恢复逻辑
     }
+
+    /// <summary>
+    /// 获取子事件列表（用于组合事件如顶级狂欢）
+    /// 默认返回空列表，子类可以重写
+    /// </summary>
+    public virtual List<EntertainmentEvent> GetSubEvents()
+    {
+        return new List<EntertainmentEvent>();
+    }
 }

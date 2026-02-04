@@ -42,12 +42,11 @@ public class OneShotEvent : EntertainmentEvent
             Plugin.RegisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn, HookMode.Post);
         }
 
-        // 显示提示
+        // 显示提示（保留聊天框提示，移除屏幕中间提示，统一由HUD显示）
         foreach (var player in Utilities.GetPlayers())
         {
             if (player.IsValid)
             {
-                player.PrintToCenter("💥 一发AK模式！\n弹夹只有1发！备用弹药保留！");
                 player.PrintToChat(" 💥 一发AK模式已启用！");
             }
         }

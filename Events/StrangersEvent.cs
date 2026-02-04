@@ -95,7 +95,6 @@ public class StrangersEvent : EntertainmentEvent
         {
             if (player.IsValid)
             {
-                player.PrintToCenter("👥 不认识的人模式！\n所有人的模型都一样！友军伤害已启用！小地图已禁用！");
                 player.PrintToChat("👥 不认识的人模式已启用！小心，所有人看起来都一样！");
             }
         }
@@ -224,7 +223,6 @@ public class StrangersEvent : EntertainmentEvent
             if (player.IsValid && player.PawnIsAlive)
             {
                 ApplyStrangerEffects(player);
-                player.PrintToCenter("👥 不认识的人模式！模型已统一！");
             }
         });
 

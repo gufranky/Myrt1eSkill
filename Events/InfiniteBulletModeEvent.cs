@@ -33,12 +33,11 @@ public class InfiniteBulletModeEvent : EntertainmentEvent
             Plugin.RegisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn, HookMode.Post);
         }
 
-        // 显示提示
+        // 显示提示（保留聊天框提示，移除屏幕中间提示，统一由HUD显示）
         foreach (var player in Utilities.GetPlayers())
         {
             if (player.IsValid)
             {
-                player.PrintToCenter("🔥 无限子弹模式！\n无限备弹 + 自动补充！");
                 player.PrintToChat("🔥 无限子弹模式已启用！");
                 player.PrintToChat("💡 射击自动补充弹药，无需换弹！");
             }

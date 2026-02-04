@@ -36,12 +36,11 @@ public class JumpPlusPlusEvent : EntertainmentEvent
             Console.WriteLine("[超级跳跃] 警告：无法找到 sv_falldamage_scale ConVar");
         }
 
-        // 显示提示
+        // 显示提示（保留聊天框提示，移除屏幕中间提示，统一由HUD显示）
         foreach (var player in Utilities.GetPlayers())
         {
             if (player.IsValid)
             {
-                player.PrintToCenter("🦘 超级跳跃！\n开枪跳跃 + 无落地伤害！");
                 player.PrintToChat("🦘 超级跳跃模式已启用！");
             }
         }

@@ -50,7 +50,6 @@ public class UnluckyCouplesEvent : EntertainmentEvent
                     if (partner != null && partner.IsValid)
                     {
                         player.PrintToChat($"💑 苦命鸳鸯模式已启用！");
-                        player.PrintToCenter($"💑 苦命鸳鸯！\n你的配对对象是：{partner.PlayerName}\n互相可见 + 2倍伤害！");
                     }
                 }
                 else

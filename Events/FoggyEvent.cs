@@ -34,12 +34,11 @@ public class FoggyEvent : EntertainmentEvent
             ApplyFoggy(player);
         }
 
-        // 显示提示
+        // 显示提示（保留聊天框提示，移除屏幕中间提示，统一由HUD显示）
         foreach (var player in Utilities.GetPlayers())
         {
             if (player.IsValid)
             {
-                player.PrintToCenter("🌫 雾蒙蒙！\n全员20%亮度！");
                 player.PrintToChat("🌫 雾蒙蒙模式已启用！");
             }
         }

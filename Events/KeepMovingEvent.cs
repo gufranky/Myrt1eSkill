@@ -16,7 +16,7 @@ public class KeepMovingEvent : EntertainmentEvent
     // 伤害参数
     private const float DAMAGE_INTERVAL = 0.75f; // 伤害间隔（秒）
     private const int DAMAGE_AMOUNT = 10;         // 每次伤害量
-    private const float GRACE_PERIOD = 3.0f;      // 宽限期（秒）
+    private const float GRACE_PERIOD = 15.0f;     // 宽限期（秒）- 改为15秒
 
     // 每个玩家的状态跟踪
     private readonly Dictionary<int, PlayerKeepMovingState> _playerStates = new();
@@ -42,12 +42,12 @@ public class KeepMovingEvent : EntertainmentEvent
             }
         }
 
-        // 全局提示
+        // 全局提示（移除屏幕中间提示，统一由HUD显示）
         foreach (var player in Utilities.GetPlayers())
         {
             if (player.IsValid)
             {
-                player.PrintToCenter("🏃 永动机模式！\n按住 W 键或受到持续伤害！");
+                // 开局提示已移除，由HUD统一显示
             }
         }
     }

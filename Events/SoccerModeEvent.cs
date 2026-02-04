@@ -84,12 +84,11 @@ public class SoccerModeEvent : EntertainmentEvent
         // 5. 启动tick检查足球位置
         Plugin?.RegisterListener<Listeners.OnTick>(OnTick);
 
-        // 显示提示
+        // 显示提示（保留聊天框提示，移除屏幕中间提示，统一由HUD显示）
         foreach (var player in Utilities.GetPlayers())
         {
             if (player.IsValid)
             {
-                player.PrintToCenter("⚽ 足球模式！\n把球踢进CT区获得AK！");
                 player.PrintToChat("⚽ 足球模式已启用！");
                 player.PrintToChat("🚫 所有物品已没收！商店已禁用！");
                 player.PrintToChat("💡 把足球踢进CT区域，每个T获得一把AK！");

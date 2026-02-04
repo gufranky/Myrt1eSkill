@@ -39,7 +39,6 @@ public class SlowMotionEvent : EntertainmentEvent
         {
             if (player.IsValid)
             {
-                player.PrintToCenter("🎬 慢动作模式！\n游戏速度变为0.5倍！");
                 player.PrintToChat("🎬 慢动作模式已启用！一切都变慢了！");
             }
         }

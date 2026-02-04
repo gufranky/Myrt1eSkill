@@ -41,7 +41,6 @@ public class SuperRecoilEvent : EntertainmentEvent
         {
             if (player.IsValid)
             {
-                player.PrintToCenter("💥 超强反冲！\n开枪就会向后飞！");
                 player.PrintToChat("💥 超强反冲模式已启用！");
                 player.PrintToChat("⚠️ 开枪时会有超强后坐力，把自己弹飞！");
             }

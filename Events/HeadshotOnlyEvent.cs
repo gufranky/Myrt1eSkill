@@ -41,7 +41,6 @@ public class HeadshotOnlyEvent : EntertainmentEvent
         {
             if (player.IsValid)
             {
-                player.PrintToCenter("🎯 只有爆头模式！\n只有命中头部才能造成伤害！");
                 player.PrintToChat(" 🎯 只有爆头模式已启用！");
             }
         }
@@ -89,7 +88,6 @@ public class HeadshotOnlyEvent : EntertainmentEvent
         if (player == null || !player.IsValid)
             return HookResult.Continue;
 
-        player.PrintToCenter("🎯 只有爆头模式！\n只有命中头部才能造成伤害！");
 
         return HookResult.Continue;
     }

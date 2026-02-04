@@ -42,12 +42,12 @@ public class RainyDayEvent : EntertainmentEvent
             SetPlayerVisibility(player, false);
         }
 
-        // 显示事件提示
+        // 显示事件提示（移除屏幕中间提示，统一由HUD显示）
         foreach (var player in Utilities.GetPlayers())
         {
             if (player.IsValid)
             {
-                player.PrintToCenter("🌧️ 下雨天！你进入了隐身状态！");
+                // 开局提示已移除，由HUD统一显示
             }
         }
 
@@ -174,7 +174,7 @@ public class RainyDayEvent : EntertainmentEvent
 
         _playerVisibleState[player.SteamID] = false;
         SetPlayerVisibility(player, false);
-        player.PrintToCenter("🌧️ 下雨天！你进入了隐身状态！");
+        // 重生时的提示已移除，由HUD统一显示
 
         return HookResult.Continue;
     }

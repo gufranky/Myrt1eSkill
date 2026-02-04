@@ -22,12 +22,11 @@ public class NoSkillEvent : EntertainmentEvent
             Plugin.DisableSkillsThisRound = true;
         }
 
-        // 显示提示
+        // 显示提示（保留聊天框提示，移除屏幕中间提示，统一由HUD显示）
         foreach (var player in Utilities.GetPlayers())
         {
             if (player.IsValid)
             {
-                player.PrintToCenter("😌 没有技能！\n这是更加平静的一天！");
                 player.PrintToChat("😌 本回合所有人都没有技能，享受纯粹的游戏吧！");
             }
         }

@@ -81,7 +81,6 @@ public class DeafEvent : EntertainmentEvent
         for (int i = 0; i < deafCount && i < players.Count; i++)
         {
             _deafPlayers.Add(players[i]);
-            players[i].PrintToCenter("🔇 你失聪了！听不到任何声音！");
             players[i].PrintToChat("🔇 你失聪了！听不到任何声音！");
         }
 
