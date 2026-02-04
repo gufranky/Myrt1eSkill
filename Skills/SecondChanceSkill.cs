@@ -15,6 +15,9 @@ public class SecondChanceSkill : PlayerSkill
     public override string Description => "死亡后，你会以相同的生命值复活！每回合限用一次！";
     public override bool IsActive => false; // 被动技能
 
+    // 与名刀互斥
+    public override List<string> ExcludedSkills => new() { "Meito" };
+
     // 复活血量
     private const int REVIVE_HEALTH = 50;
 

@@ -18,6 +18,9 @@ public class RadarHackSkill : PlayerSkill
     public override string Description => "雷达上可以看到敌人！知晓敌人位置！";
     public override bool IsActive => false; // 被动技能
 
+    // 与其他视野技能互斥
+    public override List<string> ExcludedSkills => new() { "Wallhack", "DecoyXRay" };
+
     // 与透视事件互斥
     public override List<string> ExcludedEvents => new() { "Xray", "SuperpowerXray" };
 

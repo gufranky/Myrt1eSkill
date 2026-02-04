@@ -16,6 +16,9 @@ public class MeitoSkill : PlayerSkill
     public override string Description => "致命伤害时取消伤害并获得0.5秒无敌！每回合限用一次！";
     public override bool IsActive => false; // 被动技能
 
+    // 与第二次机会互斥
+    public override List<string> ExcludedSkills => new() { "SecondChance" };
+
     // 无敌持续时间（秒）
     private const float INVINCIBLE_DURATION = 0.5f;
 

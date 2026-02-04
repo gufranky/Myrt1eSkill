@@ -15,6 +15,9 @@ public class SpeedBoostSkill : PlayerSkill
     public override bool IsActive => false; // 被动技能
     public override float Cooldown => 0f; // 被动技能无冷却
 
+    // 与其他移动技能互斥
+    public override List<string> ExcludedSkills => new() { "HeavyArmor", "Sprint" };
+
     private readonly Dictionary<int, float> _originalSpeed = new();
 
     public override void OnApply(CCSPlayerController player)

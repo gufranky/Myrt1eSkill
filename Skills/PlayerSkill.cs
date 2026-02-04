@@ -44,6 +44,11 @@ public abstract class PlayerSkill
     public virtual List<string> ExcludedEvents { get; } = new();
 
     /// <summary>
+    /// 与该技能互斥的技能名称列表。如果玩家已有这些技能，该技能不会被抽到。
+    /// </summary>
+    public virtual List<string> ExcludedSkills { get; } = new();
+
+    /// <summary>
     /// 插件引用
     /// </summary>
     protected MyrtleSkill? Plugin { get; private set; }

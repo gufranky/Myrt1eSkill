@@ -14,6 +14,9 @@ public class GlazSkill : PlayerSkill
     public override string Description => "你可以透过烟雾弹看到东西！";
     public override bool IsActive => false; // 被动技能
 
+    // 与有毒烟雾弹互斥
+    public override List<string> ExcludedSkills => new() { "ToxicSmoke" };
+
     // 追踪所有存活烟雾弹的entityid
     private static readonly Dictionary<int, byte> _smokes = new();
 

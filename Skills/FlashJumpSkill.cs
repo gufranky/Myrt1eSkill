@@ -16,6 +16,9 @@ public class FlashJumpSkill : PlayerSkill
     public override string Description => "你的闪光弹会让敌人飞起来！致盲时间越长飞得越高！";
     public override bool IsActive => false; // 被动技能
 
+    // 与其他闪光弹技能互斥
+    public override List<string> ExcludedSkills => new() { "AntiFlash", "KillerFlash" };
+
     // 跳跃速度计算参数
     private const float BASE_JUMP_VELOCITY = 200f;     // 基础跳跃速度
     private const float MAX_JUMP_VELOCITY = 800f;      // 最大跳跃速度

@@ -15,6 +15,9 @@ public class AntiFlashSkill : PlayerSkill
     public override string Description => "免疫闪光弹！你的闪光弹持续7秒！获得3颗闪光弹（投掷后自动补充）！";
     public override bool IsActive => false; // 被动技能
 
+    // 与其他闪光弹技能互斥
+    public override List<string> ExcludedSkills => new() { "FlashJump", "KillerFlash" };
+
     // 闪光弹持续时间和数量
     private const float FLASH_DURATION = 7.0f;
     private const int FLASHBANG_COUNT = 1;

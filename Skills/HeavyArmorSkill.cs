@@ -14,6 +14,9 @@ public class HeavyArmorSkill : PlayerSkill
     public override string Description => "获得200护甲！60%伤害减免！移速80%！";
     public override bool IsActive => false; // 被动技能
 
+    // 与其他移动技能互斥
+    public override List<string> ExcludedSkills => new() { "SpeedBoost", "Sprint" };
+
     // 护甲值
     private const int ARMOR_VALUE = 200;
 

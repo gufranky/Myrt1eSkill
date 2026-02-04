@@ -24,6 +24,9 @@ public class ToxicSmokeSkill : PlayerSkill
     public override float Cooldown => 9999f; // 一局只能用一次
     public override List<string> ExcludedEvents => new() { };
 
+    // 与格拉兹互斥
+    public override List<string> ExcludedSkills => new() { "Glaz" };
+
     // 追踪每回合是否已使用
     private readonly Dictionary<uint, bool> _usedThisRound = new();
 

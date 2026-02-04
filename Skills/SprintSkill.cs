@@ -16,6 +16,9 @@ public class SprintSkill : PlayerSkill
     public override string Description => "进行第二次跳跃以冲刺！按住移动方向键可以冲刺到该方向！";
     public override bool IsActive => false; // 被动技能
 
+    // 与其他移动技能互斥
+    public override List<string> ExcludedSkills => new() { "SpeedBoost", "HeavyArmor" };
+
     // 冲刺参数
     private const float JUMP_VELOCITY = 150f;  // 向上跳跃速度
     private const float DASH_VELOCITY = 600f;   // 水平冲刺速度

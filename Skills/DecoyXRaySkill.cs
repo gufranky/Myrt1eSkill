@@ -23,6 +23,9 @@ public class DecoyXRaySkill : PlayerSkill
     public override float Cooldown => 9999f; // 一局只能用一次
     public override List<string> ExcludedEvents => new() { "Xray", "SuperpowerXray" }; // 与全员透视事件互斥
 
+    // 与其他视野技能互斥
+    public override List<string> ExcludedSkills => new() { "Wallhack", "RadarHack" };
+
     // 追踪每回合是否已使用
     private readonly Dictionary<uint, bool> _usedThisRound = new();
 

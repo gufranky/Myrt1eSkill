@@ -14,6 +14,9 @@ public class KillerFlashSkill : PlayerSkill
     public override string Description => "你的闪光弹变得致命！任何被完全致盲的人都会死亡（包括你自己！）";
     public override bool IsActive => false; // 被动技能
 
+    // 与其他闪光弹技能互斥
+    public override List<string> ExcludedSkills => new() { "AntiFlash", "FlashJump" };
+
     // 致盲持续时间阈值（秒）
     private const float FLASH_DURATION_THRESHOLD = 2.2f;
 

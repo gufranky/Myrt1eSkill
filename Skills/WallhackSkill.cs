@@ -20,6 +20,9 @@ public class WallhackSkill : PlayerSkill
     public override string Description => "你可以透过墙壁看到所有敌人的位置！";
     public override bool IsActive => false; // 被动技能
 
+    // 与其他视野技能互斥
+    public override List<string> ExcludedSkills => new() { "RadarHack", "DecoyXRay" };
+
     // 与透视事件和隐身事件互斥
     public override List<string> ExcludedEvents => new() { "Xray", "SuperpowerXray", "StayQuiet", "RainyDay" };
 
