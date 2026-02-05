@@ -55,38 +55,45 @@ public class SuperFlashSkill : PlayerSkill
 
         Console.WriteLine($"[超级闪光] {attacker.PlayerName} 的闪光弹爆炸了！");
 
-        // 计数被闪白的敌人数量
-        int blindedCount = 0;
-
-        // 让所有敌方玩家被闪白（无视距离和遮挡）
-        foreach (var player in Utilities.GetPlayers())
+        // 延迟执行，等待游戏引擎完成闪白计算
+        Server.NextFrame(() =>
         {
-            if (player == null || !player.IsValid || !player.PawnIsAlive)
-                continue;
+            // 计数被闪白的敌人数量
+            int blindedCount = 0;
 
-            // 不闪自己
-            if (player == attacker)
-                continue;
+            // 让所有敌方玩家被闪白（无视距离和遮挡）
+            foreach (var player in Utilities.GetPlayers())
+            {
+                if (player == null || !player.IsValid || !player.PawnIsAlive)
+                    continue;
 
-            // 只闪敌方玩家
-            if (player.Team == attacker.Team)
-                continue;
+                // 不闪自己
+                if (player == attacker)
+                    continue;
 
-            var pawn = player.PlayerPawn.Value;
-            if (pawn == null || !pawn.IsValid)
-                continue;
+                // 只闪敌方玩家
+                if (player.Team == attacker.Team)
+                    continue;
 
-            // 设置闪白时长为3秒
-            pawn.FlashDuration = FLASH_DURATION;
-            Utilities.SetStateChanged(pawn, "CBaseEntity", "m_flFlashDuration");
+                var pawn = player.PlayerPawn.Value;
+                if (pawn == null || !pawn.IsValid)
+                    continue;
 
-            blindedCount++;
+                // 设置闪白时长为3秒（覆盖任何现有值）
+                pawn.FlashDuration = FLASH_DURATION;
+                Utilities.SetStateChanged(pawn, "CBaseEntity", "m_flFlashDuration");
 
-            Console.WriteLine($"[超级闪光] {player.PlayerName} 被闪白 {FLASH_DURATION} 秒");
-            player.PrintToCenter($"💥 被超级闪光弹闪到 {FLASH_DURATION} 秒！");
-        }
+                blindedCount++;
 
-        attacker.PrintToChat($"💥 超级闪光弹！{blindedCount} 个敌人被闪白 {FLASH_DURATION} 秒！");
-        Console.WriteLine($"[超级闪光] {attacker.PlayerName} 的闪光弹让 {blindedCount} 个敌人闪白");
+                Console.WriteLine($"[超级闪光] {player.PlayerName} 被闪白 {FLASH_DURATION} 秒");
+                player.PrintToCenter($"💥 被超级闪光弹闪到 {FLASH_DURATION} 秒！");
+            }
+
+            if (blindedCount > 0)
+            {
+                attacker.PrintToChat($"💥 超级闪光弹！{blindedCount} 个敌人被闪白 {FLASH_DURATION} 秒！");
+                Console.WriteLine($"[超级闪光] {attacker.PlayerName} 的闪光弹让 {blindedCount} 个敌人闪白");
+            }
+        });
     }
 }
