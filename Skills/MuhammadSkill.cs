@@ -51,9 +51,9 @@ public class MuhammadSkill : PlayerSkill
     public override bool IsActive => false; // 被动技能
     public override float Cooldown => 0f; // 被动技能无冷却
 
-    // 爆炸参数
-    private const int EXPLOSION_DAMAGE = 999;
-    private const float EXPLOSION_RADIUS = 500.0f;
+    // 爆炸参数（范围和伤害增强）
+    private const int EXPLOSION_DAMAGE = 1500;  // 1.5倍伤害（原999）
+    private const float EXPLOSION_RADIUS = 1000.0f;  // 2倍范围（原500）
 
     // 手雷抛射角度
     private static readonly QAngle EXPLOSION_ANGLE = new(10, -5, 9);
@@ -66,6 +66,16 @@ public class MuhammadSkill : PlayerSkill
         Console.WriteLine($"[穆罕默德] {player.PlayerName} 获得了穆罕默德技能");
         player.PrintToChat("💀 你获得了穆罕默德技能！");
         player.PrintToChat("💡 你死后会爆炸，杀死附近的玩家！");
+        player.PrintToChat("❤️ 你的生命值已设置为 150！");
+
+        // 设置玩家生命值为150
+        var pawn = player.PlayerPawn.Value;
+        if (pawn != null && pawn.IsValid)
+        {
+            pawn.Health = 150;
+            Utilities.SetStateChanged(pawn, "CBaseEntity", "m_iHealth");
+            Console.WriteLine($"[穆罕默德] {player.PlayerName} 的生命值已设置为 150");
+        }
     }
 
     public override void OnRevert(CCSPlayerController player)

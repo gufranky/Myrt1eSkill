@@ -38,87 +38,78 @@ public class TeamWhipSkill : PlayerSkill
     /// 在伤害造成前处理（Pre阶段）
     /// 如果攻击者有鞭策队友技能且受害者是队友，取消伤害并治疗
     /// </summary>
-    /// <summary>
-    /// 在伤害造成前处理（Pre阶段）
-    /// 如果攻击者有鞭策队友技能且受害者是队友，取消伤害并治疗
-    /// </summary>
-    /// <summary>
-    /// 在伤害造成前处理（Pre阶段）
-    /// 如果攻击者有鞭策队友技能且受害者是队友，取消伤害并治疗
-    /// </summary>
-    /// <summary>
-    /// 在伤害造成前处理（Pre阶段）
-    /// 如果攻击者有鞭策队友技能且受害者是队友，取消伤害并治疗
-    /// </summary>
-    public static float? HandleDamagePre(CCSPlayerPawn player, CTakeDamageInfo info)
+    public static void HandleDamagePre(CCSPlayerPawn victimPawn, CTakeDamageInfo info)
     {
         // 获取攻击者实体
-        var attackerEntity = info.Attacker.Value;
+        var attackerEntity = info.Attacker?.Value;
         if (attackerEntity == null || !attackerEntity.IsValid)
-            return null;
+            return;
 
         // 转换为 PlayerPawn
         var attackerPawn = attackerEntity.As<CCSPlayerPawn>();
         if (attackerPawn == null || !attackerPawn.IsValid)
-            return null;
+            return;
 
         var attackerController = attackerPawn.Controller.Value;
         if (attackerController == null || !attackerController.IsValid)
-            return null;
+            return;
 
         // 检查受害者是否有效
-        if (player == null || !player.IsValid)
-            return null;
+        if (victimPawn == null || !victimPawn.IsValid)
+            return;
 
-        var victimController = player.Controller.Value;
+        var victimController = victimPawn.Controller.Value;
         if (victimController == null || !victimController.IsValid)
-            return null;
+            return;
 
         // 检查是否是队友
         if (attackerController.TeamNum != victimController.TeamNum)
-            return null;
+            return;
 
         // 检查受害者是否存活
-        if (player.LifeState != (byte)LifeState_t.LIFE_ALIVE)
-            return null;
+        if (victimPawn.LifeState != (byte)LifeState_t.LIFE_ALIVE)
+            return;
 
         // 转换为 CCSPlayerController
         if (attackerController is not CCSPlayerController csAttackerController)
-            return null;
+            return;
 
         if (victimController is not CCSPlayerController csVictimController)
-            return null;
+            return;
 
         // 获取技能管理器
-        var plugin = MyrtleSkill.Instance;
+        var plugin = MyrtleSkillPlugin;
         if (plugin?.SkillManager == null)
-            return null;
+            return;
 
         // 检查攻击者是否有鞭策队友技能（修复：检查所有技能）
         var attackerSkills = plugin.SkillManager.GetPlayerSkills(csAttackerController);
         if (attackerSkills.Count == 0)
-            return null;
+            return;
 
         var teamWhipSkill = attackerSkills.FirstOrDefault(s => s.Name == "TeamWhip");
         if (teamWhipSkill == null)
-            return null;
+            return;
 
         // 获取伤害值
         float damage = info.Damage;
 
         // 如果伤害为0，不做处理
         if (damage <= 0)
-            return null;
+            return;
+
+        // 直接取消伤害（设置为0）
+        info.Damage = 0;
 
         // 治疗队友（如果血量未满）
-        if (player.Health < player.MaxHealth)
+        if (victimPawn.Health < victimPawn.MaxHealth)
         {
             int healAmount = (int)(damage * HEAL_MULTIPLIER);
-            int currentHealth = player.Health;
-            AddHealth(player, healAmount, player.MaxHealth);
+            int currentHealth = victimPawn.Health;
+            AddHealth(victimPawn, healAmount, victimPawn.MaxHealth);
 
             // 计算实际治疗量
-            int actualHealed = player.Health - currentHealth;
+            int actualHealed = victimPawn.Health - currentHealth;
 
             Console.WriteLine($"[鞭策队友] {csAttackerController.PlayerName} 射击了队友 {csVictimController.PlayerName}，取消伤害 {damage}，治疗 {actualHealed} HP");
 
@@ -128,11 +119,8 @@ public class TeamWhipSkill : PlayerSkill
         }
         else
         {
-            Console.WriteLine($"[鞭策队友] {csVictimController.PlayerName} 血量已满 ({player.Health}/{player.MaxHealth})，取消伤害 {damage}");
+            Console.WriteLine($"[鞭策队友] {csVictimController.PlayerName} 血量已满 ({victimPawn.Health}/{victimPawn.MaxHealth})，取消伤害 {damage}");
         }
-
-        // 返回0倍数，取消伤害
-        return 0.0f;
     }
 
     /// <summary>

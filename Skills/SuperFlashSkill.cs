@@ -45,7 +45,7 @@ public class SuperFlashSkill : PlayerSkill
     }
 
     /// <summary>
-    /// 监听闪光弹爆炸事件 - 让所有敌人闪白
+    /// 处理闪光弹爆炸事件 - 让所有敌人闪白3秒（无视距离和遮挡）
     /// </summary>
     public void OnFlashbangDetonate(EventFlashbangDetonate @event)
     {
@@ -58,7 +58,7 @@ public class SuperFlashSkill : PlayerSkill
         // 计数被闪白的敌人数量
         int blindedCount = 0;
 
-        // 让所有敌方玩家被闪白
+        // 让所有敌方玩家被闪白（无视距离和遮挡）
         foreach (var player in Utilities.GetPlayers())
         {
             if (player == null || !player.IsValid || !player.PawnIsAlive)
@@ -76,7 +76,7 @@ public class SuperFlashSkill : PlayerSkill
             if (pawn == null || !pawn.IsValid)
                 continue;
 
-            // 设置闪白时长
+            // 设置闪白时长为3秒
             pawn.FlashDuration = FLASH_DURATION;
             Utilities.SetStateChanged(pawn, "CBaseEntity", "m_flFlashDuration");
 

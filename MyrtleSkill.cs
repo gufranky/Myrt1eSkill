@@ -322,9 +322,6 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
     private HookResult OnPlayerTakeDamagePre(CCSPlayerPawn player, CTakeDamageInfo info)
     {
-        // 调试：确认函数被调用
-        Console.WriteLine($"[DEBUG-MAIN] OnPlayerTakeDamagePre 被调用，player IsValid: {player.IsValid}, 伤害: {info.Damage}");
-
         // 处理爆炸射击技能
         Skills.ExplosiveShotSkill.OnTakeDamagePre(player, info);
 
@@ -335,7 +332,6 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         var controller = player.Controller.Value;
         if (controller != null && controller.IsValid && controller is CCSPlayerController csController)
         {
-            Console.WriteLine($"[DEBUG-MAIN] 玩家: {csController.PlayerName}, 伤害: {info.Damage}, 当前血量: {player.Health}");
             var skills = SkillManager.GetPlayerSkills(csController);
             var heavyArmorSkill = skills.FirstOrDefault(s => s.Name == "HeavyArmor");
             if (heavyArmorSkill != null)
@@ -350,11 +346,7 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         }
 
         // 处理鞭策队友技能（在Pre阶段处理，取消伤害并治疗）
-        float? teamWhipMultiplier = Skills.TeamWhipSkill.HandleDamagePre(player, info);
-        if (teamWhipMultiplier.HasValue)
-        {
-            totalMultiplier *= teamWhipMultiplier.Value;
-        }
+        Skills.TeamWhipSkill.HandleDamagePre(player, info);
 
         // 处理苦命鸳鸯配对伤害加成
         if (CurrentEvent is UnluckyCouplesEvent couplesEvent)
