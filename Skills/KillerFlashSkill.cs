@@ -54,9 +54,13 @@ public class KillerFlashSkill : PlayerSkill
         var pawn = player.PlayerPawn.Value;
         float flashDuration = pawn.FlashDuration;
 
-        // 检查投掷者是否有杀手闪电技能
-        var attackerSkill = skillManager.GetPlayerSkill(attacker);
-        if (attackerSkill == null || attackerSkill.Name != "KillerFlash")
+        // 检查投掷者是否有杀手闪电技能（修复：检查所有技能）
+        var attackerSkills = skillManager.GetPlayerSkills(attacker);
+        if (attackerSkills.Count == 0)
+            return;
+
+        var killerFlashSkill = attackerSkills.FirstOrDefault(s => s.Name == "KillerFlash");
+        if (killerFlashSkill == null)
             return;
 
         // 检查致盲持续时间是否达到阈值

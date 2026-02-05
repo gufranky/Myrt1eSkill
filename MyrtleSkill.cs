@@ -60,6 +60,10 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
     // 技能系统控制
     public bool DisableSkillsThisRound { get; set; } = false;
 
+    // HUD 系统控制
+    private Dictionary<ulong, DateTime> _playerHudExpired = new();
+    private const float HUD_DISPLAY_DURATION = 20.0f; // HUD 显示时长（秒）
+
     // 静态实例（供技能访问）
     public static MyrtleSkill? Instance { get; private set; }
 
@@ -75,8 +79,7 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 设置静态实例
         Instance = this;
 
-        // 初始化娱乐服务器全局设置
-        Utils.ServerSettings.InitializeAllSettings();
+        // ⚠️ 不在 Load 阶段初始化服务器设置，等待 OnMapStart
 
         // 初始化管理器
         HeavyArmorManager = new HeavyArmorManager(this);
@@ -120,6 +123,7 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         RegisterListener<Listeners.OnServerPostEntityThink>(OnServerPostEntityThink);
         RegisterListener<Listeners.OnEntitySpawned>(OnEntitySpawned);
         RegisterListener<Listeners.CheckTransmit>(OnCheckTransmit);
+        RegisterListener<Listeners.OnTick>(OnTick);  // 添加 OnTick 监听器
 
         // 注册命令
         RegisterCommands();
@@ -127,18 +131,16 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         Console.WriteLine("[Myrtle技能插件] v2.0.0 已加载！");
         Console.WriteLine("[娱乐事件系统] 已初始化，共加载 " + EventManager.GetEventCount() + " 个事件");
         Console.WriteLine("[玩家技能系统] 已初始化，共加载 " + SkillManager.GetSkillCount() + " 个技能");
-        Console.WriteLine("[任意下包功能] 状态: " + (BombPlantManager.AllowAnywherePlant ? "✅ 启用" : "❌ 禁用"));
-        Console.WriteLine("[炸弹时间设置] 当前时间: " + BombPlantManager.BombTimer + " 秒");
-        Console.WriteLine("[友军伤害] ⚔️ 已启用友军伤害");
-        Console.WriteLine("[坠落伤害] 🪽 已禁用坠落伤害");
-        Console.WriteLine("[友军伤害保护] 已禁用自动踢人功能");
-        Console.WriteLine("[派对模式] 🎉 已启用派对模式！");
+        Console.WriteLine("[服务器设置] ⏳ 等待地图加载后初始化服务器设置...");
     }
 
     #region 事件处理
 
     private void OnMapStart(string mapName)
     {
+        // ✅ 在地图加载后初始化服务器设置（此时 ConVar 已可用）
+        Utils.ServerSettings.InitializeAllSettings();
+
         // 地图切换时清理所有位置记录，防止传送到地图外
         PositionRecorder?.ClearAllHistory();
         Console.WriteLine($"[位置记录器] 地图切换到 {mapName}，已清理所有位置记录");
@@ -311,6 +313,10 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 清理有毒烟雾弹记录
         Skills.ToxicSmokeSkill.ClearAllToxicSmokes();
 
+        // 清理 HUD 过期时间字典
+        _playerHudExpired.Clear();
+        Console.WriteLine("[HUD] 已清理所有玩家的 HUD 过期时间");
+
         return HookResult.Continue;
     }
 
@@ -320,7 +326,7 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         Console.WriteLine($"[DEBUG-MAIN] OnPlayerTakeDamagePre 被调用，player IsValid: {player.IsValid}, 伤害: {info.Damage}");
 
         // 处理爆炸射击技能
-        Skills.ExplosiveShotSkill.HandlePlayerDamagePre(player, info);
+        Skills.ExplosiveShotSkill.OnTakeDamagePre(player, info);
 
         // 收集所有伤害倍数修正器
         float totalMultiplier = 1.0f;
@@ -330,11 +336,12 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         if (controller != null && controller.IsValid && controller is CCSPlayerController csController)
         {
             Console.WriteLine($"[DEBUG-MAIN] 玩家: {csController.PlayerName}, 伤害: {info.Damage}, 当前血量: {player.Health}");
-            var skill = SkillManager.GetPlayerSkill(csController);
-            if (skill?.Name == "HeavyArmor")
+            var skills = SkillManager.GetPlayerSkills(csController);
+            var heavyArmorSkill = skills.FirstOrDefault(s => s.Name == "HeavyArmor");
+            if (heavyArmorSkill != null)
             {
-                var heavyArmorSkill = (Skills.HeavyArmorSkill)skill;
-                float? heavyArmorMultiplier = heavyArmorSkill?.HandleDamage(player, info);
+                var heavyArmor = (Skills.HeavyArmorSkill)heavyArmorSkill;
+                float? heavyArmorMultiplier = heavyArmor?.HandleDamage(player, info);
                 if (heavyArmorMultiplier.HasValue)
                 {
                     totalMultiplier *= heavyArmorMultiplier.Value;
@@ -398,17 +405,6 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             jumpPlusPlusEvent.HandleWeaponFire(@event);
         }
 
-        // 处理爆炸射击技能
-        var player = @event.Userid;
-        if (player != null && player.IsValid)
-        {
-            var skill = SkillManager.GetPlayerSkill(player);
-            if (skill?.Name == "ExplosiveShot")
-            {
-                Skills.ExplosiveShotSkill.HandleWeaponFire(@event);
-            }
-        }
-
         return HookResult.Continue;
     }
 
@@ -430,14 +426,16 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         var victim = @event.Userid;
         if (victim != null && victim.IsValid)
         {
-            var skill = SkillManager.GetPlayerSkill(victim);
-            if (skill?.Name == "Meito")
+            var skills = SkillManager.GetPlayerSkills(victim);
+            var meitoSkill = skills.FirstOrDefault(s => s.Name == "Meito");
+            if (meitoSkill != null)
             {
                 Skills.MeitoSkill.HandlePlayerDeath(@event);
             }
 
             // 处理穆罕默德技能（死后爆炸）
-            if (skill?.Name == "Muhammad")
+            var muhammadSkill = skills.FirstOrDefault(s => s.Name == "Muhammad");
+            if (muhammadSkill != null)
             {
                 Skills.MuhammadSkill.HandlePlayerDeath(@event);
             }
@@ -454,8 +452,9 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             return HookResult.Continue;
 
         // 处理名刀技能（致命伤害保护）
-        var skill = SkillManager.GetPlayerSkill(player);
-        if (skill?.Name == "Meito")
+        var skills = SkillManager.GetPlayerSkills(player);
+        var meitoSkill = skills.FirstOrDefault(s => s.Name == "Meito");
+        if (meitoSkill != null)
         {
             Skills.MeitoSkill.HandlePlayerHurt(@event);
         }
@@ -497,10 +496,11 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             return HookResult.Continue;
 
         // 处理透视诱饵弹技能
-        var skill = SkillManager.GetPlayerSkill(player);
-        if (skill?.Name == "DecoyXRay")
+        var skills = SkillManager.GetPlayerSkills(player);
+        var decoyXRaySkill = skills.FirstOrDefault(s => s.Name == "DecoyXRay");
+        if (decoyXRaySkill != null)
         {
-            var decoyXRaySkill = (Skills.DecoyXRaySkill)skill;
+            var decoyXRay = (Skills.DecoyXRaySkill)decoyXRaySkill;
 
             // 查找诱饵弹实体
             var decoyEntities = Utilities.FindAllEntitiesByDesignerName<CDecoyGrenade>("decoy_projectile");
@@ -510,7 +510,7 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
                 var decoy = decoyEntities.LastOrDefault(d => d.IsValid);
                 if (decoy != null)
                 {
-                    decoyXRaySkill.OnDecoyThrown(player, decoy);
+                    decoyXRay.OnDecoyThrown(player, decoy);
                 }
             }
         }
@@ -524,16 +524,19 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         if (player == null || !player.IsValid)
             return HookResult.Continue;
 
+        var skills = SkillManager.GetPlayerSkills(player);
+
         // 处理有毒烟雾弹技能
-        var skill = SkillManager.GetPlayerSkill(player);
-        if (skill?.Name == "ToxicSmoke")
+        var toxicSmokeSkill = skills.FirstOrDefault(s => s.Name == "ToxicSmoke");
+        if (toxicSmokeSkill != null)
         {
-            var toxicSmokeSkill = (Skills.ToxicSmokeSkill)skill;
-            toxicSmokeSkill.OnSmokegrenadeDetonate(@event);
+            var toxicSmoke = (Skills.ToxicSmokeSkill)toxicSmokeSkill;
+            toxicSmoke.OnSmokegrenadeDetonate(@event);
         }
 
         // 处理格拉兹技能
-        if (skill?.Name == "Glaz")
+        var glazSkill = skills.FirstOrDefault(s => s.Name == "Glaz");
+        if (glazSkill != null)
         {
             Skills.GlazSkill.OnSmokegrenadeDetonate(@event);
         }
@@ -547,16 +550,19 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         if (player == null || !player.IsValid)
             return HookResult.Continue;
 
+        var skills = SkillManager.GetPlayerSkills(player);
+
         // 处理有毒烟雾弹技能
-        var skill = SkillManager.GetPlayerSkill(player);
-        if (skill?.Name == "ToxicSmoke")
+        var toxicSmokeSkill = skills.FirstOrDefault(s => s.Name == "ToxicSmoke");
+        if (toxicSmokeSkill != null)
         {
-            var toxicSmokeSkill = (Skills.ToxicSmokeSkill)skill;
-            toxicSmokeSkill.OnSmokegrenadeExpired(@event);
+            var toxicSmoke = (Skills.ToxicSmokeSkill)toxicSmokeSkill;
+            toxicSmoke.OnSmokegrenadeExpired(@event);
         }
 
         // 处理格拉兹技能
-        if (skill?.Name == "Glaz")
+        var glazSkill = skills.FirstOrDefault(s => s.Name == "Glaz");
+        if (glazSkill != null)
         {
             Skills.GlazSkill.OnSmokegrenadeExpired(@event);
         }
@@ -570,26 +576,30 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         if (player == null || !player.IsValid)
             return HookResult.Continue;
 
+        var skills = SkillManager.GetPlayerSkills(player);
+
         // 处理防闪光技能
-        var skill = SkillManager.GetPlayerSkill(player);
-        if (skill?.Name == "AntiFlash")
+        var antiFlashSkill = skills.FirstOrDefault(s => s.Name == "AntiFlash");
+        if (antiFlashSkill != null)
         {
-            var antiFlashSkill = (Skills.AntiFlashSkill)skill;
-            antiFlashSkill.OnFlashbangDetonate(@event);
+            var antiFlash = (Skills.AntiFlashSkill)antiFlashSkill;
+            antiFlash.OnFlashbangDetonate(@event);
         }
 
         // 处理闪光跳跃技能
-        if (skill?.Name == "FlashJump")
+        var flashJumpSkill = skills.FirstOrDefault(s => s.Name == "FlashJump");
+        if (flashJumpSkill != null)
         {
-            var flashJumpSkill = (Skills.FlashJumpSkill)skill;
-            flashJumpSkill.OnFlashbangDetonate(@event);
+            var flashJump = (Skills.FlashJumpSkill)flashJumpSkill;
+            flashJump.OnFlashbangDetonate(@event);
         }
 
         // 处理超级闪光技能
-        if (skill?.Name == "SuperFlash")
+        var superFlashSkill = skills.FirstOrDefault(s => s.Name == "SuperFlash");
+        if (superFlashSkill != null)
         {
-            var superFlashSkill = (Skills.SuperFlashSkill)skill;
-            superFlashSkill.OnFlashbangDetonate(@event);
+            var superFlash = (Skills.SuperFlashSkill)superFlashSkill;
+            superFlash.OnFlashbangDetonate(@event);
         }
 
         return HookResult.Continue;
@@ -640,11 +650,12 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
                     var player = pawn.Controller.Value.As<CCSPlayerController>();
                     if (player != null && player.IsValid)
                     {
-                        var skill = SkillManager.GetPlayerSkill(player);
-                        if (skill?.Name == "ToxicSmoke")
+                        var skills = SkillManager.GetPlayerSkills(player);
+                        var toxicSmokeSkill = skills.FirstOrDefault(s => s.Name == "ToxicSmoke");
+                        if (toxicSmokeSkill != null)
                         {
-                            var toxicSmokeSkill = (Skills.ToxicSmokeSkill)skill;
-                            toxicSmokeSkill.OnEntitySpawned(entity);
+                            var toxicSmoke = (Skills.ToxicSmokeSkill)toxicSmokeSkill;
+                            toxicSmoke.OnEntitySpawned(entity);
                         }
                     }
                 }
@@ -767,18 +778,23 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         {
             if (!player.IsValid) continue;
 
-            var skill = SkillManager.GetPlayerSkill(player);
-            if (skill?.Name == "Sprint")
+            var skills = SkillManager.GetPlayerSkills(player);
+            var sprintSkill = skills.FirstOrDefault(s => s.Name == "Sprint");
+            if (sprintSkill != null)
             {
-                var sprintSkill = (Skills.SprintSkill)skill;
-                sprintSkill.OnTick(player);
+                var sprint = (Skills.SprintSkill)sprintSkill;
+                sprint.OnTick(player);
             }
-            else if (skill?.Name == "RadarHack")
+
+            var radarHackSkill = skills.FirstOrDefault(s => s.Name == "RadarHack");
+            if (radarHackSkill != null)
             {
-                var radarHackSkill = (Skills.RadarHackSkill)skill;
-                radarHackSkill.OnTick(player);
+                var radarHack = (Skills.RadarHackSkill)radarHackSkill;
+                radarHack.OnTick(player);
             }
-            else if (skill?.Name == "QuickShot")
+
+            var quickShotSkill = skills.FirstOrDefault(s => s.Name == "QuickShot");
+            if (quickShotSkill != null)
             {
                 Skills.QuickShotSkill.OnTick(SkillManager);
             }
@@ -792,6 +808,51 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         if (CurrentEvent is KeepMovingEvent keepMovingEvent)
         {
             keepMovingEvent.OnTick();
+        }
+    }
+
+    /// <summary>
+    /// 每帧更新 - 持续刷新 HUD 显示
+    /// </summary>
+    private void OnTick()
+    {
+        var currentTime = DateTime.Now;
+
+        // 持续刷新 HUD 显示
+        if (_playerHudExpired.Count > 0 && CurrentEvent != null)
+        {
+            var expiredPlayers = new List<ulong>();
+
+            foreach (var (steamId, expireTime) in _playerHudExpired)
+            {
+                // 检查是否过期
+                if (currentTime >= expireTime)
+                {
+                    expiredPlayers.Add(steamId);
+                    continue;
+                }
+
+                // 找到玩家并刷新 HUD
+                var player = Utilities.GetPlayers().FirstOrDefault(p => p.SteamID == steamId);
+                if (player != null && player.IsValid)
+                {
+                    var skills = SkillManager.GetPlayerSkills(player);
+                    string htmlContent = BuildRoundStartHtml(CurrentEvent, skills);
+                    player.PrintToCenterHtml(htmlContent);
+                }
+            }
+
+            // 移除过期的玩家
+            foreach (var steamId in expiredPlayers)
+            {
+                _playerHudExpired.Remove(steamId);
+            }
+
+            // 如果所有玩家都过期了，记录日志
+            if (expiredPlayers.Count > 0)
+            {
+                Console.WriteLine($"[HUD] 已移除 {expiredPlayers.Count} 个玩家的 HUD 显示");
+            }
         }
     }
 
@@ -814,11 +875,12 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             if (!player.IsValid)
                 continue;
 
-            var skill = SkillManager.GetPlayerSkill(player);
-            if (skill?.Name == "ToxicSmoke")
+            var skills = SkillManager.GetPlayerSkills(player);
+            var toxicSmokeSkill = skills.FirstOrDefault(s => s.Name == "ToxicSmoke");
+            if (toxicSmokeSkill != null)
             {
-                var toxicSmokeSkill = (Skills.ToxicSmokeSkill)skill;
-                toxicSmokeSkill.OnTick();
+                var toxicSmoke = (Skills.ToxicSmokeSkill)toxicSmokeSkill;
+                toxicSmoke.OnTick();
             }
         }
     }
@@ -835,6 +897,8 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         if (CurrentEvent == null)
             return;
 
+        var currentTime = DateTime.Now;
+
         foreach (var player in Utilities.GetPlayers())
         {
             if (!player.IsValid)
@@ -848,9 +912,12 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
             // 显示 HUD
             player.PrintToCenterHtml(htmlContent);
+
+            // 记录 HUD 过期时间
+            _playerHudExpired[player.SteamID] = currentTime.AddSeconds(HUD_DISPLAY_DURATION);
         }
 
-        Console.WriteLine("[HUD] 已显示回合开始 HUD");
+        Console.WriteLine($"[HUD] 已显示回合开始 HUD，显示时长: {HUD_DISPLAY_DURATION} 秒");
     }
 
     /// <summary>
@@ -859,7 +926,7 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
     private string BuildRoundStartHtml(EntertainmentEvent eventData, List<PlayerSkill> skills)
     {
         // 第一行：当前事件
-        string eventLine = $"<font class='fontWeight-Bold fontSize-l' color='#FFFF00'>🎲 当前事件: {eventData.DisplayName}</font><br>";
+        string eventLine = $"<font class='fontWeight-Bold fontSize-ml' color='#FFFF00'>🎲 当前事件: {eventData.DisplayName}</font><br>";
 
         // 第二行：事件效果（或子事件列表）
         string eventDetailLine;
@@ -868,52 +935,53 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         {
             // 顶级狂欢事件：显示子事件列表
             string subEventsList = string.Join(", ", subEvents.Select(e => e.DisplayName));
-            eventDetailLine = $"<font class='fontSize-ml' color='#FFFFFF'>{subEventsList}</font><br>";
+            eventDetailLine = $"<font class='fontSize-sm' color='#FFFFFF'>{subEventsList}</font><br>";
         }
         else
         {
             // 普通事件：显示描述
-            eventDetailLine = $"<font class='fontSize-ml' color='#CCCCCC'>📝 事件效果: {eventData.Description}</font><br>";
+            eventDetailLine = $"<font class='fontSize-sm' color='#CCCCCC'>📝 事件效果: {eventData.Description}</font><br>";
         }
 
         // 第三行：当前技能
         string skillLine;
         if (skills.Count == 0)
         {
-            skillLine = $"<font class='fontWeight-Bold fontSize-l' color='#FFFF00'>🎁 当前技能: 无</font><br>";
+            skillLine = $"<font class='fontWeight-Bold fontSize-ml' color='#FFFF00'>🎁 当前技能: 无</font><br>";
         }
         else if (skills.Count == 1)
         {
-            skillLine = $"<font class='fontWeight-Bold fontSize-l' color='#FFFF00'>🎁 当前技能: {skills[0].DisplayName}</font><br>";
+            skillLine = $"<font class='fontWeight-Bold fontSize-ml' color='#FFFF00'>🎁 当前技能: {skills[0].DisplayName}</font><br>";
         }
         else
         {
             // 多个技能：显示技能列表
             string skillsList = string.Join(", ", skills.Select(s => s.DisplayName));
-            skillLine = $"<font class='fontWeight-Bold fontSize-l' color='#FFFF00'>🎁 当前技能: {skillsList}</font><br>";
+            skillLine = $"<font class='fontWeight-Bold fontSize-ml' color='#FFFF00'>🎁 当前技能: {skillsList}</font><br>";
         }
 
         // 第四行：技能效果（或技能列表）
         string skillDetailLine;
         if (skills.Count == 0)
         {
-            skillDetailLine = "<font class='fontSize-ml' color='#CCCCCC'>本回合没有技能</font><br>";
+            skillDetailLine = "<font class='fontSize-sm' color='#CCCCCC'>本回合没有技能</font><br>";
         }
         else if (skills.Count == 1)
         {
             // 单个技能：显示描述
-            skillDetailLine = $"<font class='fontSize-ml' color='#CCCCCC'>📝 技能效果: {skills[0].Description}</font><br>";
+            skillDetailLine = $"<font class='fontSize-sm' color='#CCCCCC'>📝 技能效果: {skills[0].Description}</font><br>";
         }
         else
         {
             // 多个技能：显示所有技能的描述
             var skillDescriptions = skills.Select(s => $"• {s.DisplayName}: {s.Description}");
             string allDescriptions = string.Join("<br>", skillDescriptions);
-            skillDetailLine = $"<font class='fontSize-sm' color='#CCCCCC'>{allDescriptions}</font><br>";
+            skillDetailLine = $"<font class='fontSize-xs' color='#CCCCCC'>{allDescriptions}</font><br>";
         }
 
-        // 合并所有行
-        return eventLine + eventDetailLine + "<br>" + skillLine + skillDetailLine;
+        // 合并所有内容，并添加带边框和内边距的容器
+        string content = eventLine + eventDetailLine + "<br>" + skillLine + skillDetailLine;
+        return $"<div style='background-color: rgba(0, 0, 0, 0.7); border: 3px solid #FFFF00; border-radius: 8px; padding: 20px 40px; margin: 10px;'>{content}</div>";
     }
 
     #endregion

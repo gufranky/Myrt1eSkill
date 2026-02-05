@@ -64,8 +64,14 @@ public class SecondChanceSkill : PlayerSkill
         if (skillManager == null)
             return;
 
-        var skill = skillManager.GetPlayerSkill(victim);
-        if (skill == null || skill.Name != "SecondChance")
+        // 获取玩家的所有技能（修复：检查所有技能，而不是只检查第一个）
+        var skills = skillManager.GetPlayerSkills(victim);
+        if (skills.Count == 0)
+            return;
+
+        // 检查是否有第二次机会技能
+        var secondChanceSkill = skills.FirstOrDefault(s => s.Name == "SecondChance");
+        if (secondChanceSkill == null)
             return;
 
         // 检查是否死亡（血量 <= 0）且还没使用过第二次机会

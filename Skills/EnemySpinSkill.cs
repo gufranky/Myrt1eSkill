@@ -46,9 +46,13 @@ public class EnemySpinSkill : PlayerSkill
         if (victim == null || !victim.IsValid || attacker == victim)
             return;
 
-        // 检查攻击者是否有敌人旋转技能
-        var skill = skillManager.GetPlayerSkill(attacker);
-        if (skill == null || skill.Name != "EnemySpin")
+        // 检查攻击者是否有敌人旋转技能（修复：检查所有技能）
+        var attackerSkills = skillManager.GetPlayerSkills(attacker);
+        if (attackerSkills.Count == 0)
+            return;
+
+        var enemySpinSkill = attackerSkills.FirstOrDefault(s => s.Name == "EnemySpin");
+        if (enemySpinSkill == null)
             return;
 
         // 检查受害者是否存活

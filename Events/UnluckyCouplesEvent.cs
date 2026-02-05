@@ -18,8 +18,8 @@ public class UnluckyCouplesEvent : EntertainmentEvent
     // 存储配对关系：playerSlot -> partnerSlot
     private readonly Dictionary<int, int> _pairs = new();
 
-    // 存储发光效果：playerSlot -> (relayIndex, glowIndex)
-    private readonly Dictionary<int, (int relayIndex, int glowIndex)> _glowingPlayers = new();
+    // ✅ 修改：存储实体引用而不是索引（与 WallhackSkill 一致）
+    private readonly Dictionary<int, (CBaseEntity relay, CBaseEntity glow)> _glowingPlayers = new();
 
     // 伤害倍数
     private const float DAMAGE_MULTIPLIER = 2.0f;
@@ -28,33 +28,75 @@ public class UnluckyCouplesEvent : EntertainmentEvent
     {
         Console.WriteLine("[苦命鸳鸯] 事件已激活");
 
-        // 配对玩家并应用效果
-        MatchPlayersAndApplyEffects();
-
-        // 注册监听器
-        if (Plugin != null)
+        // ✅ 检查是否已经有配对关系（回合之间保持配对）
+        if (_pairs.Count > 0)
         {
-            Plugin.RegisterListener<Listeners.CheckTransmit>(OnCheckTransmit);
-            Plugin.RegisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn, HookMode.Post);
-            Plugin.RegisterEventHandler<EventPlayerDeath>(OnPlayerDeath, HookMode.Post);
-        }
+            Console.WriteLine($"[苦命鸳鸯] 已有 {_pairs.Count / 2} 对配对关系，保持现有配对");
 
-        // 显示提示
-        foreach (var player in Utilities.GetPlayers())
-        {
-            if (player.IsValid)
+            // 为所有配对玩家重新添加发光效果（但不重新配对）
+            foreach (var slot in _pairs.Keys)
             {
-                if (_pairs.ContainsKey(player.Slot))
+                var player = Utilities.GetPlayerFromSlot(slot);
+                if (player != null && player.IsValid && player.PawnIsAlive)
+                {
+                    ApplyGlowToPlayer(player);
+                }
+            }
+
+            // 注册监听器
+            if (Plugin != null)
+            {
+                Plugin.RegisterListener<Listeners.CheckTransmit>(OnCheckTransmit);
+                Plugin.RegisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn, HookMode.Post);
+                Plugin.RegisterEventHandler<EventPlayerDeath>(OnPlayerDeath, HookMode.Post);
+            }
+
+            // 显示提示
+            foreach (var player in Utilities.GetPlayers())
+            {
+                if (player.IsValid && _pairs.ContainsKey(player.Slot))
                 {
                     var partner = Utilities.GetPlayerFromSlot(_pairs[player.Slot]);
                     if (partner != null && partner.IsValid)
                     {
-                        player.PrintToChat($"💑 苦命鸳鸯模式已启用！");
+                        player.PrintToChat($"💑 苦命鸳鸯模式继续！你的配对对象是：{partner.PlayerName}");
                     }
                 }
-                else
+            }
+        }
+        else
+        {
+            // 没有配对关系，进行新配对
+            Console.WriteLine("[苦命鸳鸯] 没有现有配对，进行新配对");
+
+            // 配对玩家并应用效果
+            MatchPlayersAndApplyEffects();
+
+            // 注册监听器
+            if (Plugin != null)
+            {
+                Plugin.RegisterListener<Listeners.CheckTransmit>(OnCheckTransmit);
+                Plugin.RegisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn, HookMode.Post);
+                Plugin.RegisterEventHandler<EventPlayerDeath>(OnPlayerDeath, HookMode.Post);
+            }
+
+            // 显示提示
+            foreach (var player in Utilities.GetPlayers())
+            {
+                if (player.IsValid)
                 {
-                    player.PrintToChat("💑 苦命鸳鸯模式已启用！你是单数玩家，未被配对。");
+                    if (_pairs.ContainsKey(player.Slot))
+                    {
+                        var partner = Utilities.GetPlayerFromSlot(_pairs[player.Slot]);
+                        if (partner != null && partner.IsValid)
+                        {
+                            player.PrintToChat($"💑 苦命鸳鸯模式已启用！你的配对对象是：{partner.PlayerName}");
+                        }
+                    }
+                    else
+                    {
+                        player.PrintToChat("💑 苦命鸳鸯模式已启用！你是单数玩家，未被配对。");
+                    }
                 }
             }
         }
@@ -62,48 +104,52 @@ public class UnluckyCouplesEvent : EntertainmentEvent
 
     public override void OnRevert()
     {
-        Console.WriteLine("[苦命鸳鸯] 事件已恢复");
+        Console.WriteLine("[苦命鸳鸯] 事件已恢复，开始清理");
 
-        // 移除监听器
+        // 1. 先移除监听器（防止继续应用效果）
         if (Plugin != null)
         {
             Plugin.RemoveListener<Listeners.CheckTransmit>(OnCheckTransmit);
             Plugin.DeregisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn, HookMode.Post);
             Plugin.DeregisterEventHandler<EventPlayerDeath>(OnPlayerDeath, HookMode.Post);
+            Console.WriteLine("[苦命鸳鸯] 已移除所有事件监听器");
         }
 
-        // 移除所有发光效果（直接遍历字典，避免遗漏）
-        var slotsToRemove = _glowingPlayers.Keys.ToList();
-        foreach (var slot in slotsToRemove)
+        // 2. 移除所有发光效果（使用实体引用，与 WallhackSkill 一致）
+        int removedCount = 0;
+        foreach (var (relay, glow) in _glowingPlayers.Values)
         {
-            var (relayIndex, glowIndex) = _glowingPlayers[slot];
-
-            var relay = Utilities.GetEntityFromIndex<CDynamicProp>(relayIndex);
-            var glow = Utilities.GetEntityFromIndex<CDynamicProp>(glowIndex);
-
             if (relay != null && relay.IsValid)
             {
                 relay.AcceptInput("Kill");
+                removedCount++;
+                Console.WriteLine($"[苦命鸳鸯] 已移除 relay 实体");
             }
 
             if (glow != null && glow.IsValid)
             {
                 glow.AcceptInput("Kill");
+                removedCount++;
+                Console.WriteLine($"[苦命鸳鸯] 已移除 glow 实体");
             }
         }
         _glowingPlayers.Clear();
+        Console.WriteLine($"[苦命鸳鸯] 已清理所有发光效果，共移除 {removedCount} 个实体");
 
-        // 清空配对
+        // 3. 清空配对
         _pairs.Clear();
+        Console.WriteLine($"[苦命鸳鸯] 已清空所有配对关系");
 
         // 显示提示
         foreach (var player in Utilities.GetPlayers())
         {
             if (player.IsValid)
             {
-                player.PrintToChat("💑 苦命鸳鸯模式已禁用");
+                player.PrintToChat("💑 苦命鸳鸯模式已禁用，配对关系已解除");
             }
         }
+
+        Console.WriteLine("[苦命鸳鸯] 事件恢复完成");
     }
 
     /// <summary>
@@ -193,11 +239,11 @@ public class UnluckyCouplesEvent : EntertainmentEvent
         var pawn = player.PlayerPawn.Value;
         if (pawn == null || !pawn.IsValid) return;
 
-        // 创建发光效果
-        bool success = ApplyEntityGlowEffect(pawn, player.Team, out var relayIndex, out var glowIndex);
-        if (success)
+        // 创建发光效果并返回实体引用
+        bool success = ApplyEntityGlowEffect(pawn, player.Team, out var relay, out var glow);
+        if (success && relay != null && glow != null)
         {
-            _glowingPlayers[player.Slot] = (relayIndex, glowIndex);
+            _glowingPlayers[player.Slot] = (relay, glow);
             Console.WriteLine($"[苦命鸳鸯] 已为 {player.PlayerName} 添加发光效果");
         }
     }
@@ -210,10 +256,7 @@ public class UnluckyCouplesEvent : EntertainmentEvent
         if (player == null || !_glowingPlayers.ContainsKey(player.Slot))
             return;
 
-        var (relayIndex, glowIndex) = _glowingPlayers[player.Slot];
-
-        var relay = Utilities.GetEntityFromIndex<CDynamicProp>(relayIndex);
-        var glow = Utilities.GetEntityFromIndex<CDynamicProp>(glowIndex);
+        var (relay, glow) = _glowingPlayers[player.Slot];
 
         if (relay != null && relay.IsValid)
         {
@@ -229,12 +272,12 @@ public class UnluckyCouplesEvent : EntertainmentEvent
     }
 
     /// <summary>
-    /// 应用实体发光效果（参考 CS2-GameModifiers-Plugin）
+    /// 应用实体发光效果（参考 CS2-GameModifiers-Plugin 和 WallhackSkill）
     /// </summary>
-    private bool ApplyEntityGlowEffect(CBaseEntity entity, CsTeam team, out int relayIndex, out int glowIndex)
+    private bool ApplyEntityGlowEffect(CBaseEntity entity, CsTeam team, out CBaseEntity? relay, out CBaseEntity? glow)
     {
-        relayIndex = -1;
-        glowIndex = -1;
+        relay = null;
+        glow = null;
 
         if (entity == null || !entity.IsValid)
             return false;
@@ -298,8 +341,8 @@ public class UnluckyCouplesEvent : EntertainmentEvent
         modelGlow.Glow.GlowType = 3;
         modelGlow.Glow.GlowRangeMin = 20;
 
-        relayIndex = (int)modelRelay.Index;
-        glowIndex = (int)modelGlow.Index;
+        relay = modelRelay;
+        glow = modelGlow;
 
         return true;
     }
@@ -321,7 +364,6 @@ public class UnluckyCouplesEvent : EntertainmentEvent
             if (_pairs.ContainsKey(player.Slot))
             {
                 var partnerSlot = _pairs[player.Slot];
-                var partnerGlow = _glowingPlayers.ContainsKey(partnerSlot) ? _glowingPlayers[partnerSlot] : (relayIndex: -1, glowIndex: -1);
 
                 // 只显示配对对象的发光效果
                 foreach (var kvp in _glowingPlayers)
@@ -334,18 +376,31 @@ public class UnluckyCouplesEvent : EntertainmentEvent
                     // 否则移除其他人的发光效果
                     else
                     {
-                        info.TransmitEntities.Remove(kvp.Value.relayIndex);
-                        info.TransmitEntities.Remove(kvp.Value.glowIndex);
+                        var (relay, glow) = kvp.Value;
+                        if (relay != null && relay.IsValid)
+                        {
+                            info.TransmitEntities.Remove(relay.Index);
+                        }
+                        if (glow != null && glow.IsValid)
+                        {
+                            info.TransmitEntities.Remove(glow.Index);
+                        }
                     }
                 }
             }
             else
             {
                 // 未配对的玩家看不到任何发光效果
-                foreach (var (relayIndex, glowIndex) in _glowingPlayers.Values)
+                foreach (var (relay, glow) in _glowingPlayers.Values)
                 {
-                    info.TransmitEntities.Remove(relayIndex);
-                    info.TransmitEntities.Remove(glowIndex);
+                    if (relay != null && relay.IsValid)
+                    {
+                        info.TransmitEntities.Remove(relay.Index);
+                    }
+                    if (glow != null && glow.IsValid)
+                    {
+                        info.TransmitEntities.Remove(glow.Index);
+                    }
                 }
             }
         }

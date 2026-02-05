@@ -69,9 +69,13 @@ public class AntiFlashSkill : PlayerSkill
         if (player == null || !player.IsValid)
             return;
 
-        // 检查玩家是否有防闪光技能
-        var skill = Plugin?.SkillManager.GetPlayerSkill(player);
-        if (skill?.Name != "AntiFlash")
+        // 检查玩家是否有防闪光技能（修复：检查所有技能）
+        var skills = Plugin?.SkillManager.GetPlayerSkills(player);
+        if (skills == null || skills.Count == 0)
+            return;
+
+        var antiFlashSkill = skills.FirstOrDefault(s => s.Name == "AntiFlash");
+        if (antiFlashSkill == null)
             return;
 
         // 检查计数器是否存在
@@ -140,9 +144,9 @@ public class AntiFlashSkill : PlayerSkill
         if (playerPawn == null || !playerPawn.IsValid)
             return;
 
-        // 检查被闪者是否有防闪光技能
-        var playerSkill = skillManager.GetPlayerSkill(player);
-        if (playerSkill?.Name == "AntiFlash")
+        // 检查被闪者是否有防闪光技能（修复：检查所有技能）
+        var playerSkills = skillManager.GetPlayerSkills(player);
+        if (playerSkills.Any(s => s.Name == "AntiFlash"))
         {
             // 免疫闪光弹
             playerPawn.FlashDuration = 0.0f;
@@ -150,9 +154,9 @@ public class AntiFlashSkill : PlayerSkill
             return;
         }
 
-        // 检查投掷者是否有防闪光技能
-        var attackerSkill = skillManager.GetPlayerSkill(attacker);
-        if (attackerSkill?.Name == "AntiFlash")
+        // 检查投掷者是否有防闪光技能（修复：检查所有技能）
+        var attackerSkills = skillManager.GetPlayerSkills(attacker);
+        if (attackerSkills.Any(s => s.Name == "AntiFlash"))
         {
             // 如果是自己投掷的，不增强（只补充，已在 OnFlashbangDetonate 中处理）
             if (player == attacker)

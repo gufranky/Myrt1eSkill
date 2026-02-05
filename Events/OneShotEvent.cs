@@ -40,6 +40,7 @@ public class OneShotEvent : EntertainmentEvent
             Plugin.RegisterEventHandler<EventItemEquip>(OnItemEquip, HookMode.Post);
             Plugin.RegisterEventHandler<EventItemPickup>(OnItemPickup, HookMode.Post);
             Plugin.RegisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn, HookMode.Post);
+            Plugin.RegisterEventHandler<EventWeaponReload>(OnWeaponReload, HookMode.Post);
         }
 
         // 显示提示（保留聊天框提示，移除屏幕中间提示，统一由HUD显示）
@@ -65,6 +66,7 @@ public class OneShotEvent : EntertainmentEvent
             Plugin.DeregisterEventHandler<EventItemEquip>(OnItemEquip, HookMode.Post);
             Plugin.DeregisterEventHandler<EventItemPickup>(OnItemPickup, HookMode.Post);
             Plugin.DeregisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn, HookMode.Post);
+            Plugin.DeregisterEventHandler<EventWeaponReload>(OnWeaponReload, HookMode.Post);
         }
 
         // 恢复所有武器的MaxClip1
@@ -85,61 +87,59 @@ public class OneShotEvent : EntertainmentEvent
     }
 
     /// <summary>
-    /// 恢复所有武器的MaxClip1
+    /// 恢复所有玩家的所有武器弹药
+    /// 直接遍历所有武器列表，确保恢复彻底
     /// </summary>
     private void RestoreAllWeaponMaxClip1()
     {
-        Console.WriteLine($"[一发AK] 开始恢复 {_cachedMaxClip1.Count} 种武器的MaxClip1");
+        Console.WriteLine("[一发AK] 开始恢复所有玩家的武器弹药");
 
-        // 遍历所有被修改过的武器类型
-        foreach (var kvp in _cachedMaxClip1)
+        int restoredCount = 0;
+
+        // 遍历所有玩家
+        foreach (var player in Utilities.GetPlayers())
         {
-            string weaponName = kvp.Key;
-            int originalMaxClip1 = kvp.Value;
+            if (player == null || !player.IsValid)
+                continue;
 
-            // 查找所有该类型的武器实例并恢复
-            foreach (var player in Utilities.GetPlayers())
+            var pawn = player.PlayerPawn.Value;
+            if (pawn == null || !pawn.IsValid)
+                continue;
+
+            var weaponServices = pawn.WeaponServices;
+            if (weaponServices == null)
+                continue;
+
+            // 直接遍历该玩家的所有武器
+            foreach (var weaponHandle in weaponServices.MyWeapons)
             {
-                if (player == null || !player.IsValid || !player.PawnIsAlive)
+                if (!weaponHandle.IsValid)
                     continue;
 
-                var pawn = player.PlayerPawn.Value;
-                if (pawn == null || !pawn.IsValid)
+                var weapon = weaponHandle.Get();
+                if (weapon == null || !weapon.IsValid)
                     continue;
 
-                var weaponServices = pawn.WeaponServices;
-                if (weaponServices == null)
+                var weaponBase = weapon.As<CCSWeaponBase>();
+                if (weaponBase == null || weaponBase.VData == null)
                     continue;
 
-                foreach (var weaponHandle in weaponServices.MyWeapons)
+                string weaponName = weaponBase.DesignerName;
+
+                // 如果缓存中有该武器的原始值，就恢复
+                if (_cachedMaxClip1.TryGetValue(weaponName, out int originalMaxClip1))
                 {
-                    if (!weaponHandle.IsValid)
-                        continue;
+                    // 恢复弹夹容量
+                    weaponBase.Clip1 = originalMaxClip1;
+                    Utilities.SetStateChanged(weapon, "CBasePlayerWeapon", "m_iClip1");
 
-                    var weapon = weaponHandle.Get();
-                    if (weapon == null || !weapon.IsValid)
-                        continue;
-
-                    var weaponBase = weapon.As<CCSWeaponBase>();
-                    if (weaponBase == null || weaponBase.VData == null)
-                        continue;
-
-                    // 检查是否是目标武器
-                    if (weaponBase.DesignerName == weaponName)
-                    {
-                        // 立即恢复 MaxClip1（不使用 NextFrame）
-                        weaponBase.VData.MaxClip1 = originalMaxClip1;
-
-                        // 强制通知客户端
-                        Utilities.SetStateChanged(weaponBase, "CBasePlayerWeapon", "m_iClip1");
-
-                        Console.WriteLine($"[一发AK] {player.PlayerName} 的 {weaponName} MaxClip1已恢复为 {originalMaxClip1}");
-                    }
+                    restoredCount++;
+                    Console.WriteLine($"[一发AK] {player.PlayerName} 的 {weaponName} 已恢复（Clip1: 1 → {originalMaxClip1}）");
                 }
             }
         }
 
-        Console.WriteLine("[一发AK] 所有武器的MaxClip1恢复完成");
+        Console.WriteLine($"[一发AK] 武器弹药恢复完成，共恢复 {restoredCount} 把武器");
     }
 
     /// <summary>
@@ -184,16 +184,7 @@ public class OneShotEvent : EntertainmentEvent
                 Console.WriteLine($"[一发AK] 保存 {weaponName} 的原始MaxClip1: {_cachedMaxClip1[weaponName]}");
             }
 
-            // 修改MaxClip1为1（关键！这样换弹后也只能装1发）
-            Server.NextFrame(() =>
-            {
-                if (weaponBase.IsValid && weaponBase.VData != null)
-                {
-                    weaponBase.VData.MaxClip1 = 1;
-                }
-            });
-
-            // 设置当前Clip1为1
+            // 设置当前Clip1为1（不要修改VData.MaxClip1，否则会影响武器定义）
             weaponBase.Clip1 = 1;
             Utilities.SetStateChanged(weapon, "CBasePlayerWeapon", "m_iClip1");
         }
@@ -203,6 +194,7 @@ public class OneShotEvent : EntertainmentEvent
 
     /// <summary>
     /// 监听装备武器事件
+    /// 切换武器时强制设为1发，防止通过切枪绕过换弹
     /// </summary>
     private HookResult OnItemEquip(EventItemEquip @event, GameEventInfo info)
     {
@@ -213,12 +205,14 @@ public class OneShotEvent : EntertainmentEvent
         if (player == null || !player.IsValid || !player.PawnIsAlive)
             return HookResult.Continue;
 
-        Server.NextFrame(() =>
+        // 使用定时器确保在游戏自动填充后重设
+        // 游戏可能会在装备武器后自动从备用弹药补充
+        Plugin?.AddTimer(0.05f, () =>
         {
-            // 再次检查事件是否仍然激活
-            if (_isActive)
+            if (_isActive && player.IsValid && player.PawnIsAlive)
             {
                 SetAllWeaponsToOneBullet(player);
+                Console.WriteLine($"[一发AK] {player.PlayerName} 切换武器，强制设为1发");
             }
         });
 
@@ -268,6 +262,31 @@ public class OneShotEvent : EntertainmentEvent
             {
                 SetAllWeaponsToOneBullet(player);
                 player.PrintToCenter("💥 一发AK模式！\n弹夹只有1发！备用弹药保留！");
+            }
+        });
+
+        return HookResult.Continue;
+    }
+
+    /// <summary>
+    /// 监听换弹事件 - 换弹后重新设置为1发
+    /// </summary>
+    private HookResult OnWeaponReload(EventWeaponReload @event, GameEventInfo info)
+    {
+        // 如果事件不激活，不处理
+        if (!_isActive) return HookResult.Continue;
+
+        var player = @event.Userid;
+        if (player == null || !player.IsValid || !player.PawnIsAlive)
+            return HookResult.Continue;
+
+        Server.NextFrame(() =>
+        {
+            // 再次检查事件是否仍然激活
+            if (_isActive)
+            {
+                SetAllWeaponsToOneBullet(player);
+                Console.WriteLine($"[一发AK] {player.PlayerName} 换弹后重新设置为1发");
             }
         });
 

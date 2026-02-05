@@ -81,8 +81,8 @@ public class SoccerModeEvent : EntertainmentEvent
             Plugin.RegisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn, HookMode.Post);
         }
 
-        // 5. 启动tick检查足球位置
-        Plugin?.RegisterListener<Listeners.OnTick>(OnTick);
+        // 5. 启动定时器检查足球位置（每0.5秒检查一次，避免性能问题）
+        Plugin?.AddTimer(0.5f, CheckBallPositionTimer, CounterStrikeSharp.API.Modules.Timers.TimerFlags.REPEAT);
 
         // 显示提示（保留聊天框提示，移除屏幕中间提示，统一由HUD显示）
         foreach (var player in Utilities.GetPlayers())
@@ -147,7 +147,8 @@ public class SoccerModeEvent : EntertainmentEvent
                 if (Plugin != null)
                 {
                     Plugin.DeregisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn, HookMode.Post);
-                    Plugin.RemoveListener<Listeners.OnTick>(OnTick);
+
+                    // 停止定时器（timerHandle 会在下次检查时自动失效，因为 _isActive = false）
                     Console.WriteLine("[足球模式] 事件监听器已移除");
                 }
 
@@ -245,7 +246,7 @@ public class SoccerModeEvent : EntertainmentEvent
         var position = new Vector(
             randomSpawn.AbsOrigin.X,
             randomSpawn.AbsOrigin.Y,
-            randomSpawn.AbsOrigin.Z + 16
+            randomSpawn.AbsOrigin.Z + 32  // 抬高更多一些
         );
 
         _soccerBall.Teleport(position, new QAngle(0, 0, 0), new Vector(0, 0, 0));
@@ -253,7 +254,27 @@ public class SoccerModeEvent : EntertainmentEvent
         // 生成实体
         _soccerBall.DispatchSpawn();
 
-        Console.WriteLine($"[足球模式] 足球已在T家生成，位置: ({position.X:F0}, {position.Y:F0}, {position.Z:F0})");
+        // 唤醒物理实体，使其可以被踢动
+        Server.NextFrame(() =>
+        {
+            if (_soccerBall != null && _soccerBall.IsValid)
+            {
+                // 唤醒物理实体
+                _soccerBall.AcceptInput("Wake");
+
+                // 给一个初始的向上速度，确保它活跃
+                if (_soccerBall.AbsVelocity != null)
+                {
+                    _soccerBall.AbsVelocity.X = 0;
+                    _soccerBall.AbsVelocity.Y = 0;
+                    _soccerBall.AbsVelocity.Z = 10;
+                    Utilities.SetStateChanged(_soccerBall, "CBaseEntity", "m_vecAbsVelocity");
+                }
+
+                Console.WriteLine($"[足球模式] 足球已在T家生成，位置: ({position.X:F0}, {position.Y:F0}, {position.Z:F0})");
+                Console.WriteLine("[足球模式] 足球物理属性已激活（可被踢动）");
+            }
+        });
     }
 
     /// <summary>
@@ -304,9 +325,9 @@ public class SoccerModeEvent : EntertainmentEvent
     }
 
     /// <summary>
-    /// 每帧检查足球位置
+    /// 定时器回调：检查足球位置（每0.5秒执行一次）
     /// </summary>
-    private void OnTick()
+    private void CheckBallPositionTimer()
     {
         // 立即检查是否激活，防止在恢复过程中执行
         if (!_isActive)

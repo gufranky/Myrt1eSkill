@@ -43,8 +43,13 @@ public class QuickShotSkill : PlayerSkill
             if (!player.IsValid)
                 continue;
 
-            var skill = skillManager.GetPlayerSkill(player);
-            if (skill?.Name != "QuickShot")
+            // 检查玩家是否有速射技能（修复：检查所有技能）
+            var skills = skillManager.GetPlayerSkills(player);
+            if (skills.Count == 0)
+                continue;
+
+            var quickShotSkill = skills.FirstOrDefault(s => s.Name == "QuickShot");
+            if (quickShotSkill == null)
                 continue;
 
             var pawn = player.PlayerPawn?.Value;

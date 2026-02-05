@@ -715,12 +715,17 @@ public class PluginCommands
             player.PrintToChat("状态: " + status);
             player.PrintToChat("已注册技能数: " + _plugin.SkillManager.GetSkillCount());
 
-            // 显示玩家当前技能
-            var currentSkill = _plugin.SkillManager.GetPlayerSkill(player);
-            if (currentSkill != null)
+            // 显示玩家当前所有技能
+            var currentSkills = _plugin.SkillManager.GetPlayerSkills(player);
+            if (currentSkills.Count > 0)
             {
-                player.PrintToChat("💫 你的当前技能: " + currentSkill.DisplayName);
-                player.PrintToChat("📝 " + currentSkill.Description);
+                player.PrintToChat($"💫 你当前拥有 {currentSkills.Count} 个技能:");
+                for (int i = 0; i < currentSkills.Count; i++)
+                {
+                    var skill = currentSkills[i];
+                    player.PrintToChat($"  {i + 1}. {skill.DisplayName}");
+                    player.PrintToChat($"     {skill.Description}");
+                }
             }
             else
             {

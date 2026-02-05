@@ -22,8 +22,6 @@
 //
 // Modifications:
 // - Adapted to MyrtleSkill plugin architecture
-// - Added proper error handling and logging
-// - Integrated with PlayerSkill base class
 
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
@@ -31,29 +29,25 @@ using CounterStrikeSharp.API.Modules.Entities;
 using CounterStrikeSharp.API.Modules.Memory;
 using CounterStrikeSharp.API.Modules.Memory.DynamicFunctions;
 using CounterStrikeSharp.API.Modules.Utils;
-using CS2TraceRay.Class;
-using CS2TraceRay.Enum;
-using Vector3 = System.Numerics.Vector3;
 
 namespace MyrtleSkill.Skills;
 
 /// <summary>
-/// 爆炸射击技能 - 射击时有随机几率发射爆炸子弹
+/// 爆炸射击技能 - 射击时有随机几率在伤害位置引发爆炸
+/// 完全基于 jRandomSkills ExplosiveShot 实现
 /// </summary>
 public class ExplosiveShotSkill : PlayerSkill
 {
     public override string Name => "ExplosiveShot";
     public override string DisplayName => "💥 爆炸射击";
-    public override string Description => "射击时有20%-30%几率在目标位置引发爆炸！";
+    public override string Description => "射击时有随机几率在伤害位置引发爆炸！";
     public override bool IsActive => false; // 被动技能
 
-    // 爆炸概率范围
-    private const float CHANCE_FROM = 0.2f; // 20%
-    private const float CHANCE_TO = 0.3f;   // 30%
-
-    // 爆炸伤害和半径
+    // 爆炸参数（与 jRandomSkills 保持一致）
     private const float EXPLOSION_DAMAGE = 25.0f;
     private const float EXPLOSION_RADIUS = 210.0f;
+    private const float CHANCE_FROM = 0.15f; // 15%
+    private const float CHANCE_TO = 0.30f;   // 30%
 
     // 特殊角度用于识别自己创建的爆炸
     private static readonly QAngle IDENTIFIER_ANGLE = new QAngle(5, 10, -4);
@@ -61,7 +55,7 @@ public class ExplosiveShotSkill : PlayerSkill
     // 防止同一tick重复触发
     private static int _lastTick = 0;
 
-    // 静态随机数生成器（用于HandlePlayerDamagePre静态方法）
+    // 静态随机数生成器
     private static readonly Random _staticRandom = new();
 
     // 每个玩家的爆炸概率
@@ -86,119 +80,17 @@ public class ExplosiveShotSkill : PlayerSkill
     }
 
     /// <summary>
-    /// 处理玩家伤害前事件（旧实现，保留用于向后兼容）
-    /// </summary>
-    public static void HandlePlayerDamagePre(CCSPlayerPawn player, CTakeDamageInfo info)
-    {
-        // 这个方法已弃用，现在使用 HandleWeaponFire 代替
-        // 但保留以防需要基于伤害触发
-    }
-
-    /// <summary>
-    /// 处理武器开火事件
-    /// 在射击时使用射线追踪获取击中位置并创建爆炸
-    /// </summary>
-    public static void HandleWeaponFire(EventWeaponFire @event)
-    {
-        // 防止同一tick重复触发
-        if (_lastTick == Server.TickCount)
-            return;
-
-        var player = @event.Userid;
-        if (player == null || !player.IsValid)
-            return;
-
-        var pawn = player.PlayerPawn.Value;
-        if (pawn == null || !pawn.IsValid || !player.PawnIsAlive)
-            return;
-
-        // 检查攻击者是否有爆炸射击技能
-        if (!_playerChances.TryGetValue(player.SteamID, out float chance))
-            return;
-
-        // 20%-30%概率触发爆炸
-        if (_staticRandom.NextDouble() > chance)
-            return;
-
-        // 获取玩家位置和视角
-        var origin = pawn.AbsOrigin;
-        if (origin == null)
-            return;
-
-        var eyeAngles = pawn.EyeAngles;
-        if (eyeAngles == null)
-            return;
-
-        // 使用 CS2TraceRay 进行射线追踪
-        // 跳过射击者自己的实体，检测墙壁和玩家
-        var traceResult = TraceRay.TraceShape(
-            origin,
-            eyeAngles,
-            TraceMask.MaskShot,  // 检测墙壁、玩家、实体
-            Contents.Solid,
-            pawn  // 跳过射击者自己
-        );
-
-        // 获取爆炸位置（射线追踪的击中点）
-        Vector explosionPosition;
-        if (traceResult.Fraction < 1.0f)
-        {
-            // 射线击中了物体，使用击中位置
-            var hitPos = traceResult.EndPos;
-            explosionPosition = new Vector(hitPos.X, hitPos.Y, hitPos.Z);
-
-            Console.WriteLine($"[爆炸射击] {player.PlayerName} 射线击中物体，距离: {traceResult.Fraction * 8192:F1} 单位");
-        }
-        else
-        {
-            // 没有击中任何东西（距离太远），使用最大射程
-            float maxDistance = 2000.0f;
-            Vector shootDirection = GetForwardVector(eyeAngles);
-            explosionPosition = new Vector(
-                origin.X + shootDirection.X * maxDistance,
-                origin.Y + shootDirection.Y * maxDistance,
-                origin.Z + shootDirection.Z * maxDistance
-            );
-
-            Console.WriteLine($"[爆炸射击] {player.PlayerName} 射线未击中，使用最大距离: {maxDistance} 单位");
-        }
-
-        Console.WriteLine($"[爆炸射击] {player.PlayerName} 在 ({explosionPosition.X:F1}, {explosionPosition.Y:F1}, {explosionPosition.Z:F1}) 创建爆炸");
-
-        // 创建爆炸
-        SpawnExplosion(explosionPosition);
-        player.PrintToChat($"💥 你的射击引发了爆炸！");
-    }
-
-    /// <summary>
-    /// 创建爆炸
+    /// 创建爆炸（与 jRandomSkills 完全一致）
     /// </summary>
     private static void SpawnExplosion(Vector position)
     {
         _lastTick = Server.TickCount;
         CreateHEGrenadeProjectile(position, IDENTIFIER_ANGLE, new Vector(0, 0, 0), 0);
-        Console.WriteLine($"[爆炸射击] 在位置 ({position.X:F1}, {position.Y:F1}, {position.Z:F1}) 创建了爆炸");
+        Console.WriteLine($"[爆炸射击] 在位置 ({position.X:F1}, {position.Y:F1}, {position.Z:F1}) 创建爆炸");
     }
 
     /// <summary>
-    /// 根据角度获取前向向量
-    /// </summary>
-    private static Vector GetForwardVector(QAngle angles)
-    {
-        float radiansX = angles.X * (MathF.PI / 180f);
-        float radiansY = angles.Y * (MathF.PI / 180f);
-
-        float sinX = MathF.Sin(radiansX);
-        float cosX = MathF.Cos(radiansX);
-
-        float sinY = MathF.Sin(radiansY);
-        float cosY = MathF.Cos(radiansY);
-
-        return new Vector(cosY * cosX, sinY * cosX, -sinX);
-    }
-
-    /// <summary>
-    /// 处理实体生成事件
+    /// 处理实体生成事件（与 jRandomSkills 完全一致）
     /// </summary>
     public static void OnEntitySpawned(CEntityInstance entity)
     {
@@ -215,12 +107,12 @@ public class ExplosiveShotSkill : PlayerSkill
                 return;
 
             // 检查是否是我们创建的爆炸（通过特殊角度识别）
-            if (!NearlyEquals(IDENTIFIER_ANGLE.X, heProjectile.AbsRotation.X) ||
-                !NearlyEquals(IDENTIFIER_ANGLE.Y, heProjectile.AbsRotation.Y) ||
-                !NearlyEquals(IDENTIFIER_ANGLE.Z, heProjectile.AbsRotation.Z))
+            if (!(NearlyEquals(IDENTIFIER_ANGLE.X, heProjectile.AbsRotation.X) &&
+                  NearlyEquals(IDENTIFIER_ANGLE.Y, heProjectile.AbsRotation.Y) &&
+                  NearlyEquals(IDENTIFIER_ANGLE.Z, heProjectile.AbsRotation.Z)))
                 return;
 
-            // 修改爆炸属性
+            // 修改爆炸属性（与 jRandomSkills 完全一致）
             heProjectile.TicksAtZeroVelocity = 100;
             heProjectile.TeamNum = (byte)CsTeam.None; // 中立伤害
             heProjectile.Damage = EXPLOSION_DAMAGE;
@@ -240,7 +132,7 @@ public class ExplosiveShotSkill : PlayerSkill
     }
 
     /// <summary>
-    /// 创建HE手雷弹道
+    /// 创建HE手雷弹道（与 jRandomSkills SkillUtils 一致）
     /// </summary>
     private static void CreateHEGrenadeProjectile(Vector pos, QAngle angle, Vector vel, int teamNum)
     {
@@ -249,12 +141,58 @@ public class ExplosiveShotSkill : PlayerSkill
             var function = new MemoryFunctionWithReturn<IntPtr, IntPtr, IntPtr, IntPtr, IntPtr, IntPtr, IntPtr, int>(
                 GameData.GetSignature("HEGrenadeProjectile_CreateFunc")
             );
-            // 参数6使用44（与jRandomSkills保持一致）
+            // 参数6使用44（与 jRandomSkills 保持一致）
             function.Invoke(pos.Handle, angle.Handle, vel.Handle, vel.Handle, IntPtr.Zero, new IntPtr(44), teamNum);
         }
         catch (Exception ex)
         {
             Console.WriteLine($"[爆炸射击] 创建HE手雷失败: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 处理玩家伤害前事件（与 jRandomSkills OnTakeDamage 一致）
+    /// 在伤害发生时在伤害位置创建爆炸
+    /// </summary>
+    public static void OnTakeDamagePre(CCSPlayerPawn player, CTakeDamageInfo info)
+    {
+        // 防止同一tick重复触发
+        if (_lastTick == Server.TickCount)
+            return;
+
+        // 检查攻击者
+        if (info.Attacker == null || info.Attacker.Value == null)
+            return;
+
+        var attackerPawn = info.Attacker.Value.As<CCSPlayerPawn>();
+        if (attackerPawn == null)
+            return;
+
+        if (attackerPawn.DesignerName != "player")
+            return;
+
+        if (attackerPawn.Controller?.Value == null)
+            return;
+
+        var attacker = attackerPawn.Controller.Value.As<CCSPlayerController>();
+        if (attacker == null || !attacker.IsValid)
+            return;
+
+        // 检查攻击者是否有爆炸射击技能
+        if (!_playerChances.TryGetValue(attacker.SteamID, out float chance))
+            return;
+
+        // 随机概率触发爆炸
+        if (_staticRandom.NextDouble() > chance)
+            return;
+
+        // 使用伤害位置创建爆炸
+        var damagePosition = info.DamagePosition;
+        if (damagePosition != null)
+        {
+            SpawnExplosion(damagePosition);
+            attacker.PrintToChat("💥 你的射击引发了爆炸！");
+            Console.WriteLine($"[爆炸射击] {attacker.PlayerName} 在伤害位置创建爆炸");
         }
     }
 }

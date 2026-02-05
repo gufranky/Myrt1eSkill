@@ -53,10 +53,7 @@ public class SuperFlashSkill : PlayerSkill
         if (attacker == null || !attacker.IsValid)
             return;
 
-        // 检查投掷者是否有超级闪光技能
-        var skill = Plugin?.SkillManager.GetPlayerSkill(attacker);
-        if (skill?.Name != "SuperFlash")
-            return;
+        Console.WriteLine($"[超级闪光] {attacker.PlayerName} 的闪光弹爆炸了！");
 
         // 计数被闪白的敌人数量
         int blindedCount = 0;
@@ -67,8 +64,12 @@ public class SuperFlashSkill : PlayerSkill
             if (player == null || !player.IsValid || !player.PawnIsAlive)
                 continue;
 
-            // 不闪自己（可选，如果连自己也闪就注释掉这行）
+            // 不闪自己
             if (player == attacker)
+                continue;
+
+            // 只闪敌方玩家
+            if (player.Team == attacker.Team)
                 continue;
 
             var pawn = player.PlayerPawn.Value;
@@ -81,11 +82,11 @@ public class SuperFlashSkill : PlayerSkill
 
             blindedCount++;
 
-            // 显示提示
-            player.PrintToCenter($"💥 被超级闪光弹闪到！");
+            Console.WriteLine($"[超级闪光] {player.PlayerName} 被闪白 {FLASH_DURATION} 秒");
+            player.PrintToCenter($"💥 被超级闪光弹闪到 {FLASH_DURATION} 秒！");
         }
 
-        attacker.PrintToChat($"💥 超级闪光弹！{blindedCount} 个敌人被闪白！");
-        Console.WriteLine($"[超级闪光] {attacker.PlayerName} 的闪光弹让 {blindedCount} 个敌人闪白 {FLASH_DURATION} 秒");
+        attacker.PrintToChat($"💥 超级闪光弹！{blindedCount} 个敌人被闪白 {FLASH_DURATION} 秒！");
+        Console.WriteLine($"[超级闪光] {attacker.PlayerName} 的闪光弹让 {blindedCount} 个敌人闪白");
     }
 }

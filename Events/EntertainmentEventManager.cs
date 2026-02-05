@@ -73,7 +73,7 @@ public class EntertainmentEventManager
         RegisterEvent(new FoggyEvent());
         RegisterEvent(new NoSkillEvent());
         RegisterEvent(new KeepMovingEvent());
-        RegisterEvent(new SoccerModeEvent());
+        // RegisterEvent(new SoccerModeEvent());  // 暂时禁用，因为有bug
         RegisterEvent(new SuperRecoilEvent());
         RegisterEvent(new SuperKnockbackEvent());
         RegisterEvent(new BankruptcyEvent());

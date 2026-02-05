@@ -80,8 +80,12 @@ public class HeavyArmorSkill : PlayerSkill
         if (controller is not CCSPlayerController csController)
             return null;
 
-        var skill = Plugin?.SkillManager.GetPlayerSkill(csController);
-        if (skill?.Name != "HeavyArmor")
+        var skills = Plugin?.SkillManager.GetPlayerSkills(csController);
+        if (skills == null || skills.Count == 0)
+            return null;
+
+        var skill = skills.FirstOrDefault(s => s.Name == "HeavyArmor");
+        if (skill == null)
             return null;
 
         // 应用伤害减免

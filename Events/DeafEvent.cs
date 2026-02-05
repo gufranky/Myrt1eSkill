@@ -47,11 +47,17 @@ public class DeafEvent : EntertainmentEvent
     public override string Description => "所有人都听不到所有声音！全员失聪！";
 
     // 被静音的玩家列表
-    private readonly HashSet<CCSPlayerController> _deafPlayers = new();
+    private static readonly HashSet<CCSPlayerController> _deafPlayers = new();
+
+    // 静态实例引用（用于静态回调方法）
+    private static MyrtleSkill? _pluginInstance;
 
     public override void OnApply()
     {
         Console.WriteLine("[失聪] 事件已激活");
+
+        // 保存静态实例引用
+        _pluginInstance = Plugin;
 
         // 获取所有玩家
         var players = Utilities.GetPlayers().Where(p =>
@@ -73,24 +79,12 @@ public class DeafEvent : EntertainmentEvent
             player.PrintToChat("🔇 你失聪了！听不到任何声音！");
         }
 
-        // 注册 UserMessage 监听（拦截所有声音）
-        if (Plugin != null)
-        {
-            Plugin.HookUserMessage(208, OnPlayerMakeSound);
-        }
-
         Console.WriteLine($"[失聪] 已让 {_deafPlayers.Count} 名玩家失聪（全员失聪）");
     }
 
     public override void OnRevert()
     {
         Console.WriteLine("[失聪] 事件已恢复");
-
-        // 移除 UserMessage 监听
-        if (Plugin != null)
-        {
-            Plugin.UnhookUserMessage(208, OnPlayerMakeSound);
-        }
 
         // 通知所有失聪玩家恢复听觉
         foreach (var player in _deafPlayers)
@@ -107,8 +101,9 @@ public class DeafEvent : EntertainmentEvent
     /// <summary>
     /// 拦截声音 UserMessage，移除失聪玩家
     /// 参考 jRandomSkills Deaf 技能的 PlayerMakeSound 实现
+    /// 这是一个静态方法，在主插件的 Load 中全局注册
     /// </summary>
-    private HookResult OnPlayerMakeSound(UserMessage um)
+    public static HookResult OnPlayerMakeSound(UserMessage um)
     {
         // 从声音接收者列表中移除所有失聪玩家
         foreach (var deafPlayer in _deafPlayers)

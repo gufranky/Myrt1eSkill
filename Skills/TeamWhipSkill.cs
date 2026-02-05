@@ -94,9 +94,13 @@ public class TeamWhipSkill : PlayerSkill
         if (plugin?.SkillManager == null)
             return null;
 
-        // 检查攻击者是否有鞭策队友技能
-        var attackerSkill = plugin.SkillManager.GetPlayerSkill(csAttackerController);
-        if (attackerSkill == null || attackerSkill.Name != "TeamWhip")
+        // 检查攻击者是否有鞭策队友技能（修复：检查所有技能）
+        var attackerSkills = plugin.SkillManager.GetPlayerSkills(csAttackerController);
+        if (attackerSkills.Count == 0)
+            return null;
+
+        var teamWhipSkill = attackerSkills.FirstOrDefault(s => s.Name == "TeamWhip");
+        if (teamWhipSkill == null)
             return null;
 
         // 获取伤害值

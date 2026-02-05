@@ -16,7 +16,7 @@ public class KeepMovingEvent : EntertainmentEvent
     // 伤害参数
     private const float DAMAGE_INTERVAL = 0.75f; // 伤害间隔（秒）
     private const int DAMAGE_AMOUNT = 10;         // 每次伤害量
-    private const float GRACE_PERIOD = 15.0f;     // 宽限期（秒）- 改为15秒
+    private const float GRACE_PERIOD = 30.0f;     // 宽限期（秒）- 改为30秒
 
     // 每个玩家的状态跟踪
     private readonly Dictionary<int, PlayerKeepMovingState> _playerStates = new();

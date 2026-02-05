@@ -82,18 +82,25 @@ public class MeitoSkill : PlayerSkill
             return;
         }
 
-        var skill = plugin.SkillManager.GetPlayerSkill(victim);
-        if (skill == null)
+        // 获取玩家的所有技能（修复：检查所有技能，而不是只检查第一个）
+        var skills = plugin.SkillManager.GetPlayerSkills(victim);
+        if (skills.Count == 0)
         {
             Console.WriteLine($"[名刀-DEBUG] {victim.PlayerName} 没有技能，返回");
             return;
         }
 
-        Console.WriteLine($"[名刀-DEBUG] {victim.PlayerName} 的技能: {skill.Name}");
+        Console.WriteLine($"[名刀-DEBUG] {victim.PlayerName} 拥有 {skills.Count} 个技能");
 
-        if (skill.Name != "Meito")
+        // 检查是否有名刀技能
+        var meitoSkill = skills.FirstOrDefault(s => s.Name == "Meito");
+        if (meitoSkill == null)
         {
-            Console.WriteLine($"[名刀-DEBUG] {victim.PlayerName} 的技能不是名刀，返回");
+            Console.WriteLine($"[名刀-DEBUG] {victim.PlayerName} 的技能中没有名刀");
+            foreach (var s in skills)
+            {
+                Console.WriteLine($"[名刀-DEBUG]   - {s.Name}: {s.DisplayName}");
+            }
             return;
         }
 
@@ -192,8 +199,14 @@ public class MeitoSkill : PlayerSkill
         if (plugin?.SkillManager == null)
             return;
 
-        var skill = plugin.SkillManager.GetPlayerSkill(victim);
-        if (skill == null || skill.Name != "Meito")
+        // 获取玩家的所有技能（修复：检查所有技能，而不是只检查第一个）
+        var skills = plugin.SkillManager.GetPlayerSkills(victim);
+        if (skills.Count == 0)
+            return;
+
+        // 检查是否有名刀技能
+        var meitoSkill = skills.FirstOrDefault(s => s.Name == "Meito");
+        if (meitoSkill == null)
             return;
 
         // 检查本回合是否触发过名刀

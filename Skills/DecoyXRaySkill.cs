@@ -29,6 +29,9 @@ public class DecoyXRaySkill : PlayerSkill
     // 追踪每回合是否已使用
     private readonly Dictionary<uint, bool> _usedThisRound = new();
 
+    // 追踪每回合已补充次数（最多补充2次）
+    private readonly Dictionary<uint, int> _replenishedCount = new();
+
     // 透视范围半径
     private const float XRAY_RANGE = 500.0f;
 
@@ -52,12 +55,14 @@ public class DecoyXRaySkill : PlayerSkill
 
         var slot = player.Index;
         _usedThisRound[slot] = false;
+        _replenishedCount[slot] = 0;
 
         // 给予3个诱饵弹
         GiveDecoyGrenades(player, 3);
 
         Console.WriteLine($"[透视诱饵弹] {player.PlayerName} 获得了透视诱饵弹能力");
         player.PrintToChat("💣 你获得了3个透视诱饵弹！投掷后显示范围敌人！");
+        player.PrintToChat("💡 投掷后可自动补充2次！");
     }
 
     public override void OnRevert(CCSPlayerController player)
@@ -67,6 +72,7 @@ public class DecoyXRaySkill : PlayerSkill
 
         var slot = player.Index;
         _usedThisRound.Remove(slot);
+        _replenishedCount.Remove(slot);
 
         Console.WriteLine($"[透视诱饵弹] {player.PlayerName} 失去了透视诱饵弹能力");
     }
@@ -148,6 +154,30 @@ public class DecoyXRaySkill : PlayerSkill
         {
             TriggerDecoyExplosion(player, decoy);
         });
+
+        // 自动补充诱饵弹（最多补充2次）
+        var slot = player.Index;
+        int currentCount = _replenishedCount.GetValueOrDefault(slot, 0);
+
+        if (currentCount < 2)
+        {
+            Server.NextFrame(() =>
+            {
+                if (player.IsValid && player.PawnIsAlive)
+                {
+                    GiveDecoyGrenades(player, 1);
+                    _replenishedCount[slot] = currentCount + 1;
+
+                    int remaining = 2 - (currentCount + 1);
+                    player.PrintToChat($"💣 诱饵弹已补充！({currentCount + 1}/2)，剩余补充次数: {remaining}");
+                    Console.WriteLine($"[透视诱饵弹] {player.PlayerName} 的诱饵弹已补充 ({currentCount + 1}/2)");
+                }
+            });
+        }
+        else
+        {
+            Console.WriteLine($"[透视诱饵弹] {player.PlayerName} 本回合已补充2次，不再补充");
+        }
     }
 
     /// <summary>

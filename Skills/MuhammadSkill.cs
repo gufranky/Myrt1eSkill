@@ -33,6 +33,7 @@ using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Entities.Constants;
 using CounterStrikeSharp.API.Modules.Memory;
+using CounterStrikeSharp.API.Modules.Memory.DynamicFunctions;
 using CounterStrikeSharp.API.Modules.Utils;
 
 namespace MyrtleSkill.Skills;
@@ -94,8 +95,12 @@ public class MuhammadSkill : PlayerSkill
         if (plugin?.SkillManager == null)
             return;
 
-        var skill = plugin.SkillManager.GetPlayerSkill(victim);
-        if (skill == null || skill.Name != "Muhammad")
+        var skills = plugin.SkillManager.GetPlayerSkills(victim);
+        if (skills.Count == 0)
+            return;
+
+        var muhammadSkill = skills.FirstOrDefault(s => s.Name == "Muhammad");
+        if (muhammadSkill == null)
             return;
 
         // 创建爆炸
@@ -127,74 +132,26 @@ public class MuhammadSkill : PlayerSkill
 
     /// <summary>
     /// 创建 HE 手雷抛射物
-    /// 参考 jRandomSkills 的 SkillUtils.CreateHEGrenadeProjectile 实现
+    /// 使用与爆炸射击技能相同的实现方式
     /// </summary>
     private static void CreateHEGrenadeProjectile(Vector pos, QAngle angle, Vector vel, int teamNum)
     {
-        // 使用 MemoryFunction 创建 HE 手雷抛射物
-        // 注意：这需要游戏数据签名 "HEGrenadeProjectile_CreateFunc"
-        // 如果签名不可用，这个技能将无法工作
-
-        // 由于我们没有这个签名，我们需要使用替代方法
-        // 在 EntitySpawned 监听器中修改创建的 HE 手雷
-
-        // 创建 HE 手雷实体
-        var grenade = Utilities.CreateEntityByName<CHEGrenade>("hegrenade_projectile");
-        if (grenade == null || !grenade.IsValid)
+        try
         {
-            Console.WriteLine("[穆罕默德] 无法创建 HE 手雷实体");
-            return;
-        }
-
-        // 设置位置
-        if (grenade.AbsOrigin != null)
-        {
-            grenade.AbsOrigin.X = pos.X;
-            grenade.AbsOrigin.Y = pos.Y;
-            grenade.AbsOrigin.Z = pos.Z;
-            Utilities.SetStateChanged(grenade, "CBaseEntity", "m_vecAbsOrigin");
-        }
-
-        // 设置角度
-        if (grenade.AbsRotation != null)
-        {
-            grenade.AbsRotation.X = angle.X;
-            grenade.AbsRotation.Y = angle.Y;
-            grenade.AbsRotation.Z = angle.Z;
-            Utilities.SetStateChanged(grenade, "CBaseEntity", "m_angRotation");
-        }
-
-        // 设置速度
-        if (grenade.Velocity != null)
-        {
-            grenade.Velocity.X = vel.X;
-            grenade.Velocity.Y = vel.Y;
-            grenade.Velocity.Z = vel.Z;
-            Utilities.SetStateChanged(grenade, "CBaseEntity", "m_vecVelocity");
-        }
-
-        // 设置队伍
-        grenade.TeamNum = (byte)teamNum;
-        Utilities.SetStateChanged(grenade, "CBaseEntity", "m_iTeamNum");
-
-        // 修改手雷属性，使其立即爆炸并造成大量伤害
-        // 注意：这些属性可能需要在 NextFrame 中设置
-        Server.NextFrame(() =>
-        {
-            if (!grenade.IsValid)
-                return;
-
-            // 设置伤害
-            // grenade.Damage = EXPLOSION_DAMAGE;  // 如果属性可用
-            // grenade.DmgRadius = EXPLOSION_RADIUS;  // 如果属性可用
-
-            // 设置立即爆炸
-            // grenade.DetonateTime = 0;  // 如果属性可用
+            // 使用 MemoryFunction 调用游戏原生函数创建 HE 手雷
+            // 这与爆炸射击技能使用相同的方式
+            var function = new MemoryFunctionWithReturn<IntPtr, IntPtr, IntPtr, IntPtr, IntPtr, IntPtr, IntPtr, int>(
+                GameData.GetSignature("HEGrenadeProjectile_CreateFunc")
+            );
+            // 参数6使用44（与爆炸射击和jRandomSkills保持一致）
+            function.Invoke(pos.Handle, angle.Handle, vel.Handle, vel.Handle, IntPtr.Zero, new IntPtr(44), teamNum);
 
             Console.WriteLine($"[穆罕默德] HE 手雷已创建，伤害：{EXPLOSION_DAMAGE}，半径：{EXPLOSION_RADIUS}");
-        });
-
-        grenade.DispatchSpawn();
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[穆罕默德] 创建HE手雷失败: {ex.Message}");
+        }
     }
 
     /// <summary>

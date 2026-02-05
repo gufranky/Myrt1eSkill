@@ -57,9 +57,13 @@ public class DisarmSkill : PlayerSkill
             weapon.Contains("decoy"))
             return;
 
-        // 检查攻击者是否有裁军技能
-        var skill = skillManager.GetPlayerSkill(attacker);
-        if (skill == null || skill.Name != "Disarm")
+        // 检查攻击者是否有裁军技能（修复：检查所有技能）
+        var attackerSkills = skillManager.GetPlayerSkills(attacker);
+        if (attackerSkills.Count == 0)
+            return;
+
+        var disarmSkill = attackerSkills.FirstOrDefault(s => s.Name == "Disarm");
+        if (disarmSkill == null)
             return;
 
         // 检查受害者是否存活

@@ -77,9 +77,13 @@ public class ToxicSmokeSkill : PlayerSkill
         if (player == null || !player.IsValid)
             return;
 
-        // 检查玩家是否有有毒烟雾弹技能
-        var skill = Plugin?.SkillManager.GetPlayerSkill(player);
-        if (skill?.Name != "ToxicSmoke")
+        // 检查玩家是否有有毒烟雾弹技能（修复：检查所有技能）
+        var skills = Plugin?.SkillManager.GetPlayerSkills(player);
+        if (skills == null || skills.Count == 0)
+            return;
+
+        var toxicSmokeSkill = skills.FirstOrDefault(s => s.Name == "ToxicSmoke");
+        if (toxicSmokeSkill == null)
             return;
 
         var slot = player.Index;
@@ -176,9 +180,13 @@ public class ToxicSmokeSkill : PlayerSkill
         if (player == null || !player.IsValid)
             return;
 
-        // 检查是否有有毒烟雾弹技能
-        var skill = Plugin?.SkillManager.GetPlayerSkill(player);
-        if (skill?.Name != "ToxicSmoke")
+        // 检查是否有有毒烟雾弹技能（修复：检查所有技能）
+        var skills = Plugin?.SkillManager.GetPlayerSkills(player);
+        if (skills == null || skills.Count == 0)
+            return;
+
+        var toxicSmokeSkill = skills.FirstOrDefault(s => s.Name == "ToxicSmoke");
+        if (toxicSmokeSkill == null)
             return;
 
         // 移除对应的烟雾弹记录

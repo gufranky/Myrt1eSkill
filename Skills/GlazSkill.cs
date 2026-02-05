@@ -97,7 +97,8 @@ public class GlazSkill : PlayerSkill
         if (skillManager == null)
             return false;
 
-        var skill = skillManager.GetPlayerSkill(player);
-        return skill?.Name == "Glaz";
+        // 检查玩家是否有格拉兹技能（修复：检查所有技能）
+        var skills = skillManager.GetPlayerSkills(player);
+        return skills.Any(s => s.Name == "Glaz");
     }
 }

@@ -74,9 +74,13 @@ public class FlashJumpSkill : PlayerSkill
         if (player == null || !player.IsValid)
             return;
 
-        // 检查玩家是否有闪光跳跃技能
-        var skill = Plugin?.SkillManager.GetPlayerSkill(player);
-        if (skill?.Name != "FlashJump")
+        // 检查玩家是否有闪光跳跃技能（修复：检查所有技能）
+        var skills = Plugin?.SkillManager.GetPlayerSkills(player);
+        if (skills == null || skills.Count == 0)
+            return;
+
+        var flashJumpSkill = skills.FirstOrDefault(s => s.Name == "FlashJump");
+        if (flashJumpSkill == null)
             return;
 
         // 检查计数器是否存在
@@ -145,9 +149,13 @@ public class FlashJumpSkill : PlayerSkill
         if (pawn == null || !pawn.IsValid)
             return;
 
-        // 检查投掷者是否有闪光跳跃技能
-        var attackerSkill = skillManager.GetPlayerSkill(attacker);
-        if (attackerSkill?.Name != "FlashJump")
+        // 检查投掷者是否有闪光跳跃技能（修复：检查所有技能）
+        var attackerSkills = skillManager.GetPlayerSkills(attacker);
+        if (attackerSkills.Count == 0)
+            return;
+
+        var flashJumpSkill = attackerSkills.FirstOrDefault(s => s.Name == "FlashJump");
+        if (flashJumpSkill == null)
             return;
 
         // 获取致盲持续时间
