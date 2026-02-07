@@ -100,7 +100,11 @@ public class UnluckyCouplesEvent : EntertainmentEvent
     {
         Console.WriteLine("[苦命鸳鸯] 事件已恢复，开始清理");
 
-        // 1. 先移除监听器（防止继续应用效果）
+        // 1. 首先取消激活标志，阻止所有监听器继续工作
+        // 这样即使OnPlayerSpawn的NextFrame回调被调用，也不会创建新实体
+        _pairs.Clear();
+
+        // 2. 先移除监听器（防止继续应用效果）
         if (Plugin != null)
         {
             Plugin.RemoveListener<Listeners.CheckTransmit>(OnCheckTransmit);
@@ -109,7 +113,7 @@ public class UnluckyCouplesEvent : EntertainmentEvent
             Console.WriteLine("[苦命鸳鸯] 已移除所有事件监听器");
         }
 
-        // 2. 移除所有发光效果（通过索引重新获取实体，与 WoodManSkill 一致）
+        // 3. 移除所有发光效果（通过索引重新获取实体，与 WoodManSkill 一致）
         int removedCount = 0;
         foreach (var (slot, (relayIndex, glowIndex)) in _glowingPlayers)
         {
@@ -133,11 +137,7 @@ public class UnluckyCouplesEvent : EntertainmentEvent
         _glowingPlayers.Clear();
         Console.WriteLine($"[苦命鸳鸯] 已清理所有发光效果，共移除 {removedCount} 个实体");
 
-        // 3. 清空配对
-        _pairs.Clear();
-        Console.WriteLine($"[苦命鸳鸯] 已清空所有配对关系");
-
-        // 显示提示
+        // 4. 显示提示
         foreach (var player in Utilities.GetPlayers())
         {
             if (player.IsValid)
@@ -423,15 +423,21 @@ public class UnluckyCouplesEvent : EntertainmentEvent
         if (player == null || !player.IsValid || !player.PawnIsAlive)
             return HookResult.Continue;
 
-        // 如果玩家在配对中，重新添加发光效果（但不重新配对）
-        if (_pairs.ContainsKey(player.Slot))
+        // ✅ 增加检查：玩家必须在配对中
+        // 如果事件已经被恢复（_pairs已清空），这里会返回false
+        if (!_pairs.ContainsKey(player.Slot))
+            return HookResult.Continue;
+
+        Server.NextFrame(() =>
         {
-            Server.NextFrame(() =>
+            // ✅ 再次检查：确保玩家仍在配对中且事件仍然激活
+            // 防止在OnRevert之后才执行，导致创建新的发光实体
+            if (_pairs.ContainsKey(player.Slot))
             {
                 RemoveGlowFromPlayer(player);
                 ApplyGlowToPlayer(player);
-            });
-        }
+            }
+        });
 
         return HookResult.Continue;
     }
