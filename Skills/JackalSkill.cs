@@ -52,8 +52,8 @@ public class JackalSkill : PlayerSkill
         player.PrintToChat("🦊 你获得了豺狼技能！");
         player.PrintToChat("💡 所有敌人身后会留下轨迹，显示他们最近10秒的移动路径！");
 
-        // 注册 OnTick 监听（如果有玩家使用豺狼技能）
-        if (_playerPositions.Count > 0 && Plugin != null)
+        // 注册 OnTick 监听（无条件注册，确保开始记录位置）
+        if (Plugin != null)
         {
             Plugin.RegisterListener<Listeners.OnTick>(OnTick);
         }
