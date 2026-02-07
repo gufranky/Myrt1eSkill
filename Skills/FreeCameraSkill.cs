@@ -13,13 +13,13 @@ using System.Drawing;
 namespace MyrtleSkill.Skills;
 
 /// <summary>
-/// 自由视角技能 - 点击激活，WASD控制摄像头移动，玩家本体不移动
+/// 检查扫描技能 - 点击激活，WASD控制摄像头移动，5秒后自动退出并标记敌人
 /// </summary>
 public class FreeCameraSkill : PlayerSkill
 {
     public override string Name => "FreeCamera";
-    public override string DisplayName => "📷 自由视角";
-    public override string Description => "点击激活自由视角！WASD控制摄像头移动，玩家本体不移动！再次点击退出！";
+    public override string DisplayName => "🔍 检查扫描";
+    public override string Description => "点击激活检查扫描！WASD控制摄像头移动，5秒后自动退出并标记敌人！";
     public override bool IsActive => true; // 主动技能
     public override float Cooldown => 0.0f; // 0秒冷却
 
@@ -53,12 +53,12 @@ public class FreeCameraSkill : PlayerSkill
 
     public override void OnApply(CCSPlayerController player)
     {
-        Console.WriteLine($"[自由视角] {player.PlayerName} 获得了自由视角技能");
+        Console.WriteLine($"[检查扫描] {player.PlayerName} 获得了检查扫描技能");
 
-        player.PrintToChat("📷 你获得了自由视角技能！");
-        player.PrintToChat("💡 点击技能键激活自由视角！");
+        player.PrintToChat("🔍 你获得了检查扫描技能！");
+        player.PrintToChat("💡 点击技能键激活检查扫描！");
         player.PrintToChat("🎮 WASD移动摄像头，鼠标控制视角");
-        player.PrintToChat("⚠️ 玩家本体不会移动！再次点击退出！");
+        player.PrintToChat("⚠️ 玩家本体不会移动！5秒后自动退出并标记敌人！");
     }
 
     public override void OnRevert(CCSPlayerController player)
@@ -67,7 +67,7 @@ public class FreeCameraSkill : PlayerSkill
         ExitFreeCamera(player);
         _playerCameras.TryRemove(player.SteamID, out _);
 
-        Console.WriteLine($"[自由视角] {player.PlayerName} 失去了自由视角技能");
+        Console.WriteLine($"[检查扫描] {player.PlayerName} 失去了检查扫描技能");
     }
 
     public override void OnUse(CCSPlayerController player)
@@ -75,7 +75,7 @@ public class FreeCameraSkill : PlayerSkill
         if (player == null || !player.IsValid || !player.PawnIsAlive)
             return;
 
-        Console.WriteLine($"[自由视角] {player.PlayerName} 使用了自由视角技能");
+        Console.WriteLine($"[检查扫描] {player.PlayerName} 使用了检查扫描技能");
 
         // 切换自由视角状态
         if (_playerCameras.TryGetValue(player.SteamID, out var cameraInfo) && cameraInfo.IsActive)
@@ -165,8 +165,8 @@ public class FreeCameraSkill : PlayerSkill
             Plugin.RegisterListener<Listeners.OnTick>(OnTick);
         }
 
-        player.PrintToCenter($"📷 自由视角 {FREE_CAMERA_DURATION}秒！WASD移动");
-        player.PrintToChat($"📷 自由视角已激活！{FREE_CAMERA_DURATION}秒后自动退出并标记敌人！");
+        player.PrintToCenter($"🔍 检查扫描 {FREE_CAMERA_DURATION}秒！WASD移动");
+        player.PrintToChat($"🔍 检查扫描已激活！{FREE_CAMERA_DURATION}秒后自动退出并标记敌人！");
     }
 
     /// <summary>
@@ -198,8 +198,8 @@ public class FreeCameraSkill : PlayerSkill
         var visibleEnemies = GetVisibleEnemies(cameraInfo.Position, cameraInfo.Angle, player);
         if (visibleEnemies.Count > 0)
         {
-            player.PrintToCenter($"📷 已退出自由视角！标记 {visibleEnemies.Count} 个敌人！");
-            player.PrintToChat($"📷 视野内发现 {visibleEnemies.Count} 个敌人！标记 {GLOW_DURATION} 秒！");
+            player.PrintToCenter($"🔍 扫描完成！标记 {visibleEnemies.Count} 个敌人！");
+            player.PrintToChat($"🔍 扫描内发现 {visibleEnemies.Count} 个敌人！标记 {GLOW_DURATION} 秒！");
 
             // 对每个敌人施加透视效果
             foreach (var enemy in visibleEnemies)
@@ -209,7 +209,7 @@ public class FreeCameraSkill : PlayerSkill
 
             // 显示所有被标记的敌人名称
             string enemyNames = string.Join(", ", visibleEnemies.Select(e => e.PlayerName));
-            Server.PrintToChatAll($"📷 {player.PlayerName} 从自由视角发现了: {enemyNames}！");
+            Server.PrintToChatAll($"🔍 {player.PlayerName} 检查扫描发现了: {enemyNames}！");
 
             // 持续 3 秒后移除发光效果
             Plugin?.AddTimer(GLOW_DURATION, () =>
@@ -217,14 +217,14 @@ public class FreeCameraSkill : PlayerSkill
                 RemoveGlowEffects();
                 if (player.IsValid)
                 {
-                    player.PrintToChat("📷 透视标记已消失！");
+                    player.PrintToChat("🔍 透视标记已消失！");
                 }
             });
         }
         else
         {
-            player.PrintToCenter("📷 已退出自由视角");
-            player.PrintToChat("📷 自由视角已退出！");
+            player.PrintToCenter("🔍 扫描完成");
+            player.PrintToChat("🔍 检查扫描已完成！");
         }
 
         // 如果没有玩家使用自由视角，移除监听
@@ -276,7 +276,7 @@ public class FreeCameraSkill : PlayerSkill
                 var p = Utilities.GetPlayers().FirstOrDefault(p => p.SteamID == steamID);
                 if (p != null && p.IsValid)
                 {
-                    p.PrintToCenter($"📷 剩余时间: {remainingTime:F1}秒");
+                    p.PrintToCenter($"🔍 剩余时间: {remainingTime:F1}秒");
                 }
             }
 
@@ -532,7 +532,7 @@ public class FreeCameraSkill : PlayerSkill
             if (success)
             {
                 _glowingEnemies[enemy.Slot] = (relayIndex, glowIndex);
-                Console.WriteLine($"[自由视角] 为 {enemy.PlayerName} 添加透视发光效果");
+                Console.WriteLine($"[检查扫描] 为 {enemy.PlayerName} 添加透视发光效果");
 
                 // 注册 CheckTransmit 监听器
                 if (Plugin != null && _glowingEnemies.Count == 1)
@@ -543,7 +543,7 @@ public class FreeCameraSkill : PlayerSkill
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[自由视角] 添加发光效果时出错: {ex.Message}");
+            Console.WriteLine($"[检查扫描] 添加发光效果时出错: {ex.Message}");
         }
     }
 
@@ -639,7 +639,7 @@ public class FreeCameraSkill : PlayerSkill
         }
 
         _glowingEnemies.Clear();
-        Console.WriteLine("[自由视角] 已移除所有发光效果");
+        Console.WriteLine("[检查扫描] 已移除所有发光效果");
 
         // 移除 CheckTransmit 监听器
         Plugin?.RemoveListener<Listeners.CheckTransmit>(OnCheckTransmit);
