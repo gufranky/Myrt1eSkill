@@ -6,13 +6,13 @@ using CounterStrikeSharp.API.Modules.Memory;
 namespace MyrtleSkill.Events;
 
 /// <summary>
-/// 反向爆头事件 - 所有玩家受到的伤害：头部4倍，身体1/4倍
+/// 反向爆头事件 - 所有玩家受到的伤害：头部1/4倍，身体4倍
 /// </summary>
 public class InverseHeadshotEvent : EntertainmentEvent
 {
     public override string Name => "InverseHeadshot";
     public override string DisplayName => "🎯 反向爆头";
-    public override string Description => "头部伤害变为 4 倍！身体伤害变为 1/4 倍！";
+    public override string Description => "头部伤害变为 1/4 倍！身体伤害变为 4 倍！";
 
     // 命中部位（使用 HitGroup_t 枚举）
     private const HitGroup_t HITGROUP_HEAD = HitGroup_t.HITGROUP_HEAD;
@@ -26,8 +26,8 @@ public class InverseHeadshotEvent : EntertainmentEvent
             if (player.IsValid)
             {
                 player.PrintToChat("🎯 反向爆头事件已激活！");
-                player.PrintToChat("💡 头部伤害变为 4 倍！");
-                player.PrintToChat("💡 身体伤害变为 1/4 倍！");
+                player.PrintToChat("💡 头部伤害变为 1/4 倍！");
+                player.PrintToChat("💡 身体伤害变为 4 倍！");
             }
         }
     }
@@ -55,14 +55,14 @@ public class InverseHeadshotEvent : EntertainmentEvent
         float damageMultiplier;
         if (hitgroup == HITGROUP_HEAD)
         {
-            // 头部伤害：4 倍
-            damageMultiplier = 4.0f;
+            // 头部伤害：1/4 倍
+            damageMultiplier = 0.25f;
             Console.WriteLine($"[反向爆头] 命中头部，伤害倍数: {damageMultiplier}");
         }
         else
         {
-            // 身体伤害：1/4 倍
-            damageMultiplier = 0.25f;
+            // 身体伤害：4 倍
+            damageMultiplier = 4.0f;
             Console.WriteLine($"[反向爆头] 命中身体，伤害倍数: {damageMultiplier}");
         }
 
