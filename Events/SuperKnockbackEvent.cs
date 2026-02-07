@@ -128,7 +128,7 @@ public class SuperKnockbackEvent : EntertainmentEvent
         float knockbackZ = directionZ * scale;
 
         // 稍微向上的分量，让敌人被击飞到空中
-        knockbackZ += 100.0f;
+        knockbackZ += 200.0f;
 
         // 累加到受害者当前速度
         float newVelocityX = victimPawn.AbsVelocity.X + knockbackX;

@@ -21,6 +21,7 @@ using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Cvars;
 using CounterStrikeSharp.API.Modules.Commands;
+using CounterStrikeSharp.API.Modules.Memory.DynamicFunctions;
 using CounterStrikeSharp.API.Modules.Utils;
 using CounterStrikeSharp.API.Modules.UserMessages;
 using MyrtleSkill.Core;
@@ -113,6 +114,7 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         RegisterEventHandler<EventBombAbortplant>(OnBombAbortPlant, HookMode.Pre);
         RegisterEventHandler<EventBombPlanted>(OnBombPlanted, HookMode.Post);
         RegisterEventHandler<EventItemPickup>(OnItemPickup, HookMode.Pre);
+        RegisterEventHandler<EventItemEquip>(OnItemEquip, HookMode.Pre);
         RegisterEventHandler<EventDecoyStarted>(OnDecoyStarted, HookMode.Post);
         RegisterEventHandler<EventSmokegrenadeDetonate>(OnSmokegrenadeDetonate, HookMode.Post);
         RegisterEventHandler<EventSmokegrenadeExpired>(OnSmokegrenadeExpired, HookMode.Post);
@@ -124,6 +126,12 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         RegisterListener<Listeners.OnEntitySpawned>(OnEntitySpawned);
         RegisterListener<Listeners.CheckTransmit>(OnCheckTransmit);
         RegisterListener<Listeners.OnTick>(OnTick);  // 添加 OnTick 监听器
+
+        // 注册实体伤害Hook（用于全息图等技能）
+        CounterStrikeSharp.API.Modules.Memory.VirtualFunctions.CBaseEntity_TakeDamageOldFunc.Hook(OnEntityTakeDamage, HookMode.Pre);
+
+        // 注册用户消息Hook（用于沉默技能等）
+        HookUserMessage(208, OnPlayerMakeSound);
 
         // 注册命令
         RegisterCommands();
@@ -166,6 +174,15 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
         // 0.4 清理名刀使用记录
         Skills.MeitoSkill.OnRoundStart();
+
+        // 0.5 清理全息图
+        Skills.HologramSkill.ClearAllHolograms();
+
+        // 0.6 清理鬼状态
+        Skills.GhostSkill.ClearAllGhosts();
+
+        // 0.7 清理杀人无敌记录
+        Skills.KillInvincibilitySkill.OnRoundStart();
 
         // 1. 首先重置技能禁用标志（新回合开始）
         DisableSkillsThisRound = false;
@@ -336,11 +353,17 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             var heavyArmorSkill = skills.FirstOrDefault(s => s.Name == "HeavyArmor");
             if (heavyArmorSkill != null)
             {
+                Console.WriteLine($"[重甲战士] 检测到玩家 {csController.PlayerName} 拥有重甲战士技能");
                 var heavyArmor = (Skills.HeavyArmorSkill)heavyArmorSkill;
                 float? heavyArmorMultiplier = heavyArmor?.HandleDamage(player, info);
                 if (heavyArmorMultiplier.HasValue)
                 {
+                    Console.WriteLine($"[重甲战士] 应用伤害减免: {heavyArmorMultiplier.Value * 100}%");
                     totalMultiplier *= heavyArmorMultiplier.Value;
+                }
+                else
+                {
+                    Console.WriteLine($"[重甲战士] HandleDamage 返回 null");
                 }
             }
         }
@@ -433,6 +456,9 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             }
         }
 
+        // 处理杀人无敌技能（击杀者获得无敌）
+        Skills.KillInvincibilitySkill.HandlePlayerDeath(@event);
+
         return HookResult.Continue;
     }
 
@@ -477,6 +503,20 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
         // 处理裁军技能
         Skills.DisarmSkill.HandlePlayerHurt(@event, SkillManager);
+
+        // 处理全息图技能（玩家受伤时销毁全息图）
+        Skills.HologramSkill.HandlePlayerHurt(player);
+
+        // 处理鬼技能（玩家受伤或造成伤害显形）
+        Skills.GhostSkill.HandlePlayerHurt(@event);
+        Skills.GhostSkill.HandlePlayerDamaged(player);
+
+        // 处理杀人无敌技能（无敌期间保护）
+        Skills.KillInvincibilitySkill.HandlePlayerHurt(@event);
+
+        // 处理推手技能（击退敌人）
+        var pushSkill = (Skills.PushSkill?)SkillManager.GetSkill("Push");
+        pushSkill?.HandlePlayerHurt(@event);
 
         return HookResult.Continue;
     }
@@ -736,6 +776,21 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         if (player == null || !player.IsValid)
             return HookResult.Continue;
 
+        // 处理鬼技能（禁用武器攻击）
+        Skills.GhostSkill.HandleWeaponPickup(player);
+
+        return HookResult.Continue;
+    }
+
+    private HookResult OnItemEquip(EventItemEquip @event, GameEventInfo info)
+    {
+        var player = @event.Userid;
+        if (player == null || !player.IsValid)
+            return HookResult.Continue;
+
+        // 处理鬼技能（禁用武器攻击）
+        Skills.GhostSkill.HandleWeaponEquip(player);
+
         return HookResult.Continue;
     }
 
@@ -796,11 +851,27 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         var darknessSkill = (Skills.DarknessSkill?)SkillManager.GetSkill("Darkness");
         darknessSkill?.OnTick();
 
+        // 处理超级闪光技能（检查持续时间）
+        var superFlashSkill = (Skills.SuperFlashSkill?)SkillManager.GetSkill("SuperFlash");
+        superFlashSkill?.OnTick();
+
         // 处理永动机事件
         if (CurrentEvent is KeepMovingEvent keepMovingEvent)
         {
             keepMovingEvent.OnTick();
         }
+
+        // 处理击中交换事件（清理交换冷却）
+        if (CurrentEvent is SwapOnHitEvent swapOnHitEvent)
+        {
+            swapOnHitEvent.OnTick();
+        }
+
+        // 处理鬼技能（清理死亡的玩家）
+        Skills.GhostSkill.OnTick();
+
+        // 处理杀人无敌技能（清理过期的无敌状态）
+        Skills.KillInvincibilitySkill.OnTick();
     }
 
     /// <summary>
@@ -849,11 +920,52 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
     }
 
     /// <summary>
+    /// 处理实体受到伤害（用于全息图等技能）
+    /// </summary>
+    private HookResult OnEntityTakeDamage(DynamicHook hook)
+    {
+        // 获取伤害参数
+        var entity = hook.GetParam<CEntityInstance>(0);
+        var info = hook.GetParam<CTakeDamageInfo>(1);
+
+        if (entity == null || info == null)
+            return HookResult.Continue;
+
+        // 处理全息图克隆体受到伤害
+        if (entity.Entity?.Name?.StartsWith("HologramClone_") == true)
+        {
+            Skills.HologramSkill.HandleCloneDamage(entity, info);
+        }
+
+        return HookResult.Continue;
+    }
+
+    /// <summary>
+    /// 处理玩家发出声音事件（用于沉默技能和聋技能）
+    /// 拦截脚步声和跳跃声，处理失聪玩家
+    /// </summary>
+    private HookResult OnPlayerMakeSound(UserMessage um)
+    {
+        // 先处理聋技能（移除失聪玩家）
+        var deafSkill = (Skills.DeafSkill?)SkillManager.GetSkill("Deaf");
+        deafSkill?.HandlePlayerMakeSound(um);
+
+        // 再处理沉默技能（检查是否有沉默技能玩家）
+        Skills.SilentSkill.PlayerMakeSound(um);
+
+        return HookResult.Continue;
+    }
+
+    /// <summary>
     /// 检查传输时控制烟雾弹的可见性（格拉兹技能）
     /// </summary>
     private void OnCheckTransmit(CCheckTransmitInfoList infoList)
     {
+        // 处理格拉兹技能（烟雾弹可见性）
         Skills.GlazSkill.OnCheckTransmit(infoList);
+
+        // 处理鬼技能（隐形）
+        Skills.GhostSkill.OnCheckTransmit(infoList);
     }
 
     /// <summary>

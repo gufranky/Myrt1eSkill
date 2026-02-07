@@ -87,6 +87,11 @@ public class PlayerSkillManager
         RegisterSkill(new WallhackSkill());      // 透视技能
         RegisterSkill(new DeafSkill());          // 失聪技能
         RegisterSkill(new BigStomachSkill());    // 大胃袋技能
+        RegisterSkill(new HologramSkill());      // 全息图技能
+        RegisterSkill(new GhostSkill());          // 鬼技能
+        RegisterSkill(new KillInvincibilitySkill()); // 杀人无敌技能
+        RegisterSkill(new SilentSkill());        // 沉默技能
+        RegisterSkill(new PushSkill());           // 推手技能
 
         Console.WriteLine("[技能管理器] 已注册 " + _skills.Count + " 个玩家技能");
     }

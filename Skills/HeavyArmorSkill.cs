@@ -76,19 +76,10 @@ public class HeavyArmorSkill : PlayerSkill
         if (controller == null || !controller.IsValid)
             return null;
 
-        // 检查玩家是否有重甲战士技能
         if (controller is not CCSPlayerController csController)
             return null;
 
-        var skills = Plugin?.SkillManager.GetPlayerSkills(csController);
-        if (skills == null || skills.Count == 0)
-            return null;
-
-        var skill = skills.FirstOrDefault(s => s.Name == "HeavyArmor");
-        if (skill == null)
-            return null;
-
-        // 应用伤害减免
+        // 应用伤害减免（此方法只在主插件确认玩家有此技能时才调用）
         float multiplier = 1.0f - DAMAGE_REDUCTION; // 0.4倍伤害
 
         Console.WriteLine($"[重甲战士] {csController.PlayerName} 受到伤害，应用减免: {multiplier * 100}%");

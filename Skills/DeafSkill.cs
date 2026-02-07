@@ -110,10 +110,10 @@ public class DeafSkill : PlayerSkill
         // 记录失聪玩家和结束时间
         _deafPlayers[target] = Server.CurrentTime + DEAF_DURATION;
 
-        // 如果这是第一个失聪玩家，注册 UserMessage 监听
+        // 如果这是第一个失聪玩家，注册 OnTick 监听
+        // 注意：不再需要 HookUserMessage，因为主插件已经全局注册了
         if (_deafPlayers.Count == 1)
         {
-            Plugin.HookUserMessage(208, OnPlayerMakeSound);
             Plugin.RegisterListener<Listeners.OnTick>(OnTick);
         }
 
@@ -130,12 +130,13 @@ public class DeafSkill : PlayerSkill
         // 移除所有失聪玩家
         _deafPlayers.Clear();
 
-        // 移除监听
+        // 移除 OnTick 监听（不再需要 UnhookUserMessage，因为主插件会一直注册）
         if (hadDeafPlayers && Plugin != null)
         {
-            Plugin.UnhookUserMessage(208, OnPlayerMakeSound);
             Plugin.RemoveListener<Listeners.OnTick>(OnTick);
         }
+
+        Console.WriteLine($"[失聪] 已移除所有失聪效果");
     }
 
     /// <summary>
@@ -164,19 +165,19 @@ public class DeafSkill : PlayerSkill
             Console.WriteLine($"[失聪] {player.PlayerName} 的失聪效果已过期");
         }
 
-        // 如果没有失聪玩家了，移除监听
+        // 如果没有失聪玩家了，移除 OnTick 监听
+        // 注意：不再需要 UnhookUserMessage，因为主插件会一直注册 Hook 208
         if (_deafPlayers.Count == 0 && Plugin != null)
         {
-            Plugin.UnhookUserMessage(208, OnPlayerMakeSound);
             Plugin.RemoveListener<Listeners.OnTick>(OnTick);
         }
     }
 
     /// <summary>
-    /// 拦截声音 UserMessage，移除失聪玩家
-    /// 参考 jRandomSkills Deaf 技能的 PlayerMakeSound 实现
+    /// 处理声音 UserMessage，移除失聪玩家
+    /// 由主插件统一调用，不再自己注册 Hook
     /// </summary>
-    private HookResult OnPlayerMakeSound(UserMessage um)
+    public void HandlePlayerMakeSound(UserMessage um)
     {
         // 从声音接收者列表中移除所有失聪玩家
         foreach (var deafPlayer in _deafPlayers.Keys)
@@ -186,7 +187,5 @@ public class DeafSkill : PlayerSkill
                 um.Recipients.Remove(deafPlayer);
             }
         }
-
-        return HookResult.Continue;
     }
 }
