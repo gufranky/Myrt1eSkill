@@ -130,12 +130,20 @@ public class WoodManSkill : PlayerSkill
     {
         for (int i = (int)duration; i > 0; i--)
         {
+            // 捕获循环变量的副本，避免闭包问题
+            int countdown = i;
+
             Plugin?.AddTimer(duration - i, () =>
             {
                 if (player != null && player.IsValid && player.PawnIsAlive)
                 {
-                    player.PrintToCenter($"🪵 倒数: {i}秒");
-                    player.PrintToChat($"🪵 {i}秒后将开始检测移动！");
+                    // 使用HUD显示
+                    string htmlContent = $"<div style='background-color: rgba(255, 165, 0, 0.8); border: 3px solid #FFFF00; border-radius: 8px; padding: 20px 40px; text-align: center;'>"
+                        + $"<font class='fontWeight-Bold fontSize-xl' color='#FFFFFF'>🪵 {countdown} 秒后开始检测移动！</font><br>"
+                        + $"<font class='fontSize-ml' color='#FFFF00'>保持不动！</font>"
+                        + $"</div>";
+
+                    player.PrintToCenterHtml(htmlContent);
                 }
             });
         }
@@ -182,7 +190,12 @@ public class WoodManSkill : PlayerSkill
             var player = kvp.Value.Player;
             if (player != null && player.IsValid)
             {
-                player.PrintToCenter("🪵 保持不动！");
+                string htmlContent = $"<div style='background-color: rgba(255, 0, 0, 0.8); border: 3px solid #FF0000; border-radius: 8px; padding: 20px 40px; text-align: center;'>"
+                    + $"<font class='fontWeight-Bold fontSize-xl' color='#FFFFFF'>🪵 保持不动！</font><br>"
+                    + $"<font class='fontSize-ml' color='#FFFF00'>3秒内移动将被透视！</font>"
+                    + $"</div>";
+
+                player.PrintToCenterHtml(htmlContent);
                 player.PrintToChat("🪵 木头人技能生效！3秒内移动将被透视！");
             }
         }
@@ -248,7 +261,12 @@ public class WoodManSkill : PlayerSkill
                 ApplyGlowToEnemy(info.Player);
 
                 // 提示玩家
-                info.Player.PrintToCenter("🪵 你移动了！被透视3秒！");
+                string htmlContent = $"<div style='background-color: rgba(255, 0, 0, 0.8); border: 3px solid #FF0000; border-radius: 8px; padding: 20px 40px; text-align: center;'>"
+                    + $"<font class='fontWeight-Bold fontSize-xl' color='#FFFFFF'>🪵 你移动了！</font><br>"
+                    + $"<font class='fontSize-ml' color='#FFFF00'>被透视{GLOW_DURATION}秒！</font>"
+                    + $"</div>";
+
+                info.Player.PrintToCenterHtml(htmlContent);
                 info.Player.PrintToChat("🪵 你移动了！被透视3秒！");
 
                 Console.WriteLine($"[木头人] {info.Player.PlayerName} 移动了，施加透视");
