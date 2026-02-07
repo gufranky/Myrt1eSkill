@@ -178,6 +178,9 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 0.26 清理木头人使用记录
         Skills.WoodManSkill.OnRoundStart();
 
+        // 0.27 ZRY技能
+        Skills.ZRYSkill.OnRoundStart();
+
         // 0.3 清理格拉兹烟雾弹追踪
         Skills.GlazSkill.OnRoundStart();
 
@@ -623,6 +626,25 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         {
             var frozenDecoy = (Skills.FrozenDecoySkill)frozenDecoySkill;
             frozenDecoy.OnDecoyStarted(@event);
+        }
+
+        // 处理ZRY技能
+        var zrySkill = skills.FirstOrDefault(s => s.Name == "ZRY");
+        if (zrySkill != null)
+        {
+            var zry = (Skills.ZRYSkill)zrySkill;
+
+            // 查找诱饵弹实体
+            var decoyEntities = Utilities.FindAllEntitiesByDesignerName<CDecoyGrenade>("decoy_projectile");
+            if (decoyEntities.Any())
+            {
+                // 获取最后一个投掷的诱饵弹
+                var decoy = decoyEntities.LastOrDefault(d => d.IsValid);
+                if (decoy != null)
+                {
+                    zry.OnDecoyThrown(player, decoy);
+                }
+            }
         }
 
         return HookResult.Continue;

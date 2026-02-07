@@ -105,6 +105,7 @@ public class PlayerSkillManager
         RegisterSkill(new ThirdEyeSkill());        // 第三只眼技能
         RegisterSkill(new FreeCameraSkill());      // 自由视角技能
         RegisterSkill(new WoodManSkill());         // 木头人技能
+        RegisterSkill(new ZRYSkill());             // ZRY技能
 
         Console.WriteLine("[技能管理器] 已注册 " + _skills.Count + " 个玩家技能");
     }
