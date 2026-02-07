@@ -5,13 +5,13 @@ using CounterStrikeSharp.API.Modules.Cvars;
 namespace MyrtleSkill;
 
 /// <summary>
-/// 慢动作事件 - 游戏速度变为0.5倍
+/// 慢动作事件 - 游戏速度变为0.7倍
 /// </summary>
 public class SlowMotionEvent : EntertainmentEvent
 {
     public override string Name => "SlowMotion";
     public override string DisplayName => "🎬 慢动作";
-    public override string Description => "游戏速度变为0.5倍！一切都变慢了！";
+    public override string Description => "游戏速度变为0.7倍！一切都变慢了！";
 
     // ConVars
     private ConVar? _timescaleConVar;
@@ -21,13 +21,13 @@ public class SlowMotionEvent : EntertainmentEvent
     {
         Console.WriteLine("[慢动作] 事件已激活");
 
-        // 设置游戏时间流速为0.5倍
+        // 设置游戏时间流速为0.7倍
         _timescaleConVar = ConVar.Find("host_timescale");
         if (_timescaleConVar != null)
         {
             _originalTimescale = _timescaleConVar.GetPrimitiveValue<float>();
-            _timescaleConVar.SetValue(0.5f);
-            Console.WriteLine($"[慢动作] host_timescale 已设置为 0.5 (原值: {_originalTimescale})");
+            _timescaleConVar.SetValue(0.7f);
+            Console.WriteLine($"[慢动作] host_timescale 已设置为 0.7 (原值: {_originalTimescale})");
         }
         else
         {
