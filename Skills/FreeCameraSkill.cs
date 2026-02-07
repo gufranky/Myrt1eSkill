@@ -29,9 +29,13 @@ public class FreeCameraSkill : PlayerSkill
     // 视野检测参数
     private const float MAX_VIEW_DISTANCE = 2000.0f;  // 最大视野距离
     private const float FOV_THRESHOLD = 0.707f;      // 视野角度阈值（90度）
+    private const float GLOW_DURATION = 3.0f;         // 透视标记持续时间（秒）
 
     // 跟踪每个玩家的摄像头状态
     private readonly ConcurrentDictionary<ulong, FreeCameraInfo> _playerCameras = new();
+
+    // 跟踪发光效果的敌人
+    private readonly Dictionary<int, (int relayIndex, int glowIndex)> _glowingEnemies = new();
 
     // 摄像头信息
     private class FreeCameraInfo
@@ -181,8 +185,38 @@ public class FreeCameraSkill : PlayerSkill
         // 标记为未激活
         cameraInfo.IsActive = false;
 
-        player.PrintToCenter("📷 已退出自由视角");
-        player.PrintToChat("📷 自由视角已退出！");
+        // 检测视野内的敌人并施加透视效果
+        var visibleEnemies = GetVisibleEnemies(cameraInfo.Position, cameraInfo.Angle, player);
+        if (visibleEnemies.Count > 0)
+        {
+            player.PrintToCenter($"📷 已退出自由视角！标记 {visibleEnemies.Count} 个敌人！");
+            player.PrintToChat($"📷 视野内发现 {visibleEnemies.Count} 个敌人！标记 {GLOW_DURATION} 秒！");
+
+            // 对每个敌人施加透视效果
+            foreach (var enemy in visibleEnemies)
+            {
+                ApplyGlowToEnemy(enemy);
+            }
+
+            // 显示所有被标记的敌人名称
+            string enemyNames = string.Join(", ", visibleEnemies.Select(e => e.PlayerName));
+            Server.PrintToChatAll($"📷 {player.PlayerName} 从自由视角发现了: {enemyNames}！");
+
+            // 持续 3 秒后移除发光效果
+            Plugin?.AddTimer(GLOW_DURATION, () =>
+            {
+                RemoveGlowEffects();
+                if (player.IsValid)
+                {
+                    player.PrintToChat("📷 透视标记已消失！");
+                }
+            });
+        }
+        else
+        {
+            player.PrintToCenter("📷 已退出自由视角");
+            player.PrintToChat("📷 自由视角已退出！");
+        }
 
         // 如果没有玩家使用自由视角，移除监听
         if (!_playerCameras.Any(kvp => kvp.Value.IsActive) && Plugin != null)
@@ -302,17 +336,6 @@ public class FreeCameraSkill : PlayerSkill
                 cameraInfo.Angle.Y = playerPawn.EyeAngles.Y;
                 cameraInfo.Angle.Z = playerPawn.EyeAngles.Z;
             }
-
-            // 每10帧检测一次视野内的玩家（避免性能问题）
-            if (Server.TickCount % 10 == 0)
-            {
-                var visiblePlayers = GetVisiblePlayers(cameraInfo.Position, cameraInfo.Angle, player);
-                if (visiblePlayers.Count > 0)
-                {
-                    string playerNames = string.Join(", ", visiblePlayers.Select(p => p.PlayerName));
-                    player.PrintToCenter($"👁️ 视野内: {playerNames}");
-                }
-            }
         }
     }
 
@@ -428,11 +451,11 @@ public class FreeCameraSkill : PlayerSkill
     }
 
     /// <summary>
-    /// 获取所有在摄像头视野内的玩家
+    /// 获取所有在摄像头视野内的敌人
     /// </summary>
-    private List<CCSPlayerController> GetVisiblePlayers(Vector cameraPos, QAngle cameraAngle, CCSPlayerController observer)
+    private List<CCSPlayerController> GetVisibleEnemies(Vector cameraPos, QAngle cameraAngle, CCSPlayerController observer)
     {
-        var visiblePlayers = new List<CCSPlayerController>();
+        var visibleEnemies = new List<CCSPlayerController>();
 
         foreach (var player in Utilities.GetPlayers())
         {
@@ -443,13 +466,159 @@ public class FreeCameraSkill : PlayerSkill
             if (player == observer)
                 continue;
 
+            // 跳过队友
+            if (player.Team == observer.Team)
+                continue;
+
             // 检查玩家是否在视野内
             if (IsPlayerInView(cameraPos, cameraAngle, player))
             {
-                visiblePlayers.Add(player);
+                visibleEnemies.Add(player);
             }
         }
 
-        return visiblePlayers;
+        return visibleEnemies;
+    }
+
+    /// <summary>
+    /// 对敌人施加透视发光效果
+    /// 参考 DecoyXRaySkill 的实现
+    /// </summary>
+    private void ApplyGlowToEnemy(CCSPlayerController enemy)
+    {
+        if (enemy == null || !enemy.IsValid)
+            return;
+
+        var pawn = enemy.PlayerPawn.Value;
+        if (pawn == null || !pawn.IsValid)
+            return;
+
+        try
+        {
+            bool success = ApplyEntityGlowEffect(pawn, enemy.Team, out var relayIndex, out var glowIndex);
+            if (success)
+            {
+                _glowingEnemies[enemy.Slot] = (relayIndex, glowIndex);
+                Console.WriteLine($"[自由视角] 为 {enemy.PlayerName} 添加透视发光效果");
+
+                // 注册 CheckTransmit 监听器
+                if (Plugin != null && _glowingEnemies.Count == 1)
+                {
+                    Plugin.RegisterListener<Listeners.CheckTransmit>(OnCheckTransmit);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[自由视角] 添加发光效果时出错: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 应用实体发光效果（复制自 DecoyXRaySkill）
+    /// </summary>
+    private bool ApplyEntityGlowEffect(CBaseEntity entity, CsTeam team, out int relayIndex, out int glowIndex)
+    {
+        relayIndex = -1;
+        glowIndex = -1;
+
+        if (entity == null || !entity.IsValid)
+            return false;
+
+        var sceneNode = entity.CBodyComponent?.SceneNode;
+        if (sceneNode == null)
+            return false;
+
+        var skeletonInstance = sceneNode.GetSkeletonInstance();
+        if (skeletonInstance == null)
+            return false;
+
+        var modelName = skeletonInstance.ModelState.ModelName;
+        if (string.IsNullOrEmpty(modelName))
+            return false;
+
+        var modelRelay = Utilities.CreateEntityByName<CDynamicProp>("prop_dynamic");
+        var modelGlow = Utilities.CreateEntityByName<CDynamicProp>("prop_dynamic");
+
+        if (modelRelay == null || !modelRelay.IsValid || modelGlow == null || !modelGlow.IsValid)
+            return false;
+
+        // 设置 modelRelay
+        modelRelay.Spawnflags = 256u;
+        modelRelay.RenderMode = RenderMode_t.kRenderNone;
+
+        if (modelRelay.CBodyComponent != null && modelRelay.CBodyComponent.SceneNode != null)
+        {
+            var owner = modelRelay.CBodyComponent.SceneNode.Owner;
+            if (owner != null && owner.Entity != null)
+            {
+                owner.Entity.Flags &= ~(uint)(1 << 2);
+            }
+        }
+
+        modelRelay.SetModel(modelName);
+        modelRelay.DispatchSpawn();
+        modelRelay.AcceptInput("FollowEntity", entity, modelRelay, "!activator");
+
+        // 设置 modelGlow
+        if (modelGlow.CBodyComponent != null && modelGlow.CBodyComponent.SceneNode != null)
+        {
+            var owner = modelGlow.CBodyComponent.SceneNode.Owner;
+            if (owner != null && owner.Entity != null)
+            {
+                owner.Entity.Flags &= ~(uint)(1 << 2);
+            }
+        }
+
+        modelGlow.SetModel(modelName);
+        modelGlow.DispatchSpawn();
+        modelGlow.AcceptInput("FollowEntity", modelRelay, modelGlow, "!activator");
+
+        // 设置颜色（根据队伍）
+        Color glowColor = team == CsTeam.Terrorist ? Color.FromArgb(255, 0, 0) : Color.FromArgb(0, 0, 255);
+        modelGlow.Render = glowColor;
+
+        relayIndex = (int)modelRelay.Index;
+        glowIndex = (int)modelGlow.Index;
+
+        return true;
+    }
+
+    /// <summary>
+    /// 移除所有发光效果
+    /// </summary>
+    private void RemoveGlowEffects()
+    {
+        foreach (var (slot, (relayIndex, glowIndex)) in _glowingEnemies)
+        {
+            var relay = Utilities.GetEntityFromIndex<CDynamicProp>(relayIndex);
+            var glow = Utilities.GetEntityFromIndex<CDynamicProp>(glowIndex);
+
+            if (relay != null && relay.IsValid)
+            {
+                relay.AcceptInput("Kill");
+            }
+
+            if (glow != null && glow.IsValid)
+            {
+                glow.AcceptInput("Kill");
+            }
+        }
+
+        _glowingEnemies.Clear();
+        Console.WriteLine("[自由视角] 已移除所有发光效果");
+
+        // 移除 CheckTransmit 监听器
+        Plugin?.RemoveListener<Listeners.CheckTransmit>(OnCheckTransmit);
+    }
+
+    /// <summary>
+    /// 检查传输时控制发光效果的可见性
+    /// 参考 DecoyXRaySkill 的实现
+    /// </summary>
+    private void OnCheckTransmit(CCheckTransmitInfoList infoList)
+    {
+        // 所有发光效果对所有玩家可见
+        // 这里只是为了确保发光效果能够正常传输
     }
 }
