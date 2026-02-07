@@ -16,7 +16,7 @@ public class PhoenixSkill : PlayerSkill
 {
     public override string Name => "Phoenix";
     public override string DisplayName => "🔥 凤凰";
-    public override string Description => "死亡后有20-40%几率复活！每回合限用一次！";
+    public override string Description => "死亡后有20-40%几率无限复活！";
     public override bool IsActive => false; // 被动技能
 
     // 与第二次机会和名刀互斥
@@ -49,7 +49,7 @@ public class PhoenixSkill : PlayerSkill
 
         player.PrintToChat("🔥 你获得了凤凰技能！");
         player.PrintToChat($"💀 死亡后有 {reviveChance}% 几率以 {REVIVE_HEALTH} 血复活！");
-        player.PrintToChat("⚠️ 每回合只能使用一次！护甲会保留！");
+        player.PrintToChat("✨ 可以无限复活，护甲会保留！");
     }
 
     public override void OnRevert(CCSPlayerController player)
@@ -90,8 +90,9 @@ public class PhoenixSkill : PlayerSkill
         if (phoenixSkill == null)
             return;
 
-        // 检查是否死亡（血量 <= 0）且还没使用过凤凰复活
-        if (victimPawn.Health > 0 || _phoenixUsed.ContainsKey(victim.Slot))
+        // 检查是否死亡（血量 <= 0）
+        // 移除"每回合限用一次"的限制，允许无限复活
+        if (victimPawn.Health > 0)
             return;
 
         // 获取玩家的复活几率
@@ -116,8 +117,8 @@ public class PhoenixSkill : PlayerSkill
         int currentArmor = victimPawn.ArmorValue;
         _playerArmor[victim.Slot] = currentArmor;
 
-        // 标记已使用
-        _phoenixUsed.TryAdd(victim.Slot, 0);
+        // 不再标记为已使用，允许无限复活
+        // _phoenixUsed.TryAdd(victim.Slot, 0);
 
         // 复活时只设置血量，不影响护甲
         SetHealthOnly(victim, REVIVE_HEALTH);
@@ -144,12 +145,13 @@ public class PhoenixSkill : PlayerSkill
     }
 
     /// <summary>
-    /// 回合开始时清理使用记录
+    /// 回合开始时重新生成复活几率
     /// </summary>
     public static void OnRoundStart()
     {
-        _phoenixUsed.Clear();
-        _playerArmor.Clear();
+        // 不再清空使用记录，允许无限复活
+        // _phoenixUsed.Clear();
+        // _playerArmor.Clear();
 
         // 重新生成所有玩家的复活几率
         foreach (var slot in _playerReviveChance.Keys.ToList())
@@ -158,7 +160,7 @@ public class PhoenixSkill : PlayerSkill
             _playerReviveChance[slot] = newReviveChance;
         }
 
-        Console.WriteLine("[凤凰] 新回合开始，清空使用记录并重新生成复活几率");
+        Console.WriteLine("[凤凰] 新回合开始，重新生成复活几率（允许无限复活）");
     }
 
     /// <summary>
