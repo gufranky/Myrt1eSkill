@@ -77,6 +77,7 @@ public class EntertainmentEventManager
         RegisterEvent(new SuperRecoilEvent());
         RegisterEvent(new SuperKnockbackEvent());
         RegisterEvent(new BankruptcyEvent());
+        RegisterEvent(new BankruptcyWeaponEvent());
         RegisterEvent(new DeafEvent());
         RegisterEvent(new MoreSkillsEvent());
         RegisterEvent(new SkillsPlusPlusEvent());

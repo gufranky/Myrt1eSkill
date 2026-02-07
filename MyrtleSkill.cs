@@ -522,6 +522,12 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         var pushSkill = (Skills.PushSkill?)SkillManager.GetSkill("Push");
         pushSkill?.HandlePlayerHurt(@event);
 
+        // 处理破产之枪事件（伤害改为扣钱）
+        if (CurrentEvent is BankruptcyWeaponEvent bankruptcyWeapon)
+        {
+            bankruptcyWeapon.HandlePlayerHurt(@event);
+        }
+
         return HookResult.Continue;
     }
 
