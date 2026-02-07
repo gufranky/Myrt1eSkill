@@ -1,5 +1,6 @@
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
+using System.Collections.Concurrent;
 
 namespace MyrtleSkill.Skills;
 
@@ -26,12 +27,18 @@ public class HeavyArmorSkill : PlayerSkill
     // 移速倍数（80%）
     private const float SPEED_MULTIPLIER = 0.8f;
 
+    // ✅ 跟踪拥有重甲战士技能的玩家
+    private static readonly ConcurrentDictionary<int, CCSPlayerController> _enabledPlayers = new();
+
     public override void OnApply(CCSPlayerController player)
     {
         if (player == null || !player.IsValid)
             return;
 
         Console.WriteLine($"[重甲战士] {player.PlayerName} 获得了重甲战士技能");
+
+        // 添加到跟踪列表
+        _enabledPlayers[player.Slot] = player;
 
         var pawn = player.PlayerPawn.Value;
         if (pawn == null || !pawn.IsValid)
@@ -44,6 +51,12 @@ public class HeavyArmorSkill : PlayerSkill
         // 设置移速
         pawn.VelocityModifier = SPEED_MULTIPLIER;
         Utilities.SetStateChanged(pawn, "CCSPlayerPawn", "m_flVelocityModifier");
+
+        // 注册 OnTick 监听器（第一次）
+        if (_enabledPlayers.Count == 1)
+        {
+            Plugin?.RegisterListener<Listeners.OnTick>(OnTick);
+        }
 
         player.PrintToChat("🛡️ 你获得了重甲战士技能！");
         player.PrintToChat($"🛡️ 护甲值: {ARMOR_VALUE}！");
@@ -58,6 +71,15 @@ public class HeavyArmorSkill : PlayerSkill
 
         Console.WriteLine($"[重甲战士] {player.PlayerName} 失去了重甲战士技能");
 
+        // 从跟踪列表移除
+        _enabledPlayers.TryRemove(player.Slot, out _);
+
+        // 如果没有玩家使用技能，移除 OnTick 监听器
+        if (_enabledPlayers.Count == 0)
+        {
+            Plugin?.RemoveListener<Listeners.OnTick>(OnTick);
+        }
+
         var pawn = player.PlayerPawn.Value;
         if (pawn == null || !pawn.IsValid)
             return;
@@ -65,6 +87,30 @@ public class HeavyArmorSkill : PlayerSkill
         // 恢复移速
         pawn.VelocityModifier = 1.0f;
         Utilities.SetStateChanged(pawn, "CCSPlayerPawn", "m_flVelocityModifier");
+    }
+
+    /// <summary>
+    /// 每帧更新 - 持续设置移速，防止被其他系统覆盖
+    /// </summary>
+    private void OnTick()
+    {
+        // 为所有拥有重甲战士技能的玩家设置移速
+        foreach (var kvp in _enabledPlayers)
+        {
+            var slot = kvp.Key;
+            var player = kvp.Value;
+
+            if (player != null && player.IsValid && player.PawnIsAlive)
+            {
+                var pawn = player.PlayerPawn.Value;
+                if (pawn != null && pawn.IsValid)
+                {
+                    // 持续设置移速，防止被其他系统覆盖
+                    pawn.VelocityModifier = SPEED_MULTIPLIER;
+                    Utilities.SetStateChanged(pawn, "CCSPlayerPawn", "m_flVelocityModifier");
+                }
+            }
+        }
     }
 
     /// <summary>
