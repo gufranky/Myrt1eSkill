@@ -72,7 +72,8 @@ public class PositionRecorder
         if (pawn == null || !pawn.IsValid || pawn.AbsOrigin == null)
             return;
 
-        Vector currentPosition = new Vector(pawn.AbsOrigin.X, pawn.AbsOrigin.Y, pawn.AbsOrigin.Z);
+        // 直接使用 pawn.AbsOrigin（它本身就是 Vector 类型）
+        Vector currentPosition = pawn.AbsOrigin;
         ulong steamID = player.SteamID;
 
         // 获取或创建玩家历史记录
@@ -83,9 +84,9 @@ public class PositionRecorder
         });
 
         // 检查是否需要记录（与上次位置对比）
-        if (history.LastPosition.HasValue)
+        if (history.LastPosition != null)
         {
-            float distance = VectorDistance(currentPosition, history.LastPosition.Value);
+            float distance = VectorDistance(currentPosition, history.LastPosition);
 
             // 如果移动距离小于阈值，不记录
             if (distance < MOVE_THRESHOLD)
@@ -265,27 +266,10 @@ public class PlayerPositionHistory
 /// </summary>
 public class PositionEntry
 {
-    public Vector Position { get; set; }
+    public required Vector Position { get; set; }
     public float Timestamp { get; set; }
     public string MapName { get; set; } = string.Empty;
     public int Team { get; set; }
     public int Health { get; set; }
     public int Armor { get; set; }
-}
-
-/// <summary>
-/// 简单的 Vector 结构
-/// </summary>
-public struct Vector
-{
-    public float X { get; set; }
-    public float Y { get; set; }
-    public float Z { get; set; }
-
-    public Vector(float x, float y, float z)
-    {
-        X = x;
-        Y = y;
-        Z = z;
-    }
 }
