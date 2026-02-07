@@ -19,12 +19,12 @@ public class HolyHandGrenadeSkill : PlayerSkill
 {
     public override string Name => "HolyHandGrenade";
     public override string DisplayName => "✝️ 圣手榴弹";
-    public override string Description => "你的HE手雷造成双倍伤害并有双倍范围！开局获得1颗（投掷后自动补充1次）！";
+    public override string Description => "你的HE手雷造成2.5倍伤害和2.5倍范围！开局获得1颗（投掷后自动补充1次）！";
     public override bool IsActive => false; // 被动技能
 
     // 伤害和范围倍数（与 jRandomSkills 一致）
-    private const float DAMAGE_MULTIPLIER = 2.0f;
-    private const float DAMAGE_RADIUS_MULTIPLIER = 2.0f;
+    private const float DAMAGE_MULTIPLIER = 2.5f;
+    private const float DAMAGE_RADIUS_MULTIPLIER = 2.5f;
 
     // 手雷数量和补充次数
     private const int GRENADE_COUNT = 1;
