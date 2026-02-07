@@ -21,8 +21,8 @@ public class SuperFlashSkill : PlayerSkill
     // 黑暗效果持续时间（秒）
     private const float DARKNESS_DURATION = 3.0f;
 
-    // 黑暗参数（完全黑屏：brightness = 0）
-    private const float DARKNESS_BRIGHTNESS = 0.0f;
+    // 黑暗参数（接近完全黑屏：brightness = 0.01）
+    private const float DARKNESS_BRIGHTNESS = 0.01f;
 
     // 跟踪被施加黑暗效果的玩家
     private readonly Dictionary<int, DarknessState> _darknessStates = new();
