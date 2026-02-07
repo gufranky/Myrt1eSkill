@@ -16,9 +16,12 @@ public class WoodManSkill : PlayerSkill
 {
     public override string Name => "WoodMan";
     public override string DisplayName => "🪵 木头人";
-    public override string Description => "输入 !useskill 激活！对方玩家有3秒倒数准备时间，之后3秒内移动将被透视3秒！";
+    public override string Description => "输入 !useskill 激活！对方玩家有3秒倒数准备时间，之后3秒内移动将被透视3秒！每局可使用2次！";
     public override bool IsActive => true; // 主动技能
-    public override float Cooldown => 9999.0f; // 每局只能用一次
+    public override float Cooldown => 0.0f; // 0秒冷却
+
+    // 每局可使用次数
+    private const int MAX_USES_PER_ROUND = 2;
 
     // 倒数时间（秒）
     private const float COUNTDOWN_TIME = 3.0f;
@@ -29,8 +32,8 @@ public class WoodManSkill : PlayerSkill
     // 透视持续时间（秒）
     private const float GLOW_DURATION = 3.0f;
 
-    // 跟踪每回合是否已使用
-    private static readonly ConcurrentDictionary<string, bool> _usedThisRound = new();
+    // 跟踪每回合已使用次数
+    private static readonly ConcurrentDictionary<string, int> _usageCount = new();
 
     // 跟踪被检测的玩家及其初始位置
     private readonly ConcurrentDictionary<int, WoodManPlayerInfo> _detectedPlayers = new();
@@ -50,20 +53,20 @@ public class WoodManSkill : PlayerSkill
     public override void OnApply(CCSPlayerController player)
     {
         var key = player.SteamID.ToString();
-        _usedThisRound[key] = false;
+        _usageCount[key] = 0;
 
         Console.WriteLine($"[木头人] {player.PlayerName} 获得了木头人技能");
 
         player.PrintToChat("🪵 你获得了木头人技能！");
         player.PrintToChat("💡 输入 !useskill 激活！");
         player.PrintToChat("⏱️ 对方玩家有3秒倒数，之后3秒内移动将被透视！");
-        player.PrintToChat("⏰ 每局只能使用一次！");
+        player.PrintToChat("⏰ 每局可使用2次，无冷却！");
     }
 
     public override void OnRevert(CCSPlayerController player)
     {
         var key = player.SteamID.ToString();
-        _usedThisRound.TryRemove(key, out _);
+        _usageCount.TryRemove(key, out _);
 
         Console.WriteLine($"[木头人] {player.PlayerName} 失去了木头人技能");
     }
@@ -75,18 +78,21 @@ public class WoodManSkill : PlayerSkill
 
         var key = player.SteamID.ToString();
 
-        // 检查本回合是否已使用
-        if (_usedThisRound.TryGetValue(key, out var used) && used)
+        // 获取当前使用次数
+        int currentCount = _usageCount.TryGetValue(key, out var count) ? count : 0;
+
+        // 检查是否超过使用次数限制
+        if (currentCount >= MAX_USES_PER_ROUND)
         {
-            player.PrintToCenter("❌ 本回合已使用过木头人技能！");
-            player.PrintToChat("❌ 本回合已使用过木头人技能！");
+            player.PrintToCenter($"❌ 本回合已使用{MAX_USES_PER_ROUND}次木头人技能！");
+            player.PrintToChat($"❌ 本回合已使用{MAX_USES_PER_ROUND}次木头人技能！");
             return;
         }
 
-        Console.WriteLine($"[木头人] {player.PlayerName} 使用了木头人技能");
+        Console.WriteLine($"[木头人] {player.PlayerName} 使用了木头人技能（第{currentCount + 1}次）");
 
-        // 标记为已使用
-        _usedThisRound[key] = true;
+        // 增加使用次数
+        _usageCount[key] = currentCount + 1;
 
         // 获取敌方队伍
         var enemyTeam = player.Team == CsTeam.Terrorist ? CsTeam.CounterTerrorist : CsTeam.Terrorist;
@@ -104,7 +110,7 @@ public class WoodManSkill : PlayerSkill
             }
         }
 
-        player.PrintToCenter("🪵 木头人已激活！");
+        player.PrintToCenter($"🪵 木头人已激活！剩余次数：{MAX_USES_PER_ROUND - currentCount - 1}");
         player.PrintToChat($"🪵 木头人已激活！{COUNTDOWN_TIME}秒后开始检测移动！");
 
         // 显示全局提示
@@ -411,7 +417,7 @@ public class WoodManSkill : PlayerSkill
     /// </summary>
     public static void OnRoundStart()
     {
-        _usedThisRound.Clear();
+        _usageCount.Clear();
         Console.WriteLine("[木头人] 新回合开始，清空使用记录");
     }
 }
