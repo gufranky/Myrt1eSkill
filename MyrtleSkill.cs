@@ -95,9 +95,6 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 默认启用机器人管理功能
         BotManager.EnableBotControl();
 
-        // 启动位置记录器
-        PositionRecorder.Start();
-
         // 设置技能静态引用（用于技能内部访问插件）
         Skills.TeamWhipSkill.MyrtleSkillPlugin = this;
 
@@ -151,6 +148,9 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
     {
         // ✅ 在地图加载后初始化服务器设置（此时 ConVar 已可用）
         Utils.ServerSettings.InitializeAllSettings();
+
+        // 启动位置记录器（此时全局变量已初始化，可以安全调用）
+        PositionRecorder?.Start();
 
         // 地图切换时清理所有位置记录，防止传送到地图外
         PositionRecorder?.ClearAllHistory();
