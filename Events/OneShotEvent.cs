@@ -280,10 +280,12 @@ public class OneShotEvent : EntertainmentEvent
         if (player == null || !player.IsValid || !player.PawnIsAlive)
             return HookResult.Continue;
 
-        Server.NextFrame(() =>
+        // 换弹动画大约需要2-3秒，延迟3秒后重新设置为1发
+        // 使用定时器而不是NextFrame，确保在换弹完成后执行
+        Plugin?.AddTimer(3.0f, () =>
         {
             // 再次检查事件是否仍然激活
-            if (_isActive)
+            if (_isActive && player.IsValid && player.PawnIsAlive)
             {
                 SetAllWeaponsToOneBullet(player);
                 Console.WriteLine($"[一发AK] {player.PlayerName} 换弹后重新设置为1发");
