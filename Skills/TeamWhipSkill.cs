@@ -91,11 +91,11 @@ public class TeamWhipSkill : PlayerSkill
         if (teamWhipSkill == null)
             return;
 
-        // 获取伤害值
-        float damage = info.Damage;
+        // 获取伤害值（必须在修改info.Damage之前保存）
+        float originalDamage = info.Damage;
 
         // 如果伤害为0，不做处理
-        if (damage <= 0)
+        if (originalDamage <= 0)
             return;
 
         // 直接取消伤害（设置为0）
@@ -104,14 +104,14 @@ public class TeamWhipSkill : PlayerSkill
         // 治疗队友（如果血量未满）
         if (victimPawn.Health < victimPawn.MaxHealth)
         {
-            int healAmount = (int)(damage * HEAL_MULTIPLIER);
-            int currentHealth = victimPawn.Health;
-            AddHealth(victimPawn, healAmount, victimPawn.MaxHealth);
+            int healAmount = (int)(originalDamage * HEAL_MULTIPLIER);
+            int currentHealth = (int)victimPawn.Health;
+            AddHealth(victimPawn, healAmount, (int)victimPawn.MaxHealth);
 
             // 计算实际治疗量
-            int actualHealed = victimPawn.Health - currentHealth;
+            int actualHealed = (int)victimPawn.Health - currentHealth;
 
-            Console.WriteLine($"[鞭策队友] {csAttackerController.PlayerName} 射击了队友 {csVictimController.PlayerName}，取消伤害 {damage}，治疗 {actualHealed} HP");
+            Console.WriteLine($"[鞭策队友] {csAttackerController.PlayerName} 射击了队友 {csVictimController.PlayerName}，取消伤害 {originalDamage}，治疗 {actualHealed} HP");
 
             // 显示提示
             csAttackerController.PrintToChat($"💉 治疗了 {csVictimController.PlayerName} +{actualHealed} HP");
@@ -119,23 +119,29 @@ public class TeamWhipSkill : PlayerSkill
         }
         else
         {
-            Console.WriteLine($"[鞭策队友] {csVictimController.PlayerName} 血量已满 ({victimPawn.Health}/{victimPawn.MaxHealth})，取消伤害 {damage}");
+            Console.WriteLine($"[鞭策队友] {csVictimController.PlayerName} 血量已满 ({victimPawn.Health}/{victimPawn.MaxHealth})，取消伤害 {originalDamage}");
         }
     }
 
     /// <summary>
     /// 添加血量（不超过最大值）
+    /// 参考 jRandomSkills SkillUtils.AddHealth
     /// </summary>
     private static void AddHealth(CCSPlayerPawn pawn, int amount, int maxHealth)
     {
         if (pawn == null || !pawn.IsValid)
             return;
 
-        int currentHealth = pawn.Health;
-        int newHealth = Math.Min(currentHealth + amount, maxHealth);
+        if (pawn.LifeState != (byte)LifeState_t.LIFE_ALIVE)
+            return;
 
-        pawn.Health = newHealth;
+        int newHealth = (int)(pawn.Health + amount);
+        pawn.Health = Math.Min(newHealth, maxHealth);
         Utilities.SetStateChanged(pawn, "CBaseEntity", "m_iHealth");
+
+        // 同时设置最大血量（与 jRandomSkills 一致）
+        pawn.MaxHealth = maxHealth;
+        Utilities.SetStateChanged(pawn, "CBaseEntity", "m_iMaxHealth");
     }
 
     // 插件实例引用（需要在MyrtleSkill中设置）
