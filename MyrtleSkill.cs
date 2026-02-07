@@ -172,6 +172,9 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 0.2 清理第二次机会使用记录
         Skills.SecondChanceSkill.OnRoundStart();
 
+        // 0.25 清理凤凰使用记录并重新生成复活几率
+        Skills.PhoenixSkill.OnRoundStart();
+
         // 0.3 清理格拉兹烟雾弹追踪
         Skills.GlazSkill.OnRoundStart();
 
@@ -552,6 +555,9 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
         // 处理第二次机会技能
         Skills.SecondChanceSkill.HandlePlayerHurt(@event);
+
+        // 处理凤凰技能
+        Skills.PhoenixSkill.HandlePlayerHurt(@event);
 
         // 处理敌人旋转技能
         Skills.EnemySpinSkill.HandlePlayerHurt(@event, SkillManager);

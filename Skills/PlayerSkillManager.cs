@@ -100,6 +100,7 @@ public class PlayerSkillManager
         RegisterSkill(new ExplorerSkill());        // 探索者技能
         RegisterSkill(new TeleportAnchorSkill());  // 传送锚点技能
         RegisterSkill(new InfiniteAmmoSkill());    // 无限弹药技能
+        RegisterSkill(new PhoenixSkill());         // 凤凰技能
 
         Console.WriteLine("[技能管理器] 已注册 " + _skills.Count + " 个玩家技能");
     }
