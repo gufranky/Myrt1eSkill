@@ -199,8 +199,8 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 0.7 清理杀人无敌记录
         Skills.KillInvincibilitySkill.OnRoundStart();
 
-        // 1. 首先重置技能禁用标志（新回合开始）
-        DisableSkillsThisRound = false;
+        // 1. 恢复上一回合事件（不要在这里重置DisableSkillsThisRound标志）
+        // DisableSkillsThisRound = false;  // 移除这行，让事件有机会设置它
 
         // 2. 恢复上一回合事件
         if (PreviousEvent != null)
