@@ -892,9 +892,6 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         if (player == null || !player.IsValid)
             return HookResult.Continue;
 
-        // 处理鬼技能（禁用武器攻击）
-        Skills.GhostSkill.HandleWeaponPickup(player);
-
         // 处理猎鹰之眼技能（摄像头模式下禁用武器）
         var falconEyeSkill = (Skills.FalconEyeSkill?)SkillManager.GetSkill("FalconEye");
         falconEyeSkill?.OnItemPickup(@event);
@@ -907,9 +904,6 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         var player = @event.Userid;
         if (player == null || !player.IsValid)
             return HookResult.Continue;
-
-        // 处理鬼技能（禁用武器攻击）
-        Skills.GhostSkill.HandleWeaponEquip(player);
 
         return HookResult.Continue;
     }

@@ -17,25 +17,11 @@ public class GhostSkill : PlayerSkill
 {
     public override string Name => "Ghost";
     public override string DisplayName => "👻 鬼";
-    public override string Description => "你完全隐形！受到伤害或造成伤害就会永久显形！";
+    public override string Description => "你完全隐形！受到伤害或造成伤害就会永久显形！可以使用任意武器！";
     public override bool IsActive => false; // 被动技能
 
     // 血液粒子效果
     private const string BLOOD_PARTICLE = "particles/blood_impact/blood_impact_high.vpcf";
-
-    // 被禁用的武器列表（所有能造成伤害的武器）
-    private static readonly string[] DisabledWeapons =
-    {
-        "weapon_deagle", "weapon_revolver", "weapon_glock", "weapon_usp_silencer",
-        "weapon_cz75a", "weapon_fiveseven", "weapon_p250", "weapon_tec9",
-        "weapon_elite", "weapon_hkp2000", "weapon_ak47", "weapon_m4a1",
-        "weapon_m4a4", "weapon_m4a1_silencer", "weapon_famas", "weapon_galilar",
-        "weapon_aug", "weapon_sg553", "weapon_mp9", "weapon_mac10",
-        "weapon_bizon", "weapon_mp7", "weapon_ump45", "weapon_p90",
-        "weapon_mp5sd", "weapon_ssg08", "weapon_awp", "weapon_scar20",
-        "weapon_g3sg1", "weapon_nova", "weapon_xm1014", "weapon_mag7",
-        "weapon_sawedoff", "weapon_m249", "weapon_negev"
-    };
 
     // 跟踪隐形的玩家
     private static readonly ConcurrentDictionary<ulong, GhostState> _ghostStates = new();
@@ -54,13 +40,10 @@ public class GhostSkill : PlayerSkill
             IsInvisible = true
         });
 
-        // 禁用武器攻击
-        SetWeaponAttack(player, true);
-
         player.PrintToChat("👻 你获得了鬼技能！");
         player.PrintToChat("💡 你完全隐形！");
         player.PrintToChat("⚠️ 受到伤害或造成伤害就会永久显形！");
-        player.PrintToChat("🔪 只能使用刀和手雷！");
+        player.PrintToChat("🔫 可以使用任意武器！");
     }
 
     public override void OnRevert(CCSPlayerController player)
@@ -69,9 +52,6 @@ public class GhostSkill : PlayerSkill
             return;
 
         Console.WriteLine($"[鬼] {player.PlayerName} 失去了鬼技能");
-
-        // 恢复武器
-        SetWeaponAttack(player, false);
 
         // 移除状态
         _ghostStates.TryRemove(player.SteamID, out _);
@@ -127,9 +107,6 @@ public class GhostSkill : PlayerSkill
         // 标记为显形
         state.IsInvisible = false;
 
-        // 恢复武器
-        SetWeaponAttack(player, false);
-
         // 提示玩家
         player.PrintToChat(message);
         player.PrintToCenter("👻 你已经显形了！");
@@ -170,35 +147,6 @@ public class GhostSkill : PlayerSkill
     }
 
     /// <summary>
-    /// 禁用/启用武器攻击
-    /// </summary>
-    private static void SetWeaponAttack(CCSPlayerController player, bool disableWeapon)
-    {
-        if (player == null || !player.IsValid)
-            return;
-
-        var playerPawn = player.PlayerPawn.Value;
-        if (playerPawn == null || !playerPawn.IsValid || playerPawn.WeaponServices == null)
-            return;
-
-        foreach (var weapon in playerPawn.WeaponServices.MyWeapons)
-        {
-            if (weapon != null && weapon.IsValid && weapon.Value != null && weapon.Value.IsValid)
-            {
-                // 检查是否是被禁用的武器
-                if (DisabledWeapons.Contains(weapon.Value.DesignerName))
-                {
-                    weapon.Value.NextPrimaryAttackTick = disableWeapon ? int.MaxValue : Server.TickCount;
-                    weapon.Value.NextSecondaryAttackTick = disableWeapon ? int.MaxValue : Server.TickCount;
-
-                    Utilities.SetStateChanged(weapon.Value, "CBasePlayerWeapon", "m_nNextPrimaryAttackTick");
-                    Utilities.SetStateChanged(weapon.Value, "CBasePlayerWeapon", "m_nNextSecondaryAttackTick");
-                }
-            }
-        }
-    }
-
-    /// <summary>
     /// 检查玩家是否隐形（用于 CheckTransmit）
     /// </summary>
     public static bool IsInvisible(CCSPlayerController player)
@@ -210,34 +158,6 @@ public class GhostSkill : PlayerSkill
             return false;
 
         return state.IsInvisible;
-    }
-
-    /// <summary>
-    /// 处理武器拾取（禁用攻击）
-    /// </summary>
-    public static void HandleWeaponPickup(CCSPlayerController player)
-    {
-        if (player == null || !player.IsValid)
-            return;
-
-        if (IsInvisible(player))
-        {
-            SetWeaponAttack(player, true);
-        }
-    }
-
-    /// <summary>
-    /// 处理武器装备（禁用攻击）
-    /// </summary>
-    public static void HandleWeaponEquip(CCSPlayerController player)
-    {
-        if (player == null || !player.IsValid)
-            return;
-
-        if (IsInvisible(player))
-        {
-            SetWeaponAttack(player, true);
-        }
     }
 
     /// <summary>
@@ -316,14 +236,6 @@ public class GhostSkill : PlayerSkill
     /// </summary>
     public static void ClearAllGhosts()
     {
-        foreach (var state in _ghostStates.Values)
-        {
-            if (state.Player != null && state.Player.IsValid)
-            {
-                SetWeaponAttack(state.Player, false);
-            }
-        }
-
         _ghostStates.Clear();
         Console.WriteLine("[鬼] 已清理所有鬼状态");
     }
