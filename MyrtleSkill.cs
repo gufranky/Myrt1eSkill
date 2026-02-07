@@ -108,6 +108,7 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         RegisterListener<Listeners.OnPlayerTakeDamagePre>(OnPlayerTakeDamagePre);
         RegisterListener<Listeners.OnPlayerTakeDamagePost>(OnPlayerTakeDamagePost);
         RegisterEventHandler<EventWeaponFire>(OnWeaponFire, HookMode.Post);
+        RegisterEventHandler<EventWeaponReload>(OnWeaponReload, HookMode.Post);
         RegisterEventHandler<EventPlayerDeath>(OnPlayerDeath, HookMode.Post);
         RegisterEventHandler<EventPlayerHurt>(OnPlayerHurt, HookMode.Post);
         RegisterEventHandler<EventWeaponhudSelection>(OnWeaponHudSelection, HookMode.Pre);
@@ -116,6 +117,7 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         RegisterEventHandler<EventItemPickup>(OnItemPickup, HookMode.Pre);
         RegisterEventHandler<EventItemEquip>(OnItemEquip, HookMode.Pre);
         RegisterEventHandler<EventDecoyStarted>(OnDecoyStarted, HookMode.Post);
+        RegisterEventHandler<EventGrenadeThrown>(OnGrenadeThrown, HookMode.Post);
         RegisterEventHandler<EventDecoyDetonate>(OnDecoyDetonate, HookMode.Post);
         RegisterEventHandler<EventSmokegrenadeDetonate>(OnSmokegrenadeDetonate, HookMode.Post);
         RegisterEventHandler<EventSmokegrenadeExpired>(OnSmokegrenadeExpired, HookMode.Post);
@@ -422,6 +424,55 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         if (CurrentEvent is JumpPlusPlusEvent jumpPlusPlusEvent)
         {
             jumpPlusPlusEvent.HandleWeaponFire(@event);
+        }
+
+        // 处理无限弹药技能
+        var player = @event.Userid;
+        if (player != null && player.IsValid)
+        {
+            var skills = SkillManager.GetPlayerSkills(player);
+            var infiniteAmmoSkill = skills.FirstOrDefault(s => s.Name == "InfiniteAmmo");
+            if (infiniteAmmoSkill != null)
+            {
+                var infiniteAmmo = (Skills.InfiniteAmmoSkill)infiniteAmmoSkill;
+                infiniteAmmo.OnWeaponFire(@event);
+            }
+        }
+
+        return HookResult.Continue;
+    }
+
+    private HookResult OnWeaponReload(EventWeaponReload @event, GameEventInfo info)
+    {
+        var player = @event.Userid;
+        if (player == null || !player.IsValid)
+            return HookResult.Continue;
+
+        // 处理无限弹药技能
+        var skills = SkillManager.GetPlayerSkills(player);
+        var infiniteAmmoSkill = skills.FirstOrDefault(s => s.Name == "InfiniteAmmo");
+        if (infiniteAmmoSkill != null)
+        {
+            var infiniteAmmo = (Skills.InfiniteAmmoSkill)infiniteAmmoSkill;
+            infiniteAmmo.OnWeaponReload(@event);
+        }
+
+        return HookResult.Continue;
+    }
+
+    private HookResult OnGrenadeThrown(EventGrenadeThrown @event, GameEventInfo info)
+    {
+        var player = @event.Userid;
+        if (player == null || !player.IsValid)
+            return HookResult.Continue;
+
+        // 处理无限弹药技能
+        var skills = SkillManager.GetPlayerSkills(player);
+        var infiniteAmmoSkill = skills.FirstOrDefault(s => s.Name == "InfiniteAmmo");
+        if (infiniteAmmoSkill != null)
+        {
+            var infiniteAmmo = (Skills.InfiniteAmmoSkill)infiniteAmmoSkill;
+            infiniteAmmo.OnGrenadeThrown(@event);
         }
 
         return HookResult.Continue;
