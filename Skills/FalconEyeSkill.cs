@@ -20,7 +20,7 @@ public class FalconEyeSkill : PlayerSkill
     public override string DisplayName => "🦅 猎鹰之眼";
     public override string Description => "点击激活鸟瞰视角摄像头，从上方俯瞰战场！";
     public override bool IsActive => true; // 主动技能
-    public override float Cooldown => 30.0f; // 30秒冷却
+    public override float Cooldown => 0.0f; // 0秒冷却
 
     // 摄像头高度（与 jRandomSkills 一致）
     private const float CAMERA_DISTANCE = 1000.0f;
