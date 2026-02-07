@@ -145,9 +145,28 @@ public class ThirdEyeSkill : PlayerSkill
 
         Server.NextFrame(() =>
         {
-            camera.SetModel("models/actors/ghost_speaker.vmdl");
-            camera.RenderMode = RenderMode_t.kRenderNone; // 完全不渲染
-            camera.Render = Color.FromArgb(0, 255, 255, 255); // 完全透明
+            if (!camera.IsValid)
+                return;
+
+            // 设置Spawnflags（关键：256 = 可发射）
+            camera.Spawnflags = 256u;
+
+            // 清除Entity Flags中的EFL_NO_PHYSCOLLISION (第2位)
+            if (camera.CBodyComponent != null && camera.CBodyComponent.SceneNode != null)
+            {
+                var owner = camera.CBodyComponent.SceneNode.Owner;
+                if (owner != null && owner.Entity != null)
+                {
+                    owner.Entity.Flags &= ~(uint)(1 << 2);
+                }
+            }
+
+            // 不设置模型文件，避免显示ERROR模型
+            // camera.SetModel("models/actors/ghost_speaker.vmdl");
+
+            // 完全隐藏渲染
+            camera.RenderMode = RenderMode_t.kRenderNone;
+            camera.Render = Color.FromArgb(0, 255, 255, 255);
 
             if (playerPawn.AbsOrigin != null && playerPawn.EyeAngles != null)
             {
