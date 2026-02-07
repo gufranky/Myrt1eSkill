@@ -19,7 +19,7 @@ public class TeleportAnchorSkill : PlayerSkill
     public override string DisplayName => "⚓ 传送锚点";
     public override string Description => "第一次使用创建移动锚点，第二次使用传送到锚点！持续10秒！";
     public override bool IsActive => true; // 主动技能
-    public override float Cooldown => 30.0f; // 30秒冷却
+    public override float Cooldown => 0.0f; // 由我们手动管理30秒冷却
 
     // 粒子效果路径（使用类似 Jackal 的轨迹效果）
     private const string PARTICLE_NAME = "particles/ui/hud/ui_map_def_utility_trail.vpcf";
