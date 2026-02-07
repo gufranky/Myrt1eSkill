@@ -279,7 +279,7 @@ public class TeleportAnchorSkill : PlayerSkill
     }
 
     /// <summary>
-    /// 控制粒子可见性（让所有玩家都能透视看到锚点）
+    /// 控制粒子可见性（只有锚点创建者能看到）
     /// 参考 Jackal 技能的 OnCheckTransmit 实现
     /// </summary>
     private void OnCheckTransmit(CCheckTransmitInfoList infoList)
@@ -291,6 +291,7 @@ public class TeleportAnchorSkill : PlayerSkill
 
             foreach (var kvp in _playerAnchors)
             {
+                var steamID = kvp.Key;  // 锚点创建者的 SteamID
                 var state = kvp.Value;
                 if (!state.HasAnchor || state.Particle == null || !state.Particle.IsValid)
                     continue;
@@ -302,9 +303,13 @@ public class TeleportAnchorSkill : PlayerSkill
                 if (entity == null || !entity.IsValid)
                     continue;
 
-                // 让所有玩家都能看到锚点粒子
-                // 显式添加到传输列表
-                info.TransmitEntities.Add(entity.Index);
+                // 只有锚点创建者能看到
+                if (receiver.SteamID != steamID)
+                {
+                    // 不是创建者，从传输列表移除
+                    info.TransmitEntities.Remove(entity.Index);
+                }
+                // 创建者可以看到（不移除 = 显示）
             }
         }
     }
