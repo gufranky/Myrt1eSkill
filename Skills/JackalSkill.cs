@@ -17,7 +17,7 @@ public class JackalSkill : PlayerSkill
 {
     public override string Name => "Jackal";
     public override string DisplayName => "🦊 豺狼";
-    public override string Description => "激活后所有敌人身后留下轨迹，持续追踪他们的位置！";
+    public override string Description => "激活后所有敌人身后留下轨迹，持续追踪他们的位置！持续10秒！";
     public override bool IsActive => true; // 主动技能
     public override float Cooldown => 60.0f; // 60秒冷却
 
@@ -26,6 +26,9 @@ public class JackalSkill : PlayerSkill
 
     // 轨迹刷新间隔（秒）
     private const float TRAIL_REFRESH_INTERVAL = 2.5f;
+
+    // 技能持续时间（秒）
+    private const float SKILL_DURATION = 10.0f;
 
     // 跟踪每个玩家的粒子系统
     private readonly Dictionary<CCSPlayerController, CParticleSystem> _playerTrails = new();
@@ -38,7 +41,7 @@ public class JackalSkill : PlayerSkill
         Console.WriteLine($"[豺狼] {player.PlayerName} 获得了豺狼技能");
         player.PrintToChat("🦊 你获得了豺狼技能！");
         player.PrintToChat("💡 输入 !useskill 或按键激活！");
-        player.PrintToChat($"⏱️ 冷却时间：{Cooldown}秒");
+        player.PrintToChat($"⏱️ 冷却时间：{Cooldown}秒，持续时间：{SKILL_DURATION}秒");
     }
 
     public override void OnRevert(CCSPlayerController player)
@@ -66,7 +69,7 @@ public class JackalSkill : PlayerSkill
         // 激活技能
         EnableSkill(player);
 
-        player.PrintToChat("🦊 豺狼技能已激活！所有敌人身后留下轨迹！");
+        player.PrintToChat($"🦊 豺狼技能已激活！所有敌人身后留下轨迹！持续{SKILL_DURATION}秒！");
     }
 
     /// <summary>
@@ -96,6 +99,16 @@ public class JackalSkill : PlayerSkill
         }
 
         Console.WriteLine($"[豺狼] 已为 {player.PlayerName} 激活追踪，{_playerTrails.Count} 个敌人被标记");
+
+        // 10秒后自动禁用技能
+        Plugin?.AddTimer(SKILL_DURATION, () =>
+        {
+            if (player != null && player.IsValid && _activePlayers.ContainsKey(player.SteamID))
+            {
+                player.PrintToChat("🦊 豺狼技能已结束！");
+                DisableSkill(player);
+            }
+        });
     }
 
     /// <summary>
