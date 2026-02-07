@@ -33,6 +33,9 @@ public class TeleportAnchorSkill : PlayerSkill
     // 跟踪每个玩家的锚点状态
     private readonly ConcurrentDictionary<ulong, AnchorState> _playerAnchors = new();
 
+    // 跟踪每个玩家的上次使用时间（用于手动管理冷却）
+    private readonly ConcurrentDictionary<ulong, float> _lastUseTime = new();
+
     // 锚点状态类
     private class AnchorState
     {
@@ -56,6 +59,7 @@ public class TeleportAnchorSkill : PlayerSkill
         RemoveAnchor(player);
 
         _playerAnchors.TryRemove(player.SteamID, out _);
+        _lastUseTime.TryRemove(player.SteamID, out _);
 
         Console.WriteLine($"[传送锚点] {player.PlayerName} 失去了传送锚点技能");
     }
@@ -64,6 +68,19 @@ public class TeleportAnchorSkill : PlayerSkill
     {
         if (player == null || !player.IsValid || !player.PawnIsAlive)
             return;
+
+        // 检查冷却时间
+        if (_lastUseTime.TryGetValue(player.SteamID, out var lastTime))
+        {
+            float elapsedTime = Server.CurrentTime - lastTime;
+            if (elapsedTime < Cooldown)
+            {
+                float remainingTime = Cooldown - elapsedTime;
+                player.PrintToCenter($"⏱️ 冷却中！剩余 {remainingTime:F0} 秒");
+                player.PrintToChat($"⚓ 技能冷却中！还需等待 {remainingTime:F0} 秒");
+                return;
+            }
+        }
 
         Console.WriteLine($"[传送锚点] {player.PlayerName} 使用了传送锚点技能");
 
@@ -76,14 +93,17 @@ public class TeleportAnchorSkill : PlayerSkill
 
         if (!state.HasAnchor)
         {
-            // 第一次使用：创建锚点
+            // 第一次使用：创建锚点（不触发冷却）
             CreateAnchor(player, state);
             player.PrintToChat("⚓ 锚点已创建！再次使用传送到锚点！");
         }
         else
         {
-            // 第二次使用：传送到锚点
+            // 第二次使用：传送到锚点（触发冷却）
             TeleportToAnchor(player, state);
+
+            // 更新冷却时间
+            _lastUseTime[player.SteamID] = Server.CurrentTime;
         }
     }
 
