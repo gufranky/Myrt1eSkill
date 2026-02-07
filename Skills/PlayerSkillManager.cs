@@ -96,6 +96,7 @@ public class PlayerSkillManager
         RegisterSkill(new HolyHandGrenadeSkill()); // 圣手榴弹技能
         RegisterSkill(new FrozenDecoySkill());     // 冷冻诱饵技能
         RegisterSkill(new FalconEyeSkill());       // 猎鹰之眼技能
+        RegisterSkill(new ReplicatorSkill());      // 复制品技能
 
         Console.WriteLine("[技能管理器] 已注册 " + _skills.Count + " 个玩家技能");
     }

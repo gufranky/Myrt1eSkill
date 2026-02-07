@@ -999,6 +999,13 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             Skills.HologramSkill.HandleCloneDamage(entity, info);
         }
 
+        // 处理复制品受到伤害
+        if (entity.Entity?.Name?.StartsWith("Replica_") == true)
+        {
+            var replicatorSkill = (Skills.ReplicatorSkill?)SkillManager.GetSkill("Replicator");
+            replicatorSkill?.OnEntityTakeDamage(hook);
+        }
+
         return HookResult.Continue;
     }
 
