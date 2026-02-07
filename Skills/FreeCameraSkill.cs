@@ -318,19 +318,19 @@ public class FreeCameraSkill : PlayerSkill
             // A 左移
             if (buttons.HasFlag(PlayerButtons.Moveleft))
             {
-                var left = GetLeftVector(cameraInfo.Angle);
-                moveDirection.X += left.X;
-                moveDirection.Y += left.Y;
-                moveDirection.Z += left.Z;
+                var right = GetRightVector(cameraInfo.Angle);
+                moveDirection.X += right.X;
+                moveDirection.Y += right.Y;
+                moveDirection.Z += right.Z;
             }
 
             // D 右移
             if (buttons.HasFlag(PlayerButtons.Moveright))
             {
-                var right = GetRightVector(cameraInfo.Angle);
-                moveDirection.X += right.X;
-                moveDirection.Y += right.Y;
-                moveDirection.Z += right.Z;
+                var left = GetLeftVector(cameraInfo.Angle);
+                moveDirection.X += left.X;
+                moveDirection.Y += left.Y;
+                moveDirection.Z += left.Z;
             }
 
             // 如果有移动，更新摄像头位置
@@ -350,18 +350,6 @@ public class FreeCameraSkill : PlayerSkill
                 cameraInfo.Position.X += moveDirection.X * speed;
                 cameraInfo.Position.Y += moveDirection.Y * speed;
                 cameraInfo.Position.Z += moveDirection.Z * speed;
-
-                // 更新摄像头位置
-                if (cameraInfo.Camera.AbsOrigin != null && cameraInfo.Camera.AbsRotation != null)
-                {
-                    cameraInfo.Camera.Teleport(cameraInfo.Position, cameraInfo.Angle);
-                }
-
-                // 阻止玩家实体移动
-                playerPawn.AbsVelocity.X = 0;
-                playerPawn.AbsVelocity.Y = 0;
-                playerPawn.AbsVelocity.Z = 0;
-                Utilities.SetStateChanged(playerPawn, "CBaseEntity", "m_vecAbsVelocity");
             }
 
             // 更新摄像头角度（跟随玩家视角）
@@ -371,6 +359,18 @@ public class FreeCameraSkill : PlayerSkill
                 cameraInfo.Angle.Y = playerPawn.EyeAngles.Y;
                 cameraInfo.Angle.Z = playerPawn.EyeAngles.Z;
             }
+
+            // 更新摄像头位置和角度
+            if (cameraInfo.Camera.AbsOrigin != null && cameraInfo.Camera.AbsRotation != null)
+            {
+                cameraInfo.Camera.Teleport(cameraInfo.Position, cameraInfo.Angle);
+            }
+
+            // 阻止玩家实体移动
+            playerPawn.AbsVelocity.X = 0;
+            playerPawn.AbsVelocity.Y = 0;
+            playerPawn.AbsVelocity.Z = 0;
+            Utilities.SetStateChanged(playerPawn, "CBaseEntity", "m_vecAbsVelocity");
         }
     }
 
