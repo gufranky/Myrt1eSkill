@@ -19,9 +19,9 @@ public class FreeCameraSkill : PlayerSkill
 {
     public override string Name => "FreeCamera";
     public override string DisplayName => "🔍 检查扫描";
-    public override string Description => "点击激活检查扫描！WASD控制摄像头移动，5秒后自动退出并标记敌人！";
+    public override string Description => "输入 !useskill 或按E激活检查扫描！WASD控制摄像头移动，5秒后自动退出并标记敌人！";
     public override bool IsActive => true; // 主动技能
-    public override float Cooldown => 0.0f; // 0秒冷却
+    public override float Cooldown => 9999.0f; // 每局只能用一次（9999秒冷却）
 
     // 摄像头移动速度
     private const float CAMERA_SPEED = 200.0f;  // 每秒移动速度
@@ -56,9 +56,10 @@ public class FreeCameraSkill : PlayerSkill
         Console.WriteLine($"[检查扫描] {player.PlayerName} 获得了检查扫描技能");
 
         player.PrintToChat("🔍 你获得了检查扫描技能！");
-        player.PrintToChat("💡 点击技能键激活检查扫描！");
+        player.PrintToChat("💡 输入 !useskill 激活检查扫描！");
         player.PrintToChat("🎮 WASD移动摄像头，鼠标控制视角");
         player.PrintToChat("⚠️ 玩家本体不会移动！5秒后自动退出并标记敌人！");
+        player.PrintToChat("⏱️ 每局只能使用一次！");
     }
 
     public override void OnRevert(CCSPlayerController player)
