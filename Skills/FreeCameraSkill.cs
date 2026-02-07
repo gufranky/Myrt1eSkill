@@ -5,6 +5,8 @@
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Utils;
+using CS2TraceRay.Class;
+using CS2TraceRay.Struct;
 using System.Collections.Concurrent;
 using System.Drawing;
 
@@ -23,6 +25,10 @@ public class FreeCameraSkill : PlayerSkill
 
     // 摄像头移动速度
     private const float CAMERA_SPEED = 200.0f;  // 每秒移动速度
+
+    // 视野检测参数
+    private const float MAX_VIEW_DISTANCE = 2000.0f;  // 最大视野距离
+    private const float FOV_THRESHOLD = 0.707f;      // 视野角度阈值（90度）
 
     // 跟踪每个玩家的摄像头状态
     private readonly ConcurrentDictionary<ulong, FreeCameraInfo> _playerCameras = new();
@@ -296,6 +302,17 @@ public class FreeCameraSkill : PlayerSkill
                 cameraInfo.Angle.Y = playerPawn.EyeAngles.Y;
                 cameraInfo.Angle.Z = playerPawn.EyeAngles.Z;
             }
+
+            // 每10帧检测一次视野内的玩家（避免性能问题）
+            if (Server.TickCount % 10 == 0)
+            {
+                var visiblePlayers = GetVisiblePlayers(cameraInfo.Position, cameraInfo.Angle, player);
+                if (visiblePlayers.Count > 0)
+                {
+                    string playerNames = string.Join(", ", visiblePlayers.Select(p => p.PlayerName));
+                    player.PrintToCenter($"👁️ 视野内: {playerNames}");
+                }
+            }
         }
     }
 
@@ -340,5 +357,99 @@ public class FreeCameraSkill : PlayerSkill
             (float)Math.Sin(radiansY),
             0
         );
+    }
+
+    /// <summary>
+    /// 检测玩家是否在摄像头视野内
+    /// 使用 TraceRay 检查障碍物 + 角度计算
+    /// </summary>
+    private bool IsPlayerInView(Vector cameraPos, QAngle cameraAngle, CCSPlayerController targetPlayer)
+    {
+        var targetPawn = targetPlayer.PlayerPawn.Value;
+        if (targetPawn == null || !targetPawn.IsValid || targetPawn.AbsOrigin == null)
+            return false;
+
+        // 计算摄像头到玩家的向量
+        Vector toPlayer = new(
+            targetPawn.AbsOrigin.X - cameraPos.X,
+            targetPawn.AbsOrigin.Y - cameraPos.Y,
+            targetPawn.AbsOrigin.Z - cameraPos.Z
+        );
+
+        // 计算距离
+        float distance = (float)Math.Sqrt(toPlayer.X * toPlayer.X + toPlayer.Y * toPlayer.Y + toPlayer.Z * toPlayer.Z);
+
+        // 超出最大视野距离
+        if (distance > MAX_VIEW_DISTANCE)
+            return false;
+
+        // 计算摄像头前方向量
+        Vector cameraForward = GetForwardVector(cameraAngle);
+
+        // 计算到玩家的方向（归一化）
+        Vector toPlayerDir = new(
+            toPlayer.X / distance,
+            toPlayer.Y / distance,
+            toPlayer.Z / distance
+        );
+
+        // 计算点积（判断角度）
+        float dotProduct = cameraForward.X * toPlayerDir.X +
+                          cameraForward.Y * toPlayerDir.Y +
+                          cameraForward.Z * toPlayerDir.Z;
+
+        // 如果不在视野角度范围内（90度 FOV）
+        if (dotProduct < FOV_THRESHOLD)
+            return false;
+
+        // 使用 TraceRay 检查是否有障碍物
+        return !IsObstacleBetween(cameraPos, targetPawn.AbsOrigin, targetPlayer);
+    }
+
+    /// <summary>
+    /// 检查两点之间是否有障碍物
+    /// 参考 HologramSkill.CheckPosition 实现
+    /// </summary>
+    private unsafe bool IsObstacleBetween(Vector startPos, Vector endPos, CCSPlayerController player)
+    {
+        // 稍微抬高起点和终点，避免地面检测
+        Vector eyePos = new(startPos.X, startPos.Y, startPos.Z + 25.0f);
+        Vector targetPos = new(endPos.X, endPos.Y, endPos.Z + 25.0f);
+
+        // 获取碰撞掩码
+        ulong mask = player.PlayerPawn.Value?.Collision.CollisionAttribute.InteractsWith ?? 0;
+        ulong contents = player.PlayerPawn.Value?.Collision.CollisionGroup ?? 0;
+
+        // 发射射线
+        CGameTrace trace = TraceRay.TraceShape(eyePos, targetPos, mask, contents, player);
+
+        // 如果击中了物体，说明有障碍物
+        return trace.DidHit();
+    }
+
+    /// <summary>
+    /// 获取所有在摄像头视野内的玩家
+    /// </summary>
+    private List<CCSPlayerController> GetVisiblePlayers(Vector cameraPos, QAngle cameraAngle, CCSPlayerController observer)
+    {
+        var visiblePlayers = new List<CCSPlayerController>();
+
+        foreach (var player in Utilities.GetPlayers())
+        {
+            if (player == null || !player.IsValid || !player.PawnIsAlive)
+                continue;
+
+            // 跳过观察者自己
+            if (player == observer)
+                continue;
+
+            // 检查玩家是否在视野内
+            if (IsPlayerInView(cameraPos, cameraAngle, player))
+            {
+                visiblePlayers.Add(player);
+            }
+        }
+
+        return visiblePlayers;
     }
 }
