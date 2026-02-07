@@ -6,8 +6,8 @@
 
 ## 统计信息
 
-- **事件总数**: 41 个
-- **技能总数**: 27 个
+- **事件总数**: 45 个
+- **技能总数**: 43 个
 
 ---
 
@@ -436,7 +436,20 @@
   - 客户端状态同步：`Utilities.SetStateChanged(player, "CCSPlayerController", "m_pInGameMoneyServices")`
   - 不恢复原始金币值（回合开始时游戏会自动重置）
 
-### 38. Deaf (失聪)
+### 38. BankruptcyWeapon (破产之枪)
+- **文件名**: BankruptcyWeaponEvent.cs
+- **内部名称**: BankruptcyWeapon
+- **显示名称**: 💸 破产之枪
+- **描述**: 所有伤害改为扣除金钱！伤害×50！金钱为0直接死亡！开局+5000金币！
+- **特殊机制**:
+  - 开局给予所有玩家 +5000 金币
+  - 所有伤害转换为扣钱：伤害 × 50
+  - 如果金币为 0，直接击杀（999 伤害）
+  - 如果金币 > 0，抵消伤害并扣除金币
+  - 监听 EventPlayerHurt 事件
+  - 参考 MeitoSkill 的伤害处理和 KillerFlashSkill 的 999 伤害
+
+### 39. Deaf (失聪)
 - **文件名**: DeafEvent.cs
 - **内部名称**: Deaf
 - **显示名称**: 🔇 失聪
@@ -816,6 +829,156 @@
 ### 27. DarknessSkill (黑暗)
 - **同 DarknessSkill.cs**
 
+### 28. Explorer (探索者)
+- **文件名**: ExplorerSkill.cs
+- **内部名称**: Explorer
+- **显示名称**: 🔍 探索者
+- **描述**: 创建一个缓慢移动的复制品，打掉它的人屏幕会黑暗2.5秒！只存在5秒！
+- **类型**: 主动技能
+- **冷却时间**: 30秒
+- **特殊机制**:
+  - 创建 CDynamicProp 复制品（使用玩家模型）
+  - 复制品放置在玩家前方 40 单位处
+  - 水平移动速度：100 单位/秒（使用 AbsVelocity）
+  - 持续时间：5 秒
+  - 被击中时对攻击者施加 2.5 秒黑暗效果
+  - 不增加垂直速度，只水平移动
+  - 使用 OnEntityTakeDamage Hook 检测伤害
+
+### 29. FalconEye (猎鹰之眼)
+- **文件名**: FalconEyeSkill.cs
+- **内部名称**: FalconEye
+- **显示名称**: 🦅 猎鹰之眼
+- **描述**: 激活鸟瞰视角摄像头，从1000单位高空俯视战场！
+- **类型**: 主动技能
+- **冷却时间**: 30秒
+- **特殊机制**:
+  - 创建 CDynamicProp 摄像头实体
+  - 摄像头位于玩家上方 1000 单位
+  - 每帧更新位置跟随玩家移动
+  - 摄像头角度：俯视90度 + 玩家朝向旋转
+  - 激活时禁用所有武器
+  - 再次使用或持续时间结束恢复正常视角
+  - 使用 ViewEntity 属性控制玩家视角
+
+### 30. FrozenDecoy (冷冻诱饵)
+- **文件名**: FrozenDecoySkill.cs
+- **内部名称**: FrozenDecoy
+- **显示名称**: ❄️ 冷冻诱饵
+- **描述**: 你的诱饵会冻结附近所有玩家！
+- **类型**: 被动技能
+- **特殊机制**:
+  - 监听 EventDecoyStarted 和 EventDecoyDetonate
+  - 追踪所有诱饵弹位置
+  - 冻结半径：180 单位
+  - 冻结效果使用速度修正器：`(distance/radius)^5`
+  - 距离越近，减速越严重（0% 速度）
+  - 距离越远，减速越轻微（接近 100% 速度）
+  - 自动补充投掷的诱饵弹（最多补充一次）
+  - 持续时间：15 秒
+
+### 31. HolyHandGrenade (圣手榴弹)
+- **文件名**: HolyHandGrenadeSkill.cs
+- **内部名称**: HolyHandGrenade
+- **显示名称**: 💣 圣手榴弹
+- **描述**: 你的高爆手雷造成2.5倍伤害和2.5倍范围！开局发1个！投掷后最多补充1次！
+- **类型**: 被动技能
+- **特殊机制**:
+  - 监听 OnEntitySpawned 事件
+  - 增强 HE 手雷属性：2.5 倍伤害和 2.5 倍范围
+  - 开局给予 1 个高爆手雷
+  - 投掷后自动补充，最多补充 1 次
+  - 参考 jRandomSkills Holy Hand Grenade 技能
+  - GPLv3 许可：代码和设计概念来自 jRandomSkills
+
+### 32. InfiniteAmmo (无限弹药)
+- **文件名**: InfiniteAmmoSkill.cs
+- **内部名称**: InfiniteAmmo
+- **显示名称**: ∞ 无限弹药
+- **描述**: 你的所有武器都将获得无限弹药！
+- **类型**: 被动技能
+- **特殊机制**:
+  - 开火时自动填满弹夹至 100 发
+  - 换弹时自动填满弹夹至 100 发
+  - 投掷手雷后自动补充新的手雷
+  - 监听 EventWeaponFire、EventWeaponReload、EventGrenadeThrown
+  - 使用 Clip1 属性设置弹药
+  - 使用 GiveNamedItem 补充手雷
+  - 参考 jRandomSkills Infinite Ammo 技能
+  - GPLv3 许可：代码和设计概念来自 jRandomSkills
+
+### 33. Jackal (豺狼)
+- **文件名**: JackalSkill.cs
+- **内部名称**: Jackal
+- **显示名称**: 🐺 豺狼
+- **描述**: 选择一名敌人，他会留下一条可见的轨迹！
+- **类型**: 主动技能
+- **冷却时间**: 30秒
+- **特殊机制**:
+  - 随机选择一名敌人
+  - 创建粒子系统（CParticleSystem）跟随敌人
+  - 粒子效果：`particles/ui/hud/ui_map_def_utility_trail.vpcf`
+  - 粉紫色轨迹（#f542ef）
+  - 使用 SetParent 将粒子附加到敌人
+  - 持续时间：永久（直到敌人死亡）
+  - 使用 CheckTransmit 让所有玩家都能看到轨迹
+  - 参考 jRandomSkills Jackal 技能
+  - GPLv3 许可：代码和设计概念来自 jRandomSkills
+
+### 34. Phoenix (凤凰)
+- **文件名**: PhoenixSkill.cs
+- **内部名称**: Phoenix
+- **显示名称**: 🔥 凤凰
+- **描述**: 死亡后有20-40%几率复活！每回合限用一次！
+- **类型**: 被动技能
+- **特殊机制**:
+  - 每个玩家每回合随机生成 20-40% 的复活几率
+  - 死亡时掷出 1-100 的随机数
+  - 如果骰子点数 ≤ 复活几率，触发复活
+  - 复活以 100 血量 + 保留护甲
+  - 传送到随机出生点
+  - 每回合限用一次
+  - 与 SecondChance 和 Meito 互斥
+  - 参考 SecondChanceSkill 实现
+
+### 35. Replicator (复制品)
+- **文件名**: ReplicatorSkill.cs
+- **内部名称**: Replicator
+- **显示名称**: 🎭 复制品
+- **描述**: 创建一个复制品，该复制品会在击中时造成伤害！持续15秒！
+- **类型**: 主动技能
+- **冷却时间**: 30秒
+- **特殊机制**:
+  - 创建 CDynamicProp 复制品（使用玩家模型）
+  - 复制品放置在玩家前方 40 单位处
+  - 静态不移动
+  - 被击中时对攻击者造成伤害
+  - 敌人击中：20 点伤害
+  - 队友击中：10 点伤害
+  - 持续时间：15 秒
+  - 使用 OnEntityTakeDamage Hook 检测伤害
+  - 直接修改 Health 属性
+  - 参考 jRandomSkills Replicator 技能
+  - GPLv3 许可：代码和设计概念来自 jRandomSkills
+
+### 36. TeleportAnchor (传送锚点)
+- **文件名**: TeleportAnchorSkill.cs
+- **内部名称**: TeleportAnchor
+- **显示名称**: ⚓ 传送锚点
+- **描述**: 第一次使用创建移动锚点，第二次使用传送到锚点！持续10秒！
+- **类型**: 主动技能
+- **冷却时间**: 30秒
+- **特殊机制**:
+  - 第一次使用：创建粒子系统锚点
+  - 粒子效果：`particles/ui/hud/ui_map_def_utility_trail.vpcf`
+  - 锚点从玩家位置开始，沿玩家朝向水平移动
+  - 移动速度：150 单位/秒
+  - 持续时间：10 秒
+  - 第二次使用：传送到锚点当前位置
+  - 使用 AbsVelocity 实现平滑移动（无穿模）
+  - 使用 CheckTransmit 让所有玩家透视看到锚点
+  - 参考 Jackal 技能的粒子系统和 Explorer 技能的移动实现
+
 ---
 
 ## 附录
@@ -861,5 +1024,5 @@
 
 ---
 
-**文档生成时间**: 2025-02-03
+**文档生成时间**: 2025-02-07
 **插件版本**: 基于 MyrtleSkill CS2 插件
