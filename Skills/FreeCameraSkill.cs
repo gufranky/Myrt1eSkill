@@ -26,6 +26,9 @@ public class FreeCameraSkill : PlayerSkill
     // 摄像头移动速度
     private const float CAMERA_SPEED = 200.0f;  // 每秒移动速度
 
+    // 自由视角持续时间（秒）
+    private const float FREE_CAMERA_DURATION = 5.0f;
+
     // 视野检测参数
     private const float MAX_VIEW_DISTANCE = 2000.0f;  // 最大视野距离
     private const float FOV_THRESHOLD = 0.707f;      // 视野角度阈值（90度）
@@ -45,6 +48,7 @@ public class FreeCameraSkill : PlayerSkill
         public Vector Position { get; set; } = new Vector(0, 0, 0);
         public QAngle Angle { get; set; } = new QAngle(0, 0, 0);
         public bool IsActive { get; set; }
+        public float StartTime { get; set; }  // 开始时间
     }
 
     public override void OnApply(CCSPlayerController player)
@@ -121,6 +125,9 @@ public class FreeCameraSkill : PlayerSkill
             camera.DispatchSpawn();
         });
 
+        // 记录开始时间
+        float startTime = Server.CurrentTime;
+
         // 保存原始摄像头句柄和初始位置
         _playerCameras.AddOrUpdate(
             player.SteamID,
@@ -130,12 +137,14 @@ public class FreeCameraSkill : PlayerSkill
                 Camera = camera,
                 Position = playerPawn.AbsOrigin != null ? new Vector(playerPawn.AbsOrigin.X, playerPawn.AbsOrigin.Y, playerPawn.AbsOrigin.Z) : new Vector(0, 0, 0),
                 Angle = playerPawn.EyeAngles != null ? new QAngle(playerPawn.EyeAngles.X, playerPawn.EyeAngles.Y, playerPawn.EyeAngles.Z) : new QAngle(0, 0, 0),
-                IsActive = true
+                IsActive = true,
+                StartTime = startTime
             },
             (key, old) =>
             {
                 old.Camera = camera;
                 old.IsActive = true;
+                old.StartTime = startTime;
                 return old;
             }
         );
@@ -156,8 +165,8 @@ public class FreeCameraSkill : PlayerSkill
             Plugin.RegisterListener<Listeners.OnTick>(OnTick);
         }
 
-        player.PrintToCenter("📷 自由视角已激活！WASD移动");
-        player.PrintToChat("📷 自由视角已激活！玩家本体不会移动！");
+        player.PrintToCenter($"📷 自由视角 {FREE_CAMERA_DURATION}秒！WASD移动");
+        player.PrintToChat($"📷 自由视角已激活！{FREE_CAMERA_DURATION}秒后自动退出并标记敌人！");
     }
 
     /// <summary>
@@ -246,6 +255,30 @@ public class FreeCameraSkill : PlayerSkill
 
             if (!cameraInfo.IsActive || cameraInfo.Camera == null || !cameraInfo.Camera.IsValid)
                 continue;
+
+            // 检查是否超时
+            float elapsedTime = Server.CurrentTime - cameraInfo.StartTime;
+            if (elapsedTime >= FREE_CAMERA_DURATION)
+            {
+                // 查找玩家并自动退出
+                var p = Utilities.GetPlayers().FirstOrDefault(p => p.SteamID == steamID);
+                if (p != null && p.IsValid)
+                {
+                    ExitFreeCamera(p);
+                }
+                continue;
+            }
+
+            // 显示剩余时间（每秒更新一次）
+            float remainingTime = FREE_CAMERA_DURATION - elapsedTime;
+            if (Server.TickCount % 64 == 0)  // 约每秒显示一次
+            {
+                var p = Utilities.GetPlayers().FirstOrDefault(p => p.SteamID == steamID);
+                if (p != null && p.IsValid)
+                {
+                    p.PrintToCenter($"📷 剩余时间: {remainingTime:F1}秒");
+                }
+            }
 
             // 查找玩家
             var player = Utilities.GetPlayers().FirstOrDefault(p => p.SteamID == steamID);
