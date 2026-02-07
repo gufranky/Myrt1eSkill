@@ -193,9 +193,27 @@ public class PilotSkill : PlayerSkill
     {
         float fuelPercentage = (pilotInfo.Fuel / MAXIMUM_FUEL) * 100;
         string fuelColor = GetFuelColor(pilotInfo.Fuel);
+        string backgroundColor = GetFuelBackgroundColor(pilotInfo.Fuel);
 
-        // 使用 PrintToCenter 显示燃料百分比
-        player.PrintToCenter($"⛽ 燃料: <font color='{fuelColor}'>{fuelPercentage:F0}%</font>");
+        // 使用HTML HUD显示燃料百分比
+        string htmlContent = $"<div style='background-color: {backgroundColor}; border: 3px solid {fuelColor}; border-radius: 8px; padding: 15px 30px; text-align: center;'>"
+            + $"<font class='fontWeight-Bold fontSize-xl' color='#FFFFFF'>⛽ 燃料: <font color='{fuelColor}'>{fuelPercentage:F0}%</font></font><br>"
+            + $"<font class='fontSize-sm' color='#CCCCCC'>按住 E 键飞行</font>"
+            + $"</div>";
+
+        player.PrintToCenterHtml(htmlContent);
+    }
+
+    /// <summary>
+    /// 获取燃料背景颜色（半透明）
+    /// </summary>
+    private string GetFuelBackgroundColor(float fuel)
+    {
+        if (fuel > (MAXIMUM_FUEL / 2f))
+            return "rgba(0, 255, 0, 0.3)"; // 绿色半透明
+        if (fuel > (MAXIMUM_FUEL / 4f))
+            return "rgba(255, 255, 0, 0.3)"; // 黄色半透明
+        return "rgba(255, 0, 0, 0.3)"; // 红色半透明
     }
 
     /// <summary>
