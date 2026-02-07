@@ -829,6 +829,10 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 处理鬼技能（禁用武器攻击）
         Skills.GhostSkill.HandleWeaponPickup(player);
 
+        // 处理猎鹰之眼技能（摄像头模式下禁用武器）
+        var falconEyeSkill = (Skills.FalconEyeSkill?)SkillManager.GetSkill("FalconEye");
+        falconEyeSkill?.OnItemPickup(@event);
+
         return HookResult.Continue;
     }
 
@@ -971,6 +975,10 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 处理冷冻诱饵技能（冻结附近的玩家）
         var frozenDecoySkill = (Skills.FrozenDecoySkill?)SkillManager.GetSkill("FrozenDecoy");
         frozenDecoySkill?.OnTick();
+
+        // 处理猎鹰之眼技能（更新摄像头位置）
+        var falconEyeSkill = (Skills.FalconEyeSkill?)SkillManager.GetSkill("FalconEye");
+        falconEyeSkill?.OnTick();
     }
 
     /// <summary>
