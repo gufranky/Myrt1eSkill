@@ -979,6 +979,10 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 处理猎鹰之眼技能（更新摄像头位置）
         var falconEyeSkill = (Skills.FalconEyeSkill?)SkillManager.GetSkill("FalconEye");
         falconEyeSkill?.OnTick();
+
+        // 处理探索者技能（移动探索者复制品）
+        var explorerSkill = (Skills.ExplorerSkill?)SkillManager.GetSkill("Explorer");
+        explorerSkill?.OnTick();
     }
 
     /// <summary>
@@ -1004,6 +1008,13 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         {
             var replicatorSkill = (Skills.ReplicatorSkill?)SkillManager.GetSkill("Replicator");
             replicatorSkill?.OnEntityTakeDamage(hook);
+        }
+
+        // 处理探索者受到伤害
+        if (entity.Entity?.Name?.StartsWith("Explorer_") == true)
+        {
+            var explorerSkill = (Skills.ExplorerSkill?)SkillManager.GetSkill("Explorer");
+            explorerSkill?.OnEntityTakeDamage(hook);
         }
 
         return HookResult.Continue;
