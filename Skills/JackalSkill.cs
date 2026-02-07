@@ -5,216 +5,213 @@
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Utils;
+using System.Collections.Concurrent;
 
 namespace MyrtleSkill.Skills;
 
 /// <summary>
-/// 豺狼/追踪技能 - 主动技能
-/// 激活后所有敌人身后会留下粉紫色轨迹，方便追踪他们的位置
-/// 完全复制自 jRandomSkills Jackal 技能
+/// 豺狼/追踪技能 - 被动技能
+/// 显示所有敌人最近10秒的移动轨迹
 /// </summary>
 public class JackalSkill : PlayerSkill
 {
     public override string Name => "Jackal";
     public override string DisplayName => "🦊 豺狼";
-    public override string Description => "激活后所有敌人身后留下轨迹，持续追踪他们的位置！持续10秒！";
-    public override bool IsActive => true; // 主动技能
-    public override float Cooldown => 60.0f; // 60秒冷却
+    public override string Description => "所有敌人身后留下轨迹，显示他们最近10秒的移动路径！";
+    public override bool IsActive => false; // 被动技能
 
     // 粒子效果路径（与 jRandomSkills 一致）
     private const string PARTICLE_NAME = "particles/ui/hud/ui_map_def_utility_trail.vpcf";
 
-    // 轨迹刷新间隔（秒）
-    private const float TRAIL_REFRESH_INTERVAL = 2.5f;
+    // 轨迹持续时间（秒）
+    private const float TRAIL_DURATION = 10.0f;
 
-    // 技能持续时间（秒）
-    private const float SKILL_DURATION = 10.0f;
+    // 位置记录间隔（秒）
+    private const float RECORD_INTERVAL = 0.5f;
 
-    // 跟踪每个玩家的粒子系统
-    private readonly Dictionary<CCSPlayerController, CParticleSystem> _playerTrails = new();
+    // 跟踪每个玩家的位置历史
+    private readonly ConcurrentDictionary<ulong, PlayerPositionHistory> _playerPositions = new();
 
-    // 跟踪激活此技能的玩家
-    private readonly Dictionary<ulong, bool> _activePlayers = new();
+    // 位置历史记录
+    private class PlayerPositionHistory
+    {
+        public ConcurrentBag<PositionRecord> Positions { get; set; } = new();
+    }
+
+    // 位置记录
+    private class PositionRecord
+    {
+        public Vector Position { get; set; }
+        public float Time { get; set; }
+        public CParticleSystem Particle { get; set; }
+    }
 
     public override void OnApply(CCSPlayerController player)
     {
         Console.WriteLine($"[豺狼] {player.PlayerName} 获得了豺狼技能");
         player.PrintToChat("🦊 你获得了豺狼技能！");
-        player.PrintToChat("💡 输入 !useskill 或按键激活！");
-        player.PrintToChat($"⏱️ 冷却时间：{Cooldown}秒，持续时间：{SKILL_DURATION}秒");
+        player.PrintToChat("💡 所有敌人身后会留下轨迹，显示他们最近10秒的移动路径！");
+
+        // 注册 OnTick 监听（如果有玩家使用豺狼技能）
+        if (_playerPositions.Count > 0 && Plugin != null)
+        {
+            Plugin.RegisterListener<Listeners.OnTick>(OnTick);
+        }
+
+        // 注册 CheckTransmit 监听
+        Plugin?.RegisterListener<Listeners.CheckTransmit>(OnCheckTransmit);
     }
 
     public override void OnRevert(CCSPlayerController player)
     {
-        // 移除该玩家激活的技能
-        DisableSkill(player);
+        // 清理该玩家的位置历史
+        RemovePlayerHistory(player.SteamID);
+
+        // 如果没有玩家使用豺狼技能，移除监听
+        if (_playerPositions.Count == 0 && Plugin != null)
+        {
+            Plugin.RemoveListener<Listeners.OnTick>(OnTick);
+            Plugin.RemoveListener<Listeners.CheckTransmit>(OnCheckTransmit);
+        }
 
         Console.WriteLine($"[豺狼] {player.PlayerName} 失去了豺狼技能");
     }
 
-    public override void OnUse(CCSPlayerController player)
-    {
-        if (player == null || !player.IsValid || !player.PawnIsAlive)
-            return;
-
-        Console.WriteLine($"[豺狼] {player.PlayerName} 激活了豺狼技能");
-
-        // 如果已经激活，则不重复激活
-        if (_activePlayers.ContainsKey(player.SteamID))
-        {
-            player.PrintToChat("🦊 豺狼技能已经在运行中！");
-            return;
-        }
-
-        // 激活技能
-        EnableSkill(player);
-
-        player.PrintToChat($"🦊 豺狼技能已激活！所有敌人身后留下轨迹！持续{SKILL_DURATION}秒！");
-    }
-
     /// <summary>
-    /// 激活技能 - 为所有敌人创建轨迹
-    /// 完全复制自 jRandomSkills Jackal.EnableSkill
+    /// 每帧更新 - 记录敌人位置并更新轨迹
     /// </summary>
-    private void EnableSkill(CCSPlayerController player)
+    public void OnTick()
     {
-        // 注册 CheckTransmit 监听（如果还没有注册）
-        if (_activePlayers.Count == 0 && Plugin != null)
-        {
-            Plugin.RegisterListener<Listeners.CheckTransmit>(OnCheckTransmit);
-        }
+        float currentTime = Server.CurrentTime;
 
-        // 标记玩家为激活状态
-        _activePlayers[player.SteamID] = true;
+        // 每0.5秒记录一次位置（避免记录过于频繁）
+        if (Server.TickCount % 32 != 0) // 64 tick/s * 0.5s = 32 ticks
+            return;
 
-        // 为所有敌方玩家创建轨迹
-        foreach (var enemy in Utilities.GetPlayers()
-            .Where(p => p.Team != player.Team && p.IsValid && !p.IsBot && !p.IsHLTV && p.PawnIsAlive))
+        // 获取所有有豺狼技能的玩家
+        var playersWithJackal = new List<CCSPlayerController>();
+        foreach (var player in Utilities.GetPlayers())
         {
-            if (!_playerTrails.ContainsKey(enemy))
+            if (player == null || !player.IsValid)
+                continue;
+
+            var skills = Plugin?.SkillManager.GetPlayerSkills(player);
+            bool hasJackal = skills?.Any(s => s.Name == "Jackal") ?? false;
+            if (hasJackal)
             {
-                _playerTrails[enemy] = null!;
-                CreatePlayerTrail(enemy);
+                playersWithJackal.Add(player);
             }
         }
 
-        Console.WriteLine($"[豺狼] 已为 {player.PlayerName} 激活追踪，{_playerTrails.Count} 个敌人被标记");
+        // 如果没有玩家有豺狼技能，返回
+        if (playersWithJackal.Count == 0)
+            return;
 
-        // 10秒后自动禁用技能
-        Plugin?.AddTimer(SKILL_DURATION, () =>
+        // 记录所有敌人的位置
+        foreach (var enemy in Utilities.GetPlayers())
         {
-            if (player != null && player.IsValid && _activePlayers.ContainsKey(player.SteamID))
-            {
-                player.PrintToChat("🦊 豺狼技能已结束！");
-                DisableSkill(player);
-            }
-        });
-    }
+            if (enemy == null || !enemy.IsValid || !enemy.PawnIsAlive)
+                continue;
 
-    /// <summary>
-    /// 禁用技能 - 移除该玩家的所有轨迹
-    /// 完全复制自 jRandomSkills Jackal.DisableSkill
-    /// </summary>
-    private void DisableSkill(CCSPlayerController player)
-    {
-        // 移除玩家激活状态
-        _activePlayers.Remove(player.SteamID);
+            var enemyPawn = enemy.PlayerPawn.Value;
+            if (enemyPawn == null || !enemyPawn.IsValid || enemyPawn.AbsOrigin == null)
+                continue;
 
-        // 如果没有激活的玩家了，清理所有轨迹
-        if (_activePlayers.Count == 0)
-        {
-            NewRound();
+            // 记录位置
+            RecordEnemyPosition(enemy, currentTime);
         }
 
-        Console.WriteLine($"[豺狼] 已移除 {player.PlayerName} 的追踪");
+        // 清理过期的位置记录
+        CleanupOldPositions(currentTime);
     }
 
     /// <summary>
-    /// 创建玩家轨迹
-    /// 完全复制自 jRandomSkills Jackal.CreatePlayerTrail
+    /// 记录敌人位置
     /// </summary>
-    private void CreatePlayerTrail(CCSPlayerController? player)
+    private void RecordEnemyPosition(CCSPlayerController enemy, float currentTime)
     {
-        if (player == null)
+        var enemyPawn = enemy.PlayerPawn.Value;
+        if (enemyPawn == null || !enemyPawn.IsValid || enemyPawn.AbsOrigin == null)
             return;
 
-        var playerPawn = player.PlayerPawn.Value;
-        if (playerPawn == null || !playerPawn.IsValid || playerPawn.AbsOrigin == null)
-            return;
+        // 获取或创建位置历史
+        var history = _playerPositions.GetOrAdd(enemy.SteamID, new PlayerPositionHistory());
 
-        if (playerPawn.LifeState != (byte)LifeState_t.LIFE_ALIVE)
-            return;
+        // 创建位置记录
+        var record = new PositionRecord
+        {
+            Position = new Vector(enemyPawn.AbsOrigin.X, enemyPawn.AbsOrigin.Y, enemyPawn.AbsOrigin.Z),
+            Time = currentTime,
+            Particle = null
+        };
 
-        if (!_playerTrails.ContainsKey(player))
-            return;
-
-        // 创建粒子系统实体
+        // 创建粒子效果
         CParticleSystem particle = Utilities.CreateEntityByName<CParticleSystem>("info_particle_system")!;
-        if (particle == null)
-            return;
-
-        // 设置粒子效果
-        particle.EffectName = PARTICLE_NAME;
-        particle.StartActive = true;
-
-        // 传送到玩家位置
-        particle.Teleport(playerPawn.AbsOrigin);
-        particle.DispatchSpawn();
-
-        // 附加到玩家身上（跟随玩家移动）
-        particle.AcceptInput("SetParent", playerPawn, particle, "!activator");
-        particle.AcceptInput("Start");
-
-        // 保存粒子系统引用
-        _playerTrails[player] = particle;
-
-        Console.WriteLine($"[豺狼] 为 {player.PlayerName} 创建了轨迹粒子");
-
-        // 2.5秒后刷新轨迹
-        if (Plugin != null)
+        if (particle != null && particle.IsValid)
         {
-            Plugin.AddTimer(TRAIL_REFRESH_INTERVAL, () =>
+            particle.EffectName = PARTICLE_NAME;
+            particle.StartActive = true;
+            particle.Teleport(record.Position);
+            particle.DispatchSpawn();
+            record.Particle = particle;
+        }
+
+        // 添加到历史记录
+        history.Positions.Add(record);
+
+        Console.WriteLine($"[豺狼] 记录 {enemy.PlayerName} 的位置");
+    }
+
+    /// <summary>
+    /// 清理过期的位置记录
+    /// </summary>
+    private void CleanupOldPositions(float currentTime)
+    {
+        foreach (var kvp in _playerPositions)
+        {
+            var steamID = kvp.Key;
+            var history = kvp.Value;
+
+            // 获取过期的记录
+            var expiredRecords = history.Positions.Where(p => currentTime - p.Time > TRAIL_DURATION).ToList();
+
+            foreach (var record in expiredRecords)
             {
-                if (particle != null && particle.IsValid)
+                // 销毁粒子
+                if (record.Particle != null && record.Particle.IsValid)
                 {
-                    particle.AcceptInput("Kill");
+                    record.Particle.AcceptInput("Kill");
                 }
-                CreatePlayerTrail(player);
-            });
+
+                // ConcurrentBag不支持移除操作，需要重新创建
+                var remainingRecords = history.Positions.Where(p => p != record);
+                history.Positions = new ConcurrentBag<PositionRecord>(remainingRecords);
+            }
         }
     }
 
     /// <summary>
-    /// 清理所有轨迹（回合结束或技能失效时）
-    /// 完全复制自 jRandomSkills Jackal.NewRound
+    /// 清理玩家的位置历史
     /// </summary>
-    private void NewRound()
+    private void RemovePlayerHistory(ulong steamID)
     {
-        // 销毁所有粒子系统
-        foreach (var trail in _playerTrails.Values)
+        if (_playerPositions.TryGetValue(steamID, out var history))
         {
-            if (trail != null && trail.IsValid)
+            foreach (var record in history.Positions)
             {
-                trail.AcceptInput("Kill");
+                if (record.Particle != null && record.Particle.IsValid)
+                {
+                    record.Particle.AcceptInput("Kill");
+                }
             }
+
+            _playerPositions.TryRemove(steamID, out _);
         }
-
-        _playerTrails.Clear();
-        _activePlayers.Clear();
-
-        // 移除 CheckTransmit 监听
-        if (Plugin != null)
-        {
-            Plugin.RemoveListener<Listeners.CheckTransmit>(OnCheckTransmit);
-        }
-
-        Console.WriteLine("[豺狼] 已清理所有轨迹");
     }
 
     /// <summary>
     /// 控制轨迹可见性
-    /// 完全复制自 jRandomSkills Jackal.CheckTransmit
-    /// 只有拥有豺狼技能的玩家能看到轨迹，其他人看不到
+    /// 只有拥有豺狼技能的玩家能看到轨迹
     /// </summary>
     private void OnCheckTransmit(CCheckTransmitInfoList infoList)
     {
@@ -223,8 +220,9 @@ public class JackalSkill : PlayerSkill
             if (player == null || !player.IsValid)
                 continue;
 
-            // 检查玩家是否有豺狼技能或在观察拥有技能的玩家
-            bool hasSkill = _activePlayers.ContainsKey(player.SteamID);
+            // 检查玩家是否有豺狼技能
+            var skills = Plugin?.SkillManager.GetPlayerSkills(player);
+            bool hasSkill = skills?.Any(s => s.Name == "Jackal") ?? false;
 
             // 如果玩家正在观察其他人，检查被观察者是否有豺狼技能
             if (!hasSkill)
@@ -233,30 +231,34 @@ public class JackalSkill : PlayerSkill
                 if (targetHandle != nint.Zero)
                 {
                     var target = Utilities.GetPlayers().FirstOrDefault(p => p?.Pawn?.Value?.Handle == targetHandle);
-                    if (target != null && _activePlayers.ContainsKey(target.SteamID))
+                    if (target != null)
                     {
-                        hasSkill = true;
+                        var targetSkills = Plugin?.SkillManager.GetPlayerSkills(target);
+                        hasSkill = targetSkills?.Any(s => s.Name == "Jackal") ?? false;
                     }
                 }
             }
 
             // 控制每个轨迹粒子的可见性
-            foreach (var kvp in _playerTrails)
+            foreach (var kvp in _playerPositions)
             {
-                var enemy = kvp.Key;
-                var trail = kvp.Value;
+                var history = kvp.Value;
 
-                if (trail == null || !trail.IsValid)
-                    continue;
-
-                var entity = Utilities.GetEntityFromIndex<CBaseEntity>((int)trail.Index);
-                if (entity == null || !entity.IsValid)
-                    continue;
-
-                // 如果玩家没有豺狼技能，或者轨迹属于队友，则隐藏轨迹
-                if (!hasSkill || enemy.Team == player.Team)
+                foreach (var record in history.Positions)
                 {
-                    info.TransmitEntities.Remove(entity.Index);
+                    if (record.Particle == null || !record.Particle.IsValid)
+                        continue;
+
+                    var entity = Utilities.GetEntityFromIndex<CBaseEntity>((int)record.Particle.Index);
+                    if (entity == null || !entity.IsValid)
+                        continue;
+
+                    // 如果玩家没有豺狼技能，则隐藏轨迹
+                    if (!hasSkill)
+                    {
+                        info.TransmitEntities.Remove(entity.Index);
+                    }
+                    // 有技能的玩家可以看到
                 }
             }
         }
