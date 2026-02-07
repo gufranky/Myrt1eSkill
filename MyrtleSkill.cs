@@ -910,10 +910,11 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
                 var bomb = plantedBombs.First();
                 if (bomb.IsValid)
                 {
+                    // 使用 Server.EngineTime 而不是 DateTime.Now.TimeOfDay
+                    bomb.C4Blow = (float)Server.EngineTime + 60.0f;
                     bomb.TimerLength = 60.0f;
-                    bomb.C4Blow = (float)DateTime.Now.TimeOfDay.TotalSeconds + bomb.TimerLength;
 
-                    Console.WriteLine("[任意下包事件] 炸弹爆炸时间已修改为 " + bomb.TimerLength + " 秒");
+                    Console.WriteLine("[任意下包事件] 炸弹爆炸时间已设置为 60 秒（EngineTime: " + Server.EngineTime + ", BlowTime: " + bomb.C4Blow + ")");
                 }
             }
         }
