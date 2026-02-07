@@ -92,6 +92,7 @@ public class PlayerSkillManager
         RegisterSkill(new KillInvincibilitySkill()); // 杀人无敌技能
         RegisterSkill(new SilentSkill());        // 沉默技能
         RegisterSkill(new PushSkill());           // 推手技能
+        RegisterSkill(new JackalSkill());         // 豺狼技能
 
         Console.WriteLine("[技能管理器] 已注册 " + _skills.Count + " 个玩家技能");
     }
