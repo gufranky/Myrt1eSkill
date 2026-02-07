@@ -18,8 +18,8 @@ public class UnluckyCouplesEvent : EntertainmentEvent
     // 存储配对关系：playerSlot -> partnerSlot
     private readonly Dictionary<int, int> _pairs = new();
 
-    // ✅ 修改：存储实体引用而不是索引（与 WallhackSkill 一致）
-    private readonly Dictionary<int, (CBaseEntity relay, CBaseEntity glow)> _glowingPlayers = new();
+    // ✅ 修改：存储实体索引而不是实体引用（与 WoodManSkill 一致）
+    private readonly Dictionary<int, (int relayIndex, int glowIndex)> _glowingPlayers = new();
 
     // 伤害倍数
     private const float DAMAGE_MULTIPLIER = 2.0f;
@@ -37,10 +37,13 @@ public class UnluckyCouplesEvent : EntertainmentEvent
             Plugin.DeregisterEventHandler<EventPlayerDeath>(OnPlayerDeath, HookMode.Post);
         }
 
-        // 移除所有旧的发光效果
+        // ✅ 移除所有旧的发光效果（通过索引重新获取实体，与 WoodManSkill 一致）
         int removedCount = 0;
-        foreach (var (relay, glow) in _glowingPlayers.Values)
+        foreach (var (slot, (relayIndex, glowIndex)) in _glowingPlayers)
         {
+            var relay = Utilities.GetEntityFromIndex<CDynamicProp>(relayIndex);
+            var glow = Utilities.GetEntityFromIndex<CDynamicProp>(glowIndex);
+
             if (relay != null && relay.IsValid)
             {
                 relay.AcceptInput("Kill");
@@ -106,22 +109,25 @@ public class UnluckyCouplesEvent : EntertainmentEvent
             Console.WriteLine("[苦命鸳鸯] 已移除所有事件监听器");
         }
 
-        // 2. 移除所有发光效果（使用实体引用，与 WallhackSkill 一致）
+        // 2. 移除所有发光效果（通过索引重新获取实体，与 WoodManSkill 一致）
         int removedCount = 0;
-        foreach (var (relay, glow) in _glowingPlayers.Values)
+        foreach (var (slot, (relayIndex, glowIndex)) in _glowingPlayers)
         {
+            var relay = Utilities.GetEntityFromIndex<CDynamicProp>(relayIndex);
+            var glow = Utilities.GetEntityFromIndex<CDynamicProp>(glowIndex);
+
             if (relay != null && relay.IsValid)
             {
                 relay.AcceptInput("Kill");
                 removedCount++;
-                Console.WriteLine($"[苦命鸳鸯] 已移除 relay 实体");
+                Console.WriteLine($"[苦命鸳鸯] 已移除 relay 实体 (index: {relayIndex})");
             }
 
             if (glow != null && glow.IsValid)
             {
                 glow.AcceptInput("Kill");
                 removedCount++;
-                Console.WriteLine($"[苦命鸳鸯] 已移除 glow 实体");
+                Console.WriteLine($"[苦命鸳鸯] 已移除 glow 实体 (index: {glowIndex})");
             }
         }
         _glowingPlayers.Clear();
@@ -234,8 +240,9 @@ public class UnluckyCouplesEvent : EntertainmentEvent
         bool success = ApplyEntityGlowEffect(pawn, player.Team, out var relay, out var glow);
         if (success && relay != null && glow != null)
         {
-            _glowingPlayers[player.Slot] = (relay, glow);
-            Console.WriteLine($"[苦命鸳鸯] 已为 {player.PlayerName} 添加发光效果");
+            // ✅ 存储实体索引而不是引用（与 WoodManSkill 一致）
+            _glowingPlayers[player.Slot] = ((int)relay.Index, (int)glow.Index);
+            Console.WriteLine($"[苦命鸳鸯] 已为 {player.PlayerName} 添加发光效果 (relay: {relay.Index}, glow: {glow.Index})");
         }
     }
 
@@ -247,7 +254,11 @@ public class UnluckyCouplesEvent : EntertainmentEvent
         if (player == null || !_glowingPlayers.ContainsKey(player.Slot))
             return;
 
-        var (relay, glow) = _glowingPlayers[player.Slot];
+        var (relayIndex, glowIndex) = _glowingPlayers[player.Slot];
+
+        // ✅ 通过索引重新获取实体（与 WoodManSkill 一致）
+        var relay = Utilities.GetEntityFromIndex<CDynamicProp>(relayIndex);
+        var glow = Utilities.GetEntityFromIndex<CDynamicProp>(glowIndex);
 
         if (relay != null && relay.IsValid)
         {
@@ -367,7 +378,10 @@ public class UnluckyCouplesEvent : EntertainmentEvent
                     // 否则移除其他人的发光效果
                     else
                     {
-                        var (relay, glow) = kvp.Value;
+                        var (relayIndex, glowIndex) = kvp.Value;
+                        var relay = Utilities.GetEntityFromIndex<CDynamicProp>(relayIndex);
+                        var glow = Utilities.GetEntityFromIndex<CDynamicProp>(glowIndex);
+
                         if (relay != null && relay.IsValid)
                         {
                             info.TransmitEntities.Remove(relay.Index);
@@ -382,8 +396,11 @@ public class UnluckyCouplesEvent : EntertainmentEvent
             else
             {
                 // 未配对的玩家看不到任何发光效果
-                foreach (var (relay, glow) in _glowingPlayers.Values)
+                foreach (var (relayIndex, glowIndex) in _glowingPlayers.Values)
                 {
+                    var relay = Utilities.GetEntityFromIndex<CDynamicProp>(relayIndex);
+                    var glow = Utilities.GetEntityFromIndex<CDynamicProp>(glowIndex);
+
                     if (relay != null && relay.IsValid)
                     {
                         info.TransmitEntities.Remove(relay.Index);
