@@ -102,6 +102,7 @@ public class PlayerSkillManager
         RegisterSkill(new InfiniteAmmoSkill());    // 无限弹药技能
         RegisterSkill(new PhoenixSkill());         // 凤凰技能
         RegisterSkill(new PilotSkill());           // 飞行员技能
+        RegisterSkill(new ThirdEyeSkill());        // 第三只眼技能
 
         Console.WriteLine("[技能管理器] 已注册 " + _skills.Count + " 个玩家技能");
     }
