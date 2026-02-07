@@ -181,6 +181,9 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 0.27 ZRY技能
         Skills.ZRYSkill.OnRoundStart();
 
+        // 0.28 清理圣手榴弹计数器
+        Skills.HolyHandGrenadeSkill.OnRoundStart();
+
         // 0.3 清理格拉兹烟雾弹追踪
         Skills.GlazSkill.OnRoundStart();
 

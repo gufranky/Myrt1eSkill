@@ -30,11 +30,11 @@ public class HolyHandGrenadeSkill : PlayerSkill
     private const int GRENADE_COUNT = 1;
     private const int MAX_REPLENISH_COUNT = 1; // 最多补充1次
 
-    // 计数器：跟踪每个玩家的手雷数量
-    private readonly Dictionary<ulong, int> _grenadeCounters = new();
+    // ✅ 改为静态字段，所有技能实例共享计数器
+    private static readonly Dictionary<ulong, int> _grenadeCounters = new();
 
     // 跟踪每回合已补充次数
-    private readonly Dictionary<ulong, int> _replenishedCount = new();
+    private static readonly Dictionary<ulong, int> _replenishedCount = new();
 
     public override void OnApply(CCSPlayerController player)
     {
@@ -60,11 +60,20 @@ public class HolyHandGrenadeSkill : PlayerSkill
         if (player == null || !player.IsValid)
             return;
 
-        // 清除计数器
-        _grenadeCounters.Remove(player.SteamID);
-        _replenishedCount.Remove(player.SteamID);
+        // 注意：不再清除计数器，因为现在是静态共享的
+        // 计数器将在回合开始时统一清除
 
         Console.WriteLine($"[圣手榴弹] {player.PlayerName} 失去了圣手榴弹技能");
+    }
+
+    /// <summary>
+    /// 回合开始时清理计数器（静态方法）
+    /// </summary>
+    public static void OnRoundStart()
+    {
+        _grenadeCounters.Clear();
+        _replenishedCount.Clear();
+        Console.WriteLine("[圣手榴弹] 新回合开始，清空计数器");
     }
 
     /// <summary>
