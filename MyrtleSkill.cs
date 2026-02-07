@@ -784,21 +784,31 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         Skills.MuhammadSkill.OnEntitySpawned(entity);
 
         // 处理圣手榴弹技能（增强HE手雷伤害和范围）
-        var allPlayers = Utilities.GetPlayers();
-        foreach (var player in allPlayers)
+        // 优化：先找到投掷者，只调用投掷者的圣手榴弹技能
+        var entityName = entity.DesignerName;
+        if (entityName == "hegrenade_projectile")
         {
-            if (player == null || !player.IsValid)
-                continue;
-
-            var skills = SkillManager.GetPlayerSkills(player);
-            if (skills == null || skills.Count == 0)
-                continue;
-
-            var holyHandGrenadeSkill = skills.FirstOrDefault(s => s.Name == "HolyHandGrenade");
-            if (holyHandGrenadeSkill != null)
+            var hegrenade = entity.As<CHEGrenadeProjectile>();
+            if (hegrenade != null && hegrenade.IsValid)
             {
-                var holyHandGrenade = (Skills.HolyHandGrenadeSkill)holyHandGrenadeSkill;
-                holyHandGrenade.OnEntitySpawned(entity);
+                var playerPawn = hegrenade.Thrower.Value;
+                if (playerPawn != null && playerPawn.IsValid)
+                {
+                    var thrower = Utilities.GetPlayers().FirstOrDefault(p => p.PlayerPawn?.Value?.Index == playerPawn.Index);
+                    if (thrower != null && thrower.IsValid)
+                    {
+                        var skills = SkillManager.GetPlayerSkills(thrower);
+                        if (skills != null && skills.Count > 0)
+                        {
+                            var holyHandGrenadeSkill = skills.FirstOrDefault(s => s.Name == "HolyHandGrenade");
+                            if (holyHandGrenadeSkill != null)
+                            {
+                                var holyHandGrenade = (Skills.HolyHandGrenadeSkill)holyHandGrenadeSkill;
+                                holyHandGrenade.OnEntitySpawned(entity);
+                            }
+                        }
+                    }
+                }
             }
         }
 

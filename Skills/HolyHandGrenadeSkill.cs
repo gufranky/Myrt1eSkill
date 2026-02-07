@@ -114,14 +114,7 @@ public class HolyHandGrenadeSkill : PlayerSkill
             if (player == null || !player.IsValid)
                 return;
 
-            // 检查玩家是否有圣手榴弹技能
-            var skills = Plugin?.SkillManager.GetPlayerSkills(player);
-            if (skills == null || skills.Count == 0)
-                return;
-
-            var holyHandGrenadeSkill = skills.FirstOrDefault(s => s.Name == "HolyHandGrenade");
-            if (holyHandGrenadeSkill == null)
-                return;
+            // 注意：主文件已经检查过玩家是否有圣手榴弹技能，这里直接增强即可
 
             // 增强手雷伤害和范围
             hegrenade.Damage *= DAMAGE_MULTIPLIER;
