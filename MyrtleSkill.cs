@@ -116,6 +116,7 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         RegisterEventHandler<EventItemPickup>(OnItemPickup, HookMode.Pre);
         RegisterEventHandler<EventItemEquip>(OnItemEquip, HookMode.Pre);
         RegisterEventHandler<EventDecoyStarted>(OnDecoyStarted, HookMode.Post);
+        RegisterEventHandler<EventDecoyDetonate>(OnDecoyDetonate, HookMode.Post);
         RegisterEventHandler<EventSmokegrenadeDetonate>(OnSmokegrenadeDetonate, HookMode.Post);
         RegisterEventHandler<EventSmokegrenadeExpired>(OnSmokegrenadeExpired, HookMode.Post);
         RegisterEventHandler<EventFlashbangDetonate>(OnFlashbangDetonate, HookMode.Post);
@@ -177,6 +178,9 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
         // 0.5 清理全息图
         Skills.HologramSkill.ClearAllHolograms();
+
+        // 0.55 清理冷冻诱饵
+        Skills.FrozenDecoySkill.OnRoundStart();
 
         // 0.6 清理鬼状态
         Skills.GhostSkill.ClearAllGhosts();
@@ -545,6 +549,33 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
                     decoyXRay.OnDecoyThrown(player, decoy);
                 }
             }
+        }
+
+        // 处理冷冻诱饵技能
+        var frozenDecoySkill = skills.FirstOrDefault(s => s.Name == "FrozenDecoy");
+        if (frozenDecoySkill != null)
+        {
+            var frozenDecoy = (Skills.FrozenDecoySkill)frozenDecoySkill;
+            frozenDecoy.OnDecoyStarted(@event);
+        }
+
+        return HookResult.Continue;
+    }
+
+    private HookResult OnDecoyDetonate(EventDecoyDetonate @event, GameEventInfo info)
+    {
+        var player = @event.Userid;
+        if (player == null || !player.IsValid)
+            return HookResult.Continue;
+
+        var skills = SkillManager.GetPlayerSkills(player);
+
+        // 处理冷冻诱饵技能
+        var frozenDecoySkill = skills.FirstOrDefault(s => s.Name == "FrozenDecoy");
+        if (frozenDecoySkill != null)
+        {
+            var frozenDecoy = (Skills.FrozenDecoySkill)frozenDecoySkill;
+            frozenDecoy.OnDecoyDetonate(@event);
         }
 
         return HookResult.Continue;
@@ -936,6 +967,10 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
                 Console.WriteLine($"[HUD] 已移除 {expiredPlayers.Count} 个玩家的 HUD 显示");
             }
         }
+
+        // 处理冷冻诱饵技能（冻结附近的玩家）
+        var frozenDecoySkill = (Skills.FrozenDecoySkill?)SkillManager.GetSkill("FrozenDecoy");
+        frozenDecoySkill?.OnTick();
     }
 
     /// <summary>

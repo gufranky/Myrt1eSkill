@@ -94,6 +94,7 @@ public class PlayerSkillManager
         RegisterSkill(new PushSkill());           // 推手技能
         RegisterSkill(new JackalSkill());         // 豺狼技能
         RegisterSkill(new HolyHandGrenadeSkill()); // 圣手榴弹技能
+        RegisterSkill(new FrozenDecoySkill());     // 冷冻诱饵技能
 
         Console.WriteLine("[技能管理器] 已注册 " + _skills.Count + " 个玩家技能");
     }
