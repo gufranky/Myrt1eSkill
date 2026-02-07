@@ -20,10 +20,25 @@ public class InfiniteAmmoSkill : PlayerSkill
     public override string Description => "你的所有武器都将获得无限弹药！";
     public override bool IsActive => false; // 被动技能
 
+    // ✅ 跟踪拥有无限弹药技能的玩家（使用槽位而非SteamID，更可靠）
+    private static readonly HashSet<int> _enabledPlayers = new();
+
     public override void OnApply(CCSPlayerController player)
     {
         if (player == null || !player.IsValid)
             return;
+
+        // 添加到跟踪列表
+        _enabledPlayers.Add(player.Slot);
+
+        // 应用无限弹药
+        ApplyInfiniteAmmo(player);
+
+        // 注册 OnTick 监听器（第一次）
+        if (_enabledPlayers.Count == 1)
+        {
+            Plugin?.RegisterListener<Listeners.OnTick>(OnTick);
+        }
 
         Console.WriteLine($"[无限弹药] {player.PlayerName} 获得了无限弹药技能");
         player.PrintToChat("∞ 你获得了无限弹药技能！");
@@ -35,7 +50,32 @@ public class InfiniteAmmoSkill : PlayerSkill
         if (player == null || !player.IsValid)
             return;
 
+        // 从跟踪列表移除
+        _enabledPlayers.Remove(player.Slot);
+
+        // 如果没有玩家使用技能，移除 OnTick 监听器
+        if (_enabledPlayers.Count == 0)
+        {
+            Plugin?.RemoveListener<Listeners.OnTick>(OnTick);
+        }
+
         Console.WriteLine($"[无限弹药] {player.PlayerName} 失去了无限弹药技能");
+    }
+
+    /// <summary>
+    /// 每帧更新 - 持续设置弹夹为100
+    /// </summary>
+    private void OnTick()
+    {
+        // 为所有拥有无限弹药技能的玩家设置弹夹
+        foreach (var slot in _enabledPlayers)
+        {
+            var player = Utilities.GetPlayerFromSlot(slot);
+            if (player != null && player.IsValid && player.PawnIsAlive)
+            {
+                ApplyInfiniteAmmo(player);
+            }
+        }
     }
 
     /// <summary>
@@ -88,7 +128,7 @@ public class InfiniteAmmoSkill : PlayerSkill
 
     /// <summary>
     /// 处理武器换弹事件（在主文件的 OnWeaponReload 中调用）
-    /// 完全复制自 jRandomSkills InfiniteAmmo.WeaponReload
+    /// 注意：由于OnTick会持续设置弹夹，这个方法现在主要是为了日志记录
     /// </summary>
     public void OnWeaponReload(EventWeaponReload @event)
     {
@@ -97,18 +137,11 @@ public class InfiniteAmmoSkill : PlayerSkill
             return;
 
         // 检查玩家是否有无限弹药技能
-        var skills = Plugin?.SkillManager.GetPlayerSkills(player);
-        if (skills == null || skills.Count == 0)
+        if (!_enabledPlayers.Contains(player.Slot))
             return;
 
-        var infiniteAmmoSkill = skills.FirstOrDefault(s => s.Name == "InfiniteAmmo");
-        if (infiniteAmmoSkill == null)
-            return;
-
-        // 应用无限弹药
-        ApplyInfiniteAmmo(player);
-
-        Console.WriteLine($"[无限弹药] {player.PlayerName} 换弹，弹药已填满");
+        // OnTick 会持续设置弹夹，这里只记录日志
+        Console.WriteLine($"[无限弹药] {player.PlayerName} 换弹");
     }
 
     /// <summary>
