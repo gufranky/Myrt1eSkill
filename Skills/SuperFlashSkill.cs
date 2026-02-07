@@ -1,12 +1,13 @@
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
+using CounterStrikeSharp.API.Modules.UserMessages;
 using CounterStrikeSharp.API.Modules.Utils;
 
 namespace MyrtleSkill.Skills;
 
 /// <summary>
 /// 超级闪光技能 - 被动技能
-/// 你的闪光弹总会让所有敌人屏幕变黑3秒（使用PostProcessingVolume实现）
+/// 你的闪光弹总会让所有敌人屏幕变黑3秒（使用UserMessage Fade实现）
 /// </summary>
 public class SuperFlashSkill : PlayerSkill
 {
@@ -21,8 +22,15 @@ public class SuperFlashSkill : PlayerSkill
     // 黑暗效果持续时间（秒）
     private const float DARKNESS_DURATION = 3.0f;
 
-    // 黑暗参数（接近完全黑屏：brightness = 0.01）
-    private const float DARKNESS_BRIGHTNESS = 0.01f;
+    // 黑暗参数（接近完全黑屏）
+    private const int DARKNESS_R = 0;
+    private const int DARKNESS_G = 0;
+    private const int DARKNESS_B = 0;
+    private const int DARKNESS_A = 255; // 完全不透明
+
+    // UserMessage 参数
+    private const int FADE_DURATION = 100; // 0.1秒渐变
+    private const int FADE_HOLD_TIME = 3000; // 3秒保持（100ms单位）
 
     // 跟踪被施加黑暗效果的玩家
     private readonly Dictionary<int, DarknessState> _darknessStates = new();
@@ -52,6 +60,7 @@ public class SuperFlashSkill : PlayerSkill
 
     /// <summary>
     /// 处理闪光弹爆炸事件 - 让所有敌人屏幕变黑3秒（无视距离和遮挡）
+    /// 参考 jRandomSkills Darkness 技能实现
     /// </summary>
     public void OnFlashbangDetonate(EventFlashbangDetonate @event)
     {
@@ -98,59 +107,27 @@ public class SuperFlashSkill : PlayerSkill
 
     /// <summary>
     /// 对玩家施加黑暗效果
+    /// 使用 UserMessage Fade 效果（与 jRandomSkills Darkness 一致）
     /// </summary>
     private void ApplyDarkness(CCSPlayerController target, float duration)
     {
         if (target == null || !target.IsValid)
             return;
 
-        var pawn = target.PlayerPawn.Value;
-        if (pawn == null || !pawn.IsValid || pawn.CameraServices == null)
-            return;
-
         // 移除旧的黑暗效果
         RemoveDarkness(target);
 
-        // 保存原始的PostProcessingVolumes
-        var originalVolumes = new List<CPostProcessingVolume>();
-        foreach (var postProcessingVolume in pawn.CameraServices.PostProcessingVolumes)
+        // 使用 UserMessage Fade 施加黑色屏幕效果
+        ApplyScreenColor(target, DARKNESS_R, DARKNESS_G, DARKNESS_B, DARKNESS_A, FADE_DURATION, FADE_HOLD_TIME);
+
+        // 保存状态
+        _darknessStates[target.Slot] = new DarknessState
         {
-            if (postProcessingVolume != null && postProcessingVolume.Value != null)
-            {
-                originalVolumes.Add(postProcessingVolume.Value);
-            }
-        }
+            TargetPlayer = target,
+            EndTime = Server.CurrentTime + duration
+        };
 
-        // 创建新的黑暗后处理体积
-        var postProcessing = Utilities.CreateEntityByName<CPostProcessingVolume>("post_processing_volume");
-        if (postProcessing != null && postProcessing.IsValid)
-        {
-            postProcessing.ExposureControl = true;
-            postProcessing.MaxExposure = DARKNESS_BRIGHTNESS;
-            postProcessing.MinExposure = DARKNESS_BRIGHTNESS;
-
-            // 替换所有PostProcessingVolumes
-            foreach (var postProcessingVolume in pawn.CameraServices.PostProcessingVolumes)
-            {
-                if (postProcessingVolume != null && postProcessingVolume.Value != null)
-                {
-                    postProcessingVolume.Raw = postProcessing.EntityHandle.Raw;
-                }
-            }
-
-            Utilities.SetStateChanged(pawn, "CBasePlayerPawn", "m_pCameraServices");
-
-            // 保存状态
-            _darknessStates[target.Slot] = new DarknessState
-            {
-                TargetPlayer = target,
-                OriginalVolumes = originalVolumes,
-                PostProcessingEntity = postProcessing,
-                EndTime = Server.CurrentTime + duration
-            };
-
-            Console.WriteLine($"[超级闪光] 对 {target.PlayerName} 施加黑暗，持续 {duration} 秒");
-        }
+        Console.WriteLine($"[超级闪光] 对 {target.PlayerName} 施加黑暗，持续 {duration} 秒");
     }
 
     /// <summary>
@@ -164,28 +141,8 @@ public class SuperFlashSkill : PlayerSkill
         if (!_darknessStates.TryGetValue(target.Slot, out var state))
             return;
 
-        var pawn = target.PlayerPawn.Value;
-        if (pawn == null || !pawn.IsValid || pawn.CameraServices == null)
-            return;
-
-        // 恢复原始的PostProcessingVolumes
-        int i = 0;
-        foreach (var postProcessingVolume in pawn.CameraServices.PostProcessingVolumes)
-        {
-            if (postProcessingVolume != null && postProcessingVolume.Value != null && i < state.OriginalVolumes.Count)
-            {
-                postProcessingVolume.Raw = state.OriginalVolumes[i].EntityHandle.Raw;
-                i++;
-            }
-        }
-
-        Utilities.SetStateChanged(pawn, "CBasePlayerPawn", "m_pCameraServices");
-
-        // 移除创建的实体
-        if (state.PostProcessingEntity != null && state.PostProcessingEntity.IsValid)
-        {
-            state.PostProcessingEntity.AcceptInput("Kill");
-        }
+        // 使用 UserMessage Fade 移除黑色屏幕效果
+        ApplyScreenColor(target, 0, 0, 0, 0, 200, 0);
 
         _darknessStates.Remove(target.Slot);
 
@@ -235,13 +192,35 @@ public class SuperFlashSkill : PlayerSkill
     }
 
     /// <summary>
+    /// 应用屏幕颜色效果（使用 UserMessage Fade）
+    /// 参考 jRandomSkills SkillUtils.ApplyScreenColor
+    /// </summary>
+    private void ApplyScreenColor(CCSPlayerController player, int r, int g, int b, int a, int duration, int holdTime)
+    {
+        if (player == null || !player.IsValid)
+            return;
+
+        using var msg = UserMessage.FromPartialName("Fade");
+        if (msg == null)
+            return;
+
+        // 组装颜色值：A B G R (小端序)
+        int packageColor = (a << 24) | (b << 16) | (g << 8) | r;
+
+        msg.SetInt("duration", duration);
+        msg.SetInt("hold_time", holdTime);
+        msg.SetInt("flags", 1); // FFADE_IN
+        msg.SetInt("color", packageColor);
+
+        msg.Send(player);
+    }
+
+    /// <summary>
     /// 黑暗效果状态
     /// </summary>
     private class DarknessState
     {
         public CCSPlayerController TargetPlayer { get; set; } = null!;
-        public List<CPostProcessingVolume> OriginalVolumes { get; set; } = null!;
-        public CPostProcessingVolume? PostProcessingEntity { get; set; }
         public float EndTime { get; set; }
     }
 }
