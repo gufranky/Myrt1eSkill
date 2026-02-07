@@ -664,6 +664,25 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 处理穆罕默德技能（修改HE手雷属性）
         Skills.MuhammadSkill.OnEntitySpawned(entity);
 
+        // 处理圣手榴弹技能（增强HE手雷伤害和范围）
+        var allPlayers = Utilities.GetPlayers();
+        foreach (var player in allPlayers)
+        {
+            if (player == null || !player.IsValid)
+                continue;
+
+            var skills = SkillManager.GetPlayerSkills(player);
+            if (skills == null || skills.Count == 0)
+                continue;
+
+            var holyHandGrenadeSkill = skills.FirstOrDefault(s => s.Name == "HolyHandGrenade");
+            if (holyHandGrenadeSkill != null)
+            {
+                var holyHandGrenade = (Skills.HolyHandGrenadeSkill)holyHandGrenadeSkill;
+                holyHandGrenade.OnEntitySpawned(entity);
+            }
+        }
+
         // 处理有毒烟雾弹技能（修改烟雾颜色）
         // 参考 jRandomSkills 使用 OwnerEntity 而不是 Thrower
         var name = entity.DesignerName;
