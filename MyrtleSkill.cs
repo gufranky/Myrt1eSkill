@@ -983,6 +983,10 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 处理探索者技能（移动探索者复制品）
         var explorerSkill = (Skills.ExplorerSkill?)SkillManager.GetSkill("Explorer");
         explorerSkill?.OnTick();
+
+        // 处理传送锚点技能（移动锚点粒子）
+        var teleportAnchorSkill = (Skills.TeleportAnchorSkill?)SkillManager.GetSkill("TeleportAnchor");
+        teleportAnchorSkill?.OnTick();
     }
 
     /// <summary>

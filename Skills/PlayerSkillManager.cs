@@ -98,6 +98,7 @@ public class PlayerSkillManager
         RegisterSkill(new FalconEyeSkill());       // 猎鹰之眼技能
         RegisterSkill(new ReplicatorSkill());      // 复制品技能
         RegisterSkill(new ExplorerSkill());        // 探索者技能
+        RegisterSkill(new TeleportAnchorSkill());  // 传送锚点技能
 
         Console.WriteLine("[技能管理器] 已注册 " + _skills.Count + " 个玩家技能");
     }
