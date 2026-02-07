@@ -137,10 +137,10 @@ public class WoodManSkill : PlayerSkill
             {
                 if (player != null && player.IsValid && player.PawnIsAlive)
                 {
-                    // 使用HUD显示
-                    string htmlContent = $"<div style='background-color: rgba(255, 165, 0, 0.8); border: 3px solid #FFFF00; border-radius: 8px; padding: 20px 40px; text-align: center;'>"
-                        + $"<font class='fontWeight-Bold fontSize-xl' color='#FFFFFF'>🪵 {countdown} 秒后开始检测移动！</font><br>"
-                        + $"<font class='fontSize-ml' color='#FFFF00'>保持不动！</font>"
+                    // 使用HUD显示（简化HTML，移除可能不支持的样式类）
+                    string htmlContent = $"<div style='background-color: rgba(255, 165, 0, 0.8); border: 3px solid #FFFF00; border-radius: 8px; padding: 20px 40px;'>"
+                        + $"<font style='font-size: 24px; color: #FFFFFF; font-weight: bold;'>{countdown} 秒后开始检测移动！</font><br>"
+                        + $"<font style='font-size: 18px; color: #FFFF00;'>保持不动！</font>"
                         + $"</div>";
 
                     player.PrintToCenterHtml(htmlContent);
@@ -190,9 +190,9 @@ public class WoodManSkill : PlayerSkill
             var player = kvp.Value.Player;
             if (player != null && player.IsValid)
             {
-                string htmlContent = $"<div style='background-color: rgba(255, 0, 0, 0.8); border: 3px solid #FF0000; border-radius: 8px; padding: 20px 40px; text-align: center;'>"
-                    + $"<font class='fontWeight-Bold fontSize-xl' color='#FFFFFF'>🪵 保持不动！</font><br>"
-                    + $"<font class='fontSize-ml' color='#FFFF00'>3秒内移动将被透视！</font>"
+                string htmlContent = $"<div style='background-color: rgba(255, 0, 0, 0.8); border: 3px solid #FF0000; border-radius: 8px; padding: 20px 40px;'>"
+                    + $"<font style='font-size: 24px; color: #FFFFFF; font-weight: bold;'>保持不动！</font><br>"
+                    + $"<font style='font-size: 18px; color: #FFFF00;'>3秒内移动将被透视！</font>"
                     + $"</div>";
 
                 player.PrintToCenterHtml(htmlContent);
@@ -261,9 +261,9 @@ public class WoodManSkill : PlayerSkill
                 ApplyGlowToEnemy(info.Player);
 
                 // 提示玩家
-                string htmlContent = $"<div style='background-color: rgba(255, 0, 0, 0.8); border: 3px solid #FF0000; border-radius: 8px; padding: 20px 40px; text-align: center;'>"
-                    + $"<font class='fontWeight-Bold fontSize-xl' color='#FFFFFF'>🪵 你移动了！</font><br>"
-                    + $"<font class='fontSize-ml' color='#FFFF00'>被透视{GLOW_DURATION}秒！</font>"
+                string htmlContent = $"<div style='background-color: rgba(255, 0, 0, 0.8); border: 3px solid #FF0000; border-radius: 8px; padding: 20px 40px;'>"
+                    + $"<font style='font-size: 24px; color: #FFFFFF; font-weight: bold;'>你移动了！</font><br>"
+                    + $"<font style='font-size: 18px; color: #FFFF00;'>被透视{GLOW_DURATION}秒！</font>"
                     + $"</div>";
 
                 info.Player.PrintToCenterHtml(htmlContent);
