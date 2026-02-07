@@ -28,75 +28,66 @@ public class UnluckyCouplesEvent : EntertainmentEvent
     {
         Console.WriteLine("[苦命鸳鸯] 事件已激活");
 
-        // ✅ 检查是否已经有配对关系（回合之间保持配对）
-        if (_pairs.Count > 0)
+        // ✅ 强制清理旧状态（防止跨回合透视效果）
+        // 即使 OnRevert() 没有被调用，也要确保清理旧监听器和实体
+        if (Plugin != null)
         {
-            Console.WriteLine($"[苦命鸳鸯] 已有 {_pairs.Count / 2} 对配对关系，保持现有配对");
+            Plugin.RemoveListener<Listeners.CheckTransmit>(OnCheckTransmit);
+            Plugin.DeregisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn, HookMode.Post);
+            Plugin.DeregisterEventHandler<EventPlayerDeath>(OnPlayerDeath, HookMode.Post);
+        }
 
-            // 为所有配对玩家重新添加发光效果（但不重新配对）
-            foreach (var slot in _pairs.Keys)
+        // 移除所有旧的发光效果
+        int removedCount = 0;
+        foreach (var (relay, glow) in _glowingPlayers.Values)
+        {
+            if (relay != null && relay.IsValid)
             {
-                var player = Utilities.GetPlayerFromSlot(slot);
-                if (player != null && player.IsValid && player.PawnIsAlive)
-                {
-                    ApplyGlowToPlayer(player);
-                }
+                relay.AcceptInput("Kill");
+                removedCount++;
             }
-
-            // 注册监听器
-            if (Plugin != null)
+            if (glow != null && glow.IsValid)
             {
-                Plugin.RegisterListener<Listeners.CheckTransmit>(OnCheckTransmit);
-                Plugin.RegisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn, HookMode.Post);
-                Plugin.RegisterEventHandler<EventPlayerDeath>(OnPlayerDeath, HookMode.Post);
+                glow.AcceptInput("Kill");
+                removedCount++;
             }
+        }
+        _glowingPlayers.Clear();
+        if (removedCount > 0)
+        {
+            Console.WriteLine($"[苦命鸳鸯] OnApply: 清理了 {removedCount} 个旧发光实体");
+        }
 
-            // 显示提示
-            foreach (var player in Utilities.GetPlayers())
+        // 每次都重新配对（不保持跨回合配对）
+        Console.WriteLine("[苦命鸳鸯] 进行新配对");
+
+        // 配对玩家并应用效果
+        MatchPlayersAndApplyEffects();
+
+        // 注册监听器
+        if (Plugin != null)
+        {
+            Plugin.RegisterListener<Listeners.CheckTransmit>(OnCheckTransmit);
+            Plugin.RegisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn, HookMode.Post);
+            Plugin.RegisterEventHandler<EventPlayerDeath>(OnPlayerDeath, HookMode.Post);
+        }
+
+        // 显示提示
+        foreach (var player in Utilities.GetPlayers())
+        {
+            if (player.IsValid)
             {
-                if (player.IsValid && _pairs.ContainsKey(player.Slot))
+                if (_pairs.ContainsKey(player.Slot))
                 {
                     var partner = Utilities.GetPlayerFromSlot(_pairs[player.Slot]);
                     if (partner != null && partner.IsValid)
                     {
-                        player.PrintToChat($"💑 苦命鸳鸯模式继续！你的配对对象是：{partner.PlayerName}");
+                        player.PrintToChat($"💑 苦命鸳鸯模式已启用！你的配对对象是：{partner.PlayerName}");
                     }
                 }
-            }
-        }
-        else
-        {
-            // 没有配对关系，进行新配对
-            Console.WriteLine("[苦命鸳鸯] 没有现有配对，进行新配对");
-
-            // 配对玩家并应用效果
-            MatchPlayersAndApplyEffects();
-
-            // 注册监听器
-            if (Plugin != null)
-            {
-                Plugin.RegisterListener<Listeners.CheckTransmit>(OnCheckTransmit);
-                Plugin.RegisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn, HookMode.Post);
-                Plugin.RegisterEventHandler<EventPlayerDeath>(OnPlayerDeath, HookMode.Post);
-            }
-
-            // 显示提示
-            foreach (var player in Utilities.GetPlayers())
-            {
-                if (player.IsValid)
+                else
                 {
-                    if (_pairs.ContainsKey(player.Slot))
-                    {
-                        var partner = Utilities.GetPlayerFromSlot(_pairs[player.Slot]);
-                        if (partner != null && partner.IsValid)
-                        {
-                            player.PrintToChat($"💑 苦命鸳鸯模式已启用！你的配对对象是：{partner.PlayerName}");
-                        }
-                    }
-                    else
-                    {
-                        player.PrintToChat("💑 苦命鸳鸯模式已启用！你是单数玩家，未被配对。");
-                    }
+                    player.PrintToChat("💑 苦命鸳鸯模式已启用！你是单数玩家，未被配对。");
                 }
             }
         }
