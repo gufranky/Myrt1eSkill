@@ -175,6 +175,9 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 0.25 清理凤凰使用记录并重新生成复活几率
         Skills.PhoenixSkill.OnRoundStart();
 
+        // 0.26 清理木头人使用记录
+        Skills.WoodManSkill.OnRoundStart();
+
         // 0.3 清理格拉兹烟雾弹追踪
         Skills.GlazSkill.OnRoundStart();
 
