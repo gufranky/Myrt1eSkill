@@ -146,6 +146,7 @@ public class ThirdEyeSkill : PlayerSkill
         Server.NextFrame(() =>
         {
             camera.SetModel("models/actors/ghost_speaker.vmdl");
+            camera.RenderMode = RenderMode_t.kRenderNone; // 完全不渲染
             camera.Render = Color.FromArgb(0, 255, 255, 255); // 完全透明
 
             if (playerPawn.AbsOrigin != null && playerPawn.EyeAngles != null)

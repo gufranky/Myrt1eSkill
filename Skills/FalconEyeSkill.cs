@@ -209,6 +209,7 @@ public class FalconEyeSkill : PlayerSkill
         Server.NextFrame(() =>
         {
             camera.SetModel("models/actors/ghost_speaker.vmdl");
+            camera.RenderMode = RenderMode_t.kRenderNone; // 完全不渲染
             camera.Render = Color.FromArgb(0, 255, 255, 255); // 完全透明
             camera.Teleport(pos, new QAngle(90, 0, 0));
             camera.DispatchSpawn();
