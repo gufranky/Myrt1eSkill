@@ -609,9 +609,15 @@ public class FreeCameraSkill : PlayerSkill
         modelGlow.DispatchSpawn();
         modelGlow.AcceptInput("FollowEntity", modelRelay, modelGlow, "!activator");
 
-        // 设置颜色（根据队伍）
-        Color glowColor = team == CsTeam.Terrorist ? Color.FromArgb(255, 0, 0) : Color.FromArgb(0, 0, 255);
-        modelGlow.Render = glowColor;
+        // 设置颜色（根据队伍）- 使用GlowColorOverride而不是Render
+        Color glowColor = team == CsTeam.Terrorist ? Color.FromArgb(255, 165, 0) : Color.FromArgb(135, 206, 235);
+        modelGlow.Glow.GlowColorOverride = glowColor;
+        modelGlow.Spawnflags = 256u;
+        modelGlow.RenderMode = RenderMode_t.kRenderTransAlpha;
+        modelGlow.Glow.GlowRange = 5000;
+        modelGlow.Glow.GlowTeam = -1;
+        modelGlow.Glow.GlowType = 3;
+        modelGlow.Glow.GlowRangeMin = 20;
 
         relayIndex = (int)modelRelay.Index;
         glowIndex = (int)modelGlow.Index;
@@ -653,7 +659,32 @@ public class FreeCameraSkill : PlayerSkill
     /// </summary>
     private void OnCheckTransmit(CCheckTransmitInfoList infoList)
     {
-        // 所有发光效果对所有玩家可见
-        // 这里只是为了确保发光效果能够正常传输
+        if (_glowingEnemies.Count == 0)
+            return;
+
+        foreach (var (info, receiver) in infoList)
+        {
+            if (receiver == null || !receiver.IsValid)
+                continue;
+
+            // 所有玩家都能看到发光效果
+            foreach (var slot in _glowingEnemies.Keys)
+            {
+                var (relayIndex, glowIndex) = _glowingEnemies[slot];
+
+                var relay = Utilities.GetEntityFromIndex<CDynamicProp>(relayIndex);
+                var glow = Utilities.GetEntityFromIndex<CDynamicProp>(glowIndex);
+
+                if (relay != null && relay.IsValid)
+                {
+                    info.TransmitEntities.Add(relay.Index);
+                }
+
+                if (glow != null && glow.IsValid)
+                {
+                    info.TransmitEntities.Add(glow.Index);
+                }
+            }
+        }
     }
 }
