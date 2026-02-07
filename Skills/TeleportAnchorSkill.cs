@@ -280,25 +280,32 @@ public class TeleportAnchorSkill : PlayerSkill
 
     /// <summary>
     /// 控制粒子可见性（让所有玩家都能透视看到锚点）
+    /// 参考 Jackal 技能的 OnCheckTransmit 实现
     /// </summary>
     private void OnCheckTransmit(CCheckTransmitInfoList infoList)
     {
-        foreach (var kvp in _playerAnchors)
+        foreach (var (info, receiver) in infoList)
         {
-            var state = kvp.Value;
-            if (!state.HasAnchor || state.Particle == null || !state.Particle.IsValid)
+            if (receiver == null || !receiver.IsValid)
                 continue;
 
-            var particle = state.Particle;
+            foreach (var kvp in _playerAnchors)
+            {
+                var state = kvp.Value;
+                if (!state.HasAnchor || state.Particle == null || !state.Particle.IsValid)
+                    continue;
 
-            // 获取粒子实体
-            var entity = Utilities.GetEntityFromIndex<CBaseEntity>((int)particle.Index);
-            if (entity == null || !entity.IsValid)
-                continue;
+                var particle = state.Particle;
 
-            // 让所有玩家都能看到这个粒子（不移除）
-            // 默认情况下粒子会被传输，我们不需要做任何操作
-            // 这里只是为了确保粒子始终可见
+                // 获取粒子实体
+                var entity = Utilities.GetEntityFromIndex<CBaseEntity>((int)particle.Index);
+                if (entity == null || !entity.IsValid)
+                    continue;
+
+                // 让所有玩家都能看到锚点粒子
+                // 显式添加到传输列表
+                info.TransmitEntities.Add(entity.Index);
+            }
         }
     }
 
