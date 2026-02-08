@@ -5,19 +5,19 @@ namespace MyrtleSkill.Skills;
 
 /// <summary>
 /// 大胃袋技能 - 被动技能
-/// 获得技能时随机增加200~500点生命值（可超过100）
+/// 获得技能时随机增加100~250点生命值（可超过100）
 /// </summary>
 public class BigStomachSkill : PlayerSkill
 {
     public override string Name => "BigStomach";
     public override string DisplayName => "🍖 大胃袋";
-    public override string Description => "获得技能时随机增加200~500点生命值！可超过血量上限！";
+    public override string Description => "获得技能时随机增加100~250点生命值！可超过血量上限！";
     public override bool IsActive => false; // 被动技能
     public override float Cooldown => 0f; // 被动技能无冷却
 
     // 血量增加范围
-    private const int MIN_HEALTH_BONUS = 200;
-    private const int MAX_HEALTH_BONUS = 500;
+    private const int MIN_HEALTH_BONUS = 100;
+    private const int MAX_HEALTH_BONUS = 250;
 
     // 与其他生存技能互斥
     public override List<string> ExcludedSkills => new() { "Juggernaut" };
@@ -59,6 +59,14 @@ public class BigStomachSkill : PlayerSkill
         if (player == null || !player.IsValid)
             return;
 
-        Console.WriteLine($"[大胃袋] {player.PlayerName} 失去了大胃袋技能");
+        var pawn = player.PlayerPawn.Value;
+        if (pawn == null || !pawn.IsValid)
+            return;
+
+        // 恢复血量到100
+        pawn.Health = 100;
+        Utilities.SetStateChanged(pawn, "CBaseEntity", "m_iHealth");
+
+        Console.WriteLine($"[大胃袋] {player.PlayerName} 失去了大胃袋技能，血量已恢复到100");
     }
 }

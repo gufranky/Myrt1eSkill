@@ -34,6 +34,35 @@ public class ThirdEyeSkill : PlayerSkill
         public CDynamicProp? Camera { get; set; }
     }
 
+    /// <summary>
+    /// 清理所有相机（回合开始时调用）
+    /// </summary>
+    public void ClearAllCameras()
+    {
+        foreach (var kvp in _playerCameras)
+        {
+            var steamID = kvp.Key;
+            var cameraInfo = kvp.Value;
+
+            if (cameraInfo.Camera != null && cameraInfo.Camera.IsValid)
+            {
+                // 切换玩家回第一人称
+                var player = Utilities.GetPlayers().FirstOrDefault(p => p.SteamID == steamID);
+                if (player != null && player.IsValid && player.PlayerPawn.Value != null)
+                {
+                    player.PlayerPawn.Value.CameraServices.ViewEntity.Raw = cameraInfo.OriginalCameraHandle;
+                    Utilities.SetStateChanged(player.PlayerPawn.Value, "CBasePlayerPawn", "m_pCameraServices");
+                }
+
+                // 销毁相机实体
+                cameraInfo.Camera.AcceptInput("Kill");
+            }
+        }
+
+        _playerCameras.Clear();
+        Console.WriteLine("[第三只眼] 已清理所有相机实体");
+    }
+
     public override void OnApply(CCSPlayerController player)
     {
         Console.WriteLine($"[第三只眼] {player.PlayerName} 获得了第三只眼技能");
@@ -47,7 +76,16 @@ public class ThirdEyeSkill : PlayerSkill
     {
         // 切换回第一人称并清理摄像头
         ChangeCamera(player, true);
-        _playerCameras.TryRemove(player.SteamID, out _);
+
+        // 销毁相机实体
+        if (_playerCameras.TryRemove(player.SteamID, out var cameraInfo) && cameraInfo.Camera != null)
+        {
+            if (cameraInfo.Camera.IsValid)
+            {
+                cameraInfo.Camera.AcceptInput("Kill");
+                Console.WriteLine($"[第三只眼] {player.PlayerName} 的相机实体已销毁");
+            }
+        }
 
         Console.WriteLine($"[第三只眼] {player.PlayerName} 失去了第三只眼技能");
     }
@@ -131,7 +169,7 @@ public class ThirdEyeSkill : PlayerSkill
 
     /// <summary>
     /// 创建摄像头实体
-    /// 参考 jRandomSkills ThirdEye.CreateCamera
+    /// 严格参照 jRandomSkills ThirdEye.CreateCamera
     /// </summary>
     private uint CreateCamera(CCSPlayerController player)
     {
@@ -148,31 +186,14 @@ public class ThirdEyeSkill : PlayerSkill
             if (!camera.IsValid)
                 return;
 
-            // 设置Spawnflags（关键：256 = 可发射）
-            camera.Spawnflags = 256u;
+            // ✅ 严格参照 jRandomSkills：设置模型
+            camera.SetModel("models/actors/ghost_speaker.vmdl");
 
-            // 清除Entity Flags中的EFL_NO_PHYSCOLLISION (第2位)
-            if (camera.CBodyComponent != null && camera.CBodyComponent.SceneNode != null)
-            {
-                var owner = camera.CBodyComponent.SceneNode.Owner;
-                if (owner != null && owner.Entity != null)
-                {
-                    owner.Entity.Flags &= ~(uint)(1 << 2);
-                }
-            }
-
-            // 不设置模型文件，避免显示ERROR模型
-            // camera.SetModel("models/actors/ghost_speaker.vmdl");
-
-            // 完全隐藏渲染
-            camera.RenderMode = RenderMode_t.kRenderNone;
+            // ✅ 严格参照 jRandomSkills：设置渲染颜色
             camera.Render = Color.FromArgb(0, 255, 255, 255);
 
-            if (playerPawn.AbsOrigin != null && playerPawn.EyeAngles != null)
-            {
-                camera.Teleport(playerPawn.AbsOrigin, playerPawn.EyeAngles);
-            }
-
+            // ✅ 严格参照 jRandomSkills：传送并生成
+            camera.Teleport(playerPawn.AbsOrigin, playerPawn.EyeAngles);
             camera.DispatchSpawn();
         });
 

@@ -44,7 +44,6 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
     public EventWeightsConfig EventConfig { get; set; } = null!;
 
     // 管理器
-    public HeavyArmorManager HeavyArmorManager { get; private set; } = null!;
     public BombPlantManager BombPlantManager { get; private set; } = null!;
     public EntertainmentEventManager EventManager { get; private set; } = null!;
     public PlayerSkillManager SkillManager { get; private set; } = null!;
@@ -83,7 +82,6 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // ⚠️ 不在 Load 阶段初始化服务器设置，等待 OnMapStart
 
         // 初始化管理器
-        HeavyArmorManager = new HeavyArmorManager(this);
         BombPlantManager = new BombPlantManager();
         EventManager = new EntertainmentEventManager(this);
         SkillManager = new PlayerSkillManager(this);
@@ -169,6 +167,20 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 0.1 清除所有机器人
         BotManager.OnRoundStart();
 
+        // 0.15 清除上回合残留的强制技能列表（防止影响本回合）
+        if (SkillManager.HasForcedSkills())
+        {
+            Console.WriteLine("[技能系统] 清除上回合残留的强制技能列表");
+            SkillManager.ClearForcedSkills();
+        }
+
+        // 0.16 移除所有玩家的技能（确保清理上回合的技能）
+        if (SkillManager.IsEnabled)
+        {
+            Console.WriteLine("[技能系统] 清理所有玩家的上回合技能");
+            SkillManager.RemoveAllPlayerSkills();
+        }
+
         // 0.2 清理第二次机会使用记录
         Skills.SecondChanceSkill.OnRoundStart();
 
@@ -193,14 +205,30 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 0.5 清理全息图
         Skills.HologramSkill.ClearAllHolograms();
 
+        // 0.51 清理第三只眼相机
+        var thirdEyeSkill = (Skills.ThirdEyeSkill?)SkillManager.GetSkill("ThirdEye");
+        thirdEyeSkill?.ClearAllCameras();
+
+        // 0.52 清理堡垒之夜路障
+        Skills.FortniteSkill.ClearAllBarricades();
+
         // 0.55 清理冷冻诱饵
         Skills.FrozenDecoySkill.OnRoundStart();
+
+        // 0.56 清理残局使者状态
+        Skills.LastStandSkill.ClearAllLastStand();
+
+        // 0.57 清理故障效果
+        Skills.GlitchSkill.ClearAllGlitches();
 
         // 0.6 清理鬼状态
         Skills.GhostSkill.ClearAllGhosts();
 
         // 0.7 清理杀人无敌记录
         Skills.KillInvincibilitySkill.OnRoundStart();
+
+        // 0.75 清理检查扫描使用次数
+        Skills.FreeCameraSkill.OnRoundStart();
 
         // 1. 恢复上一回合事件（不要在这里重置DisableSkillsThisRound标志）
         // DisableSkillsThisRound = false;  // 移除这行，让事件有机会设置它
@@ -348,6 +376,12 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 清理有毒烟雾弹记录
         Skills.ToxicSmokeSkill.ClearAllToxicSmokes();
 
+        // 清理治疗烟雾弹记录
+        Skills.HealingSmokeSkill.ClearAllHealingSmokes();
+
+        // 清理高风险，高回报技能的奖励记录
+        Skills.HighRiskHighRewardSkill.ClearRewardedPlayers();
+
         // 清理 HUD 过期时间字典
         _playerHudExpired.Clear();
         Console.WriteLine("[HUD] 已清理所有玩家的 HUD 过期时间");
@@ -360,28 +394,39 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 处理爆炸射击技能
         Skills.ExplosiveShotSkill.OnTakeDamagePre(player, info);
 
+        // 处理自瞄技能（将命中部位修改为头部）
+        Skills.AutoAimSkill.OnPlayerTakeDamagePre(player, info, SkillManager);
+
         // 收集所有伤害倍数修正器
         float totalMultiplier = 1.0f;
 
-        // 处理重甲战士减伤
+        // 处理装甲技能（随机伤害减免）
         var controller = player.Controller.Value;
         if (controller != null && controller.IsValid && controller is CCSPlayerController csController)
         {
             var skills = SkillManager.GetPlayerSkills(csController);
-            var heavyArmorSkill = skills.FirstOrDefault(s => s.Name == "HeavyArmor");
-            if (heavyArmorSkill != null)
+
+            // 处理装甲技能
+            var armoredSkill = skills.FirstOrDefault(s => s.Name == "Armored");
+            if (armoredSkill != null)
             {
-                Console.WriteLine($"[重甲战士] 检测到玩家 {csController.PlayerName} 拥有重甲战士技能");
-                var heavyArmor = (Skills.HeavyArmorSkill)heavyArmorSkill;
-                float? heavyArmorMultiplier = heavyArmor?.HandleDamage(player, info);
-                if (heavyArmorMultiplier.HasValue)
+                var armored = (Skills.ArmoredSkill)armoredSkill;
+                float? armoredMultiplier = armored?.HandleDamage(player, info);
+                if (armoredMultiplier.HasValue)
                 {
-                    Console.WriteLine($"[重甲战士] 应用伤害减免: {heavyArmorMultiplier.Value * 100}%");
-                    totalMultiplier *= heavyArmorMultiplier.Value;
+                    totalMultiplier *= armoredMultiplier.Value;
                 }
-                else
+            }
+
+            // 处理假肢技能（四肢防弹）
+            var prostheticSkill = skills.FirstOrDefault(s => s.Name == "Prosthetic");
+            if (prostheticSkill != null)
+            {
+                var prosthetic = (Skills.ProstheticSkill)prostheticSkill;
+                float? prostheticMultiplier = prosthetic?.HandleDamage(player, info);
+                if (prostheticMultiplier.HasValue)
                 {
-                    Console.WriteLine($"[重甲战士] HandleDamage 返回 null");
+                    totalMultiplier *= prostheticMultiplier.Value;
                 }
             }
         }
@@ -478,13 +523,15 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         if (player == null || !player.IsValid)
             return HookResult.Continue;
 
-        // 处理无限弹药技能
+        // ✅ 移除无限弹药技能的投掷物补充（无限弹药只影响枪械，不影响投掷物）
         var skills = SkillManager.GetPlayerSkills(player);
-        var infiniteAmmoSkill = skills.FirstOrDefault(s => s.Name == "InfiniteAmmo");
-        if (infiniteAmmoSkill != null)
+
+        // 处理圣手榴弹技能（补充手雷）
+        var holyHandGrenadeSkill = skills.FirstOrDefault(s => s.Name == "HolyHandGrenade");
+        if (holyHandGrenadeSkill != null)
         {
-            var infiniteAmmo = (Skills.InfiniteAmmoSkill)infiniteAmmoSkill;
-            infiniteAmmo.OnGrenadeThrown(@event);
+            var holyHandGrenade = (Skills.HolyHandGrenadeSkill)holyHandGrenadeSkill;
+            holyHandGrenade.OnGrenadeThrown(@event);
         }
 
         return HookResult.Continue;
@@ -525,6 +572,27 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
         // 处理杀人无敌技能（击杀者获得无敌）
         Skills.KillInvincibilitySkill.HandlePlayerDeath(@event);
+
+        // 处理高风险，高回报技能（击杀者血量增加到500）
+        var attacker = @event.Attacker;
+        if (attacker != null && attacker.IsValid)
+        {
+            var attackerSkills = SkillManager.GetPlayerSkills(attacker);
+            var highRiskSkill = attackerSkills.FirstOrDefault(s => s.Name == "HighRiskHighReward");
+            if (highRiskSkill != null)
+            {
+                var highRisk = (Skills.HighRiskHighRewardSkill)highRiskSkill;
+                highRisk.OnPlayerDeath(@event);
+            }
+        }
+
+        // 处理残局使者技能（检查是否只剩一人）
+        var lastStandSkill = (Skills.LastStandSkill?)SkillManager.GetSkill("LastStand");
+        lastStandSkill?.OnPlayerDeath(@event);
+
+        // 处理故障技能（移除死亡玩家的故障效果）
+        Skills.GlitchSkill.OnPlayerDeath(@event.Userid);
+        Skills.GlitchSkill.OnPlayerDeath(@event.Attacker);
 
         return HookResult.Continue;
     }
@@ -587,6 +655,10 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 处理推手技能（击退敌人）
         var pushSkill = (Skills.PushSkill?)SkillManager.GetSkill("Push");
         pushSkill?.HandlePlayerHurt(@event);
+
+        // 处理击飞咯技能（让敌人起飞）
+        var blastOffSkill = (Skills.BlastOffSkill?)SkillManager.GetSkill("BlastOff");
+        blastOffSkill?.HandlePlayerHurt(@event);
 
         // 处理破产之枪事件（伤害改为扣钱）
         if (CurrentEvent is BankruptcyWeaponEvent bankruptcyWeapon)
@@ -688,6 +760,14 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             toxicSmoke.OnSmokegrenadeDetonate(@event);
         }
 
+        // 处理治疗烟雾弹技能
+        var healingSmokeSkill = skills.FirstOrDefault(s => s.Name == "HealingSmoke");
+        if (healingSmokeSkill != null)
+        {
+            var healingSmoke = (Skills.HealingSmokeSkill)healingSmokeSkill;
+            healingSmoke.OnSmokegrenadeDetonate(@event);
+        }
+
         // 处理格拉兹技能
         var glazSkill = skills.FirstOrDefault(s => s.Name == "Glaz");
         if (glazSkill != null)
@@ -712,6 +792,14 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         {
             var toxicSmoke = (Skills.ToxicSmokeSkill)toxicSmokeSkill;
             toxicSmoke.OnSmokegrenadeExpired(@event);
+        }
+
+        // 处理治疗烟雾弹技能
+        var healingSmokeSkill = skills.FirstOrDefault(s => s.Name == "HealingSmoke");
+        if (healingSmokeSkill != null)
+        {
+            var healingSmoke = (Skills.HealingSmokeSkill)healingSmokeSkill;
+            healingSmoke.OnSmokegrenadeExpired(@event);
         }
 
         // 处理格拉兹技能
@@ -816,6 +904,7 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         }
 
         // 处理有毒烟雾弹技能（修改烟雾颜色）
+        // 处理治疗烟雾弹技能（修改烟雾颜色）
         // 参考 jRandomSkills 使用 OwnerEntity 而不是 Thrower
         var name = entity.DesignerName;
         if (name == "smokegrenade_projectile")
@@ -839,6 +928,13 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
                         {
                             var toxicSmoke = (Skills.ToxicSmokeSkill)toxicSmokeSkill;
                             toxicSmoke.OnEntitySpawned(entity);
+                        }
+
+                        var healingSmokeSkill = skills.FirstOrDefault(s => s.Name == "HealingSmoke");
+                        if (healingSmokeSkill != null)
+                        {
+                            var healingSmoke = (Skills.HealingSmokeSkill)healingSmokeSkill;
+                            healingSmoke.OnEntitySpawned(entity);
                         }
                     }
                 }
@@ -892,29 +988,10 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
     private HookResult OnBombPlanted(EventBombPlanted @event, GameEventInfo info)
     {
-        // 处理 AnywhereBombPlant 事件的炸弹计时器
-        if (CurrentEvent is AnywhereBombPlantEvent)
+        // 处理 AnywhereBombPlant 事件
+        if (CurrentEvent is AnywhereBombPlantEvent anywhereBombEvent)
         {
-            var plantedBombs = Utilities.FindAllEntitiesByDesignerName<CPlantedC4>("planted_c4");
-            if (plantedBombs.Count() > 0)
-            {
-                var bomb = plantedBombs.First();
-                if (bomb.IsValid)
-                {
-                    // 使用 NextFrame 延迟设置，确保炸弹实体完全初始化
-                    // 参考 jRandomSkills Planter.BombPlanted 实现
-                    Server.NextFrame(() =>
-                    {
-                        if (bomb.IsValid)
-                        {
-                            bomb.C4Blow = (float)Server.EngineTime + 60.0f;
-                            bomb.TimerLength = 60.0f;
-
-                            Console.WriteLine("[任意下包事件] 炸弹爆炸时间已设置为 60 秒（EngineTime: " + Server.EngineTime + ", BlowTime: " + bomb.C4Blow + ")");
-                        }
-                    });
-                }
-            }
+            anywhereBombEvent.HandleBombPlanted(@event);
         }
 
         return HookResult.Continue;
@@ -1075,6 +1152,10 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 处理传送锚点技能（移动锚点粒子）
         var teleportAnchorSkill = (Skills.TeleportAnchorSkill?)SkillManager.GetSkill("TeleportAnchor");
         teleportAnchorSkill?.OnTick();
+
+        // 处理精神骇入技能（检查目标是否存活）
+        var mindHackSkill = (Skills.MindHackSkill?)SkillManager.GetSkill("MindHack");
+        mindHackSkill?.OnTick();
     }
 
     /// <summary>
@@ -1109,6 +1190,12 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             explorerSkill?.OnEntityTakeDamage(hook);
         }
 
+        // 处理堡垒之夜路障受到伤害
+        if (entity.Entity?.Name?.StartsWith("FortniteBarricade_") == true)
+        {
+            Skills.FortniteSkill.HandleBarricadeDamage(entity, info);
+        }
+
         return HookResult.Continue;
     }
 
@@ -1118,11 +1205,14 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
     /// </summary>
     private HookResult OnPlayerMakeSound(UserMessage um)
     {
-        // 先处理聋技能（移除失聪玩家）
+        // 先处理聋事件（移除所有失聪玩家）
+        DeafEvent.OnPlayerMakeSound(um);
+
+        // 再处理聋技能（移除失聪玩家）
         var deafSkill = (Skills.DeafSkill?)SkillManager.GetSkill("Deaf");
         deafSkill?.HandlePlayerMakeSound(um);
 
-        // 再处理沉默技能（检查是否有沉默技能玩家）
+        // 最后处理沉默技能（检查是否有沉默技能玩家）
         Skills.SilentSkill.PlayerMakeSound(um);
 
         return HookResult.Continue;
@@ -1142,6 +1232,7 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
     /// <summary>
     /// 处理有毒烟雾弹的持续伤害
+    /// 处理治疗烟雾弹的持续治疗
     /// </summary>
     private void ProcessToxicSmokeDamage()
     {
@@ -1157,6 +1248,13 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             {
                 var toxicSmoke = (Skills.ToxicSmokeSkill)toxicSmokeSkill;
                 toxicSmoke.OnTick();
+            }
+
+            var healingSmokeSkill = skills.FirstOrDefault(s => s.Name == "HealingSmoke");
+            if (healingSmokeSkill != null)
+            {
+                var healingSmoke = (Skills.HealingSmokeSkill)healingSmokeSkill;
+                healingSmoke.OnTick();
             }
         }
     }
@@ -1194,6 +1292,22 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         }
 
         Console.WriteLine($"[HUD] 已显示回合开始 HUD，显示时长: {HUD_DISPLAY_DURATION} 秒");
+    }
+
+    /// <summary>
+    /// 清除玩家的 HUD（当玩家使用技能时调用）
+    /// </summary>
+    public void ClearPlayerHUD(CCSPlayerController player)
+    {
+        if (player == null || !player.IsValid)
+            return;
+
+        // 从 HUD 过期字典中移除该玩家
+        if (_playerHudExpired.ContainsKey(player.SteamID))
+        {
+            _playerHudExpired.Remove(player.SteamID);
+            Console.WriteLine($"[HUD] {player.PlayerName} 使用技能，已清除 HUD 显示");
+        }
     }
 
     /// <summary>

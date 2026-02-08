@@ -70,9 +70,6 @@ public class BotSummonSkill : PlayerSkill
 
         try
         {
-            // 配置服务器机器人参数
-            SetupBotServerSettings();
-
             // 增加机器人配额
             var botQuota = ConVar.Find("bot_quota");
             if (botQuota != null)
@@ -89,7 +86,7 @@ public class BotSummonSkill : PlayerSkill
             // 标记为已使用
             _usedThisRound[slot] = true;
 
-            // 延迟重命名机器人（等待机器人加入）
+            // 延迟重命名机器人并设置金钱（等待机器人加入）
             Plugin?.AddTimer(0.5f, () =>
             {
                 RenameLastBot(player.PlayerName);
@@ -109,45 +106,7 @@ public class BotSummonSkill : PlayerSkill
     }
 
     /// <summary>
-    /// 配置服务器机器人参数
-    /// </summary>
-    private void SetupBotServerSettings()
-    {
-        try
-        {
-            // 设置机器人难度为中等（1=中等, 0=简单, 2=困难, 3=专家）
-            var botDifficulty = ConVar.Find("bot_difficulty");
-            if (botDifficulty != null)
-            {
-                botDifficulty.SetValue(1);
-                Console.WriteLine("[召唤队友] bot_difficulty 设置为 1 (中等)");
-            }
-
-            // 允许机器人在玩家后加入
-            var botJoinAfterPlayer = ConVar.Find("bot_join_after_player");
-            if (botJoinAfterPlayer != null)
-            {
-                botJoinAfterPlayer.SetValue(1);
-                Console.WriteLine("[召唤队友] bot_join_after_player 设置为 1");
-            }
-
-            // 设置机器人加入延迟（毫秒）
-            var botJoinDelay = ConVar.Find("bot_join_delay");
-            if (botJoinDelay != null)
-            {
-                // 设置为0立即加入
-                botJoinDelay.SetValue(0.0f);
-                Console.WriteLine("[召唤队友] bot_join_delay 设置为 0");
-            }
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[召唤队友] 配置服务器参数时出错: {ex.Message}");
-        }
-    }
-
-    /// <summary>
-    /// 重命名最近加入的机器人
+    /// 重命名最近加入的机器人并设置金钱
     /// </summary>
     private void RenameLastBot(string ownerName)
     {
@@ -165,6 +124,13 @@ public class BotSummonSkill : PlayerSkill
                 // 设置机器人名字
                 lastBot.PlayerName = $"[召唤] {ownerName}的助手";
                 Console.WriteLine($"[召唤队友] 机器人已重命名为: {lastBot.PlayerName}");
+
+                // 给机器人5000块钱
+                if (lastBot.InGameMoneyServices != null)
+                {
+                    lastBot.InGameMoneyServices.Account = 5000;
+                    Console.WriteLine($"[召唤队友] 机器人金钱已设置为5000");
+                }
             }
         }
         catch (Exception ex)

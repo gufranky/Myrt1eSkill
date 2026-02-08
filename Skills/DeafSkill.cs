@@ -48,6 +48,9 @@ public class DeafSkill : PlayerSkill
     public override bool IsActive => true; // 主动技能
     public override float Cooldown => 30.0f; // 30秒冷却
 
+    // 与失聪事件互斥（当失聪事件激活时，该技能不会被分配）
+    public override List<string> ExcludedEvents => new() { "Deaf" };
+
     // 失聪效果持续时间（秒）
     private const float DEAF_DURATION = 10.0f;
 

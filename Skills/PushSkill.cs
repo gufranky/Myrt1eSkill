@@ -22,7 +22,7 @@ public class PushSkill : PlayerSkill
     public override bool IsActive => false; // 被动技能
 
     // 与其他移动技能互斥
-    public override List<string> ExcludedSkills => new() { "HeavyArmor", "Sprint" };
+    public override List<string> ExcludedSkills => new() { "Sprint" };
 
     // 推力参数（与 jRandomSkills 保持一致）
     private const float CHANCE_FROM = 0.3f;  // 30%

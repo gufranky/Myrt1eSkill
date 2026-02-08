@@ -17,7 +17,7 @@ public class SprintSkill : PlayerSkill
     public override bool IsActive => false; // 被动技能
 
     // 与其他移动技能互斥
-    public override List<string> ExcludedSkills => new() { "SpeedBoost", "HeavyArmor" };
+    public override List<string> ExcludedSkills => new() { "SpeedBoost" };
 
     // 冲刺参数
     private const float JUMP_VELOCITY = 150f;  // 向上跳跃速度

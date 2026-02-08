@@ -13,33 +13,39 @@ using System.Drawing;
 namespace MyrtleSkill.Skills;
 
 /// <summary>
-/// 检查扫描技能 - 主动技能，俯视视角，WASD移动，空格/Shift调整高度，5秒后标记敌人
+/// 检查扫描技能 - 主动技能，俯视视角，WASD移动，空格/Ctrl调整高度，10秒移动后立即扫描，透视5秒，60秒冷却
 /// </summary>
 public class FreeCameraSkill : PlayerSkill
 {
     public override string Name => "FreeCamera";
     public override string DisplayName => "🔍 检查扫描";
-    public override string Description => "输入 !useskill 或按E激活检查扫描！俯视视角，WASD移动，空格/Shift调高度，5秒后标记敌人！";
+    public override string Description => "输入 !useskill 或按E激活检查扫描！俯视视角，WASD移动，空格/Ctrl调高度，10秒移动后立即扫描，透视5秒！冷却20秒，每回合最多2次！";
     public override bool IsActive => true; // 主动技能
-    public override float Cooldown => 9999.0f; // 每局只能用一次（9999秒冷却）
+    public override float Cooldown => 20.0f; // 20秒内置冷却
 
     // 摄像头移动速度
-    private const float CAMERA_SPEED = 300.0f;  // 每秒移动速度
-    private const float VERTICAL_SPEED = 200.0f; // 垂直移动速度
+    private const float CAMERA_SPEED = 450.0f;   // 每秒移动速度（1.5倍：300 * 1.5）
+    private const float VERTICAL_SPEED = 300.0f; // 垂直移动速度（1.5倍：200 * 1.5）
 
     // 自由视角持续时间（秒）
-    private const float FREE_CAMERA_DURATION = 5.0f;
+    private const float FREE_CAMERA_DURATION = 10.0f;
+
+    // 每回合最大使用次数
+    private const int MAX_USES_PER_ROUND = 2;
 
     // 摄像头高度（类似猎鹰之眼）
     private const float CAMERA_HEIGHT = 1000.0f;
 
     // 视野检测参数
     private const float MAX_VIEW_DISTANCE = 2000.0f;  // 最大视野距离
-    private const float FOV_THRESHOLD = 0.707f;      // 视野角度阈值（90度）
-    private const float GLOW_DURATION = 3.0f;         // 透视标记持续时间（秒）
+    private const float FOV_THRESHOLD = 0.707f;       // 视野角度阈值（90度）
+    private const float GLOW_DURATION = 5.0f;         // 透视标记持续时间（秒）
 
     // 跟踪每个玩家的摄像头状态
     private readonly ConcurrentDictionary<ulong, FreeCameraInfo> _playerCameras = new();
+
+    // 跟踪每回合使用次数（静态，允许在回合开始时重置）
+    private static readonly ConcurrentDictionary<ulong, int> _roundUsesCount = new();
 
     // 跟踪发光效果的敌人
     private readonly Dictionary<int, (int relayIndex, int glowIndex)> _glowingEnemies = new();
@@ -54,15 +60,27 @@ public class FreeCameraSkill : PlayerSkill
         public float StartTime { get; set; }  // 开始时间
     }
 
+    /// <summary>
+    /// 回合开始时重置使用次数（在主文件的 OnRoundStart 中调用）
+    /// </summary>
+    public static void OnRoundStart()
+    {
+        _roundUsesCount.Clear();
+        Console.WriteLine("[检查扫描] 回合开始，重置所有玩家的使用次数");
+    }
+
     public override void OnApply(CCSPlayerController player)
     {
+        // 初始化回合使用次数
+        _roundUsesCount.AddOrUpdate(player.SteamID, 0, (key, old) => 0);
+
         Console.WriteLine($"[检查扫描] {player.PlayerName} 获得了检查扫描技能");
 
         player.PrintToChat("🔍 你获得了检查扫描技能！");
         player.PrintToChat("💡 输入 !useskill 激活检查扫描！");
-        player.PrintToChat("🎮 俯视视角，WASD水平移动，空格上升，Shift下降");
-        player.PrintToChat("⚠️ 玩家本体不会移动！5秒后自动退出并标记敌人！");
-        player.PrintToChat("⏱️ 每局只能使用一次！");
+        player.PrintToChat("🎮 俯视视角，WASD水平移动，空格上升，Ctrl下降");
+        player.PrintToChat($"⚠️ 最多10秒移动时间！再次按键或时间到立即扫描！透视效果持续5秒！");
+        player.PrintToChat($"⏱️ 技能冷却时间：{Cooldown}秒，每回合最多使用{MAX_USES_PER_ROUND}次！");
     }
 
     public override void OnRevert(CCSPlayerController player)
@@ -78,6 +96,17 @@ public class FreeCameraSkill : PlayerSkill
     {
         if (player == null || !player.IsValid || !player.PawnIsAlive)
             return;
+
+        // 检查每回合使用次数
+        if (_roundUsesCount.TryGetValue(player.SteamID, out var useCount))
+        {
+            if (useCount >= MAX_USES_PER_ROUND)
+            {
+                player.PrintToCenter($"❌ 本回合使用次数已达上限（{MAX_USES_PER_ROUND}次）");
+                player.PrintToChat($"🔍 本回合已使用{useCount}次，无法继续使用！");
+                return;
+            }
+        }
 
         Console.WriteLine($"[检查扫描] {player.PlayerName} 使用了检查扫描技能");
 
@@ -97,6 +126,10 @@ public class FreeCameraSkill : PlayerSkill
     /// </summary>
     private void EnterFreeCamera(CCSPlayerController player)
     {
+        // 增加使用次数
+        _roundUsesCount.AddOrUpdate(player.SteamID, 1, (key, old) => old + 1);
+        int currentUseCount = _roundUsesCount[player.SteamID];
+
         var playerPawn = player.PlayerPawn.Value;
         if (playerPawn?.CameraServices == null)
             return;
@@ -180,8 +213,8 @@ public class FreeCameraSkill : PlayerSkill
         }
 
         player.PrintToCenter($"🔍 检查扫描 {FREE_CAMERA_DURATION}秒！俯视视角");
-        player.PrintToChat($"🔍 检查扫描已激活！{FREE_CAMERA_DURATION}秒后自动退出并标记敌人！");
-        player.PrintToChat("💡 WASD: 水平移动 | 空格: 上升 | Shift: 下降");
+        player.PrintToChat($"🔍 检查扫描已激活！{FREE_CAMERA_DURATION}秒移动时间！再次按键立即扫描！");
+        player.PrintToChat("💡 WASD: 水平移动 | 空格: 上升 | Ctrl: 下降");
     }
 
     /// <summary>
@@ -209,12 +242,12 @@ public class FreeCameraSkill : PlayerSkill
         // 标记为未激活
         cameraInfo.IsActive = false;
 
-        // 检测视野内的敌人并施加透视效果
+        // 立即检测视野内的敌人并施加透视效果
         var visibleEnemies = GetVisibleEnemies(cameraInfo.Position, player);
         if (visibleEnemies.Count > 0)
         {
             player.PrintToCenter($"🔍 扫描完成！标记 {visibleEnemies.Count} 个敌人！");
-            player.PrintToChat($"🔍 扫描内发现 {visibleEnemies.Count} 个敌人！标记 {GLOW_DURATION} 秒！");
+            player.PrintToChat($"🔍 扫描发现 {visibleEnemies.Count} 个敌人！标记 {GLOW_DURATION} 秒！");
 
             // 对每个敌人施加透视效果
             foreach (var enemy in visibleEnemies)
@@ -226,7 +259,7 @@ public class FreeCameraSkill : PlayerSkill
             string enemyNames = string.Join(", ", visibleEnemies.Select(e => e.PlayerName));
             Server.PrintToChatAll($"🔍 {player.PlayerName} 检查扫描发现了: {enemyNames}！");
 
-            // 持续 3 秒后移除发光效果
+            // 5秒后移除发光效果
             Plugin?.AddTimer(GLOW_DURATION, () =>
             {
                 RemoveGlowEffects();
@@ -238,8 +271,8 @@ public class FreeCameraSkill : PlayerSkill
         }
         else
         {
-            player.PrintToCenter("🔍 扫描完成");
-            player.PrintToChat("🔍 检查扫描已完成！");
+            player.PrintToCenter("🔍 扫描完成，未发现敌人！");
+            player.PrintToChat("🔍 扫描完成，未发现敌人！");
         }
 
         // 如果没有玩家使用自由视角，移除监听
@@ -308,30 +341,31 @@ public class FreeCameraSkill : PlayerSkill
             var buttons = player.Buttons;
 
             // 计算水平移动方向（俯视视角下的平面移动）
+            // 俯视角度下：W/S 控制前后（X轴），A/D 控制左右（Y轴）
             Vector moveDirection = new Vector(0, 0, 0);
 
-            // W 前进（在俯视视角下是向"北方"移动）
+            // W 前进（X轴正方向）
             if (buttons.HasFlag(PlayerButtons.Forward))
             {
-                moveDirection.Y += 1.0f;
+                moveDirection.X += 1.0f;
             }
 
-            // S 后退
+            // S 后退（X轴负方向）
             if (buttons.HasFlag(PlayerButtons.Back))
-            {
-                moveDirection.Y -= 1.0f;
-            }
-
-            // A 左移
-            if (buttons.HasFlag(PlayerButtons.Moveleft))
             {
                 moveDirection.X -= 1.0f;
             }
 
-            // D 右移
+            // A 左移（Y轴正方向）
+            if (buttons.HasFlag(PlayerButtons.Moveleft))
+            {
+                moveDirection.Y += 1.0f;
+            }
+
+            // D 右移（Y轴负方向）
             if (buttons.HasFlag(PlayerButtons.Moveright))
             {
-                moveDirection.X += 1.0f;
+                moveDirection.Y -= 1.0f;
             }
 
             // 空格上升
@@ -340,7 +374,7 @@ public class FreeCameraSkill : PlayerSkill
                 moveDirection.Z += 1.0f;
             }
 
-            // Shift 下降（使用 Duck 表示蹲下/下降）
+            // Ctrl 下降（蹲下键）
             if (buttons.HasFlag(PlayerButtons.Duck))
             {
                 moveDirection.Z -= 1.0f;

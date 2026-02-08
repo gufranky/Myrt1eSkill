@@ -100,8 +100,49 @@ public class HolyHandGrenadeSkill : PlayerSkill
     }
 
     /// <summary>
-    /// 处理实体生成事件 - 增强HE手雷的伤害和范围，并自动补充
+    /// 处理HE手雷投掷事件 - 自动补充1次
+    /// 参考有毒烟雾弹的实现，使用 EventGrenadeThrown
+    /// </summary>
+    public void OnGrenadeThrown(EventGrenadeThrown @event)
+    {
+        var player = @event.Userid;
+        if (player == null || !player.IsValid)
+            return;
+
+        // 检查玩家是否有圣手榴弹技能
+        var skills = Plugin?.SkillManager.GetPlayerSkills(player);
+        if (skills == null || skills.Count == 0)
+            return;
+
+        var holyHandGrenadeSkill = skills.FirstOrDefault(s => s.Name == "HolyHandGrenade");
+        if (holyHandGrenadeSkill == null)
+            return;
+
+        // 检查是否已经补充过
+        if (_replenishedCount.TryGetValue(player.SteamID, out var count) && count >= MAX_REPLENISH_COUNT)
+        {
+            Console.WriteLine($"[圣手榴弹] {player.PlayerName} 本回合已补充{count}次，达到上限({MAX_REPLENISH_COUNT}次)，不再补充");
+            return;
+        }
+
+        // 延迟补充（等待手雷投掷完成）
+        Server.NextFrame(() =>
+        {
+            if (player.IsValid && player.PawnIsAlive)
+            {
+                GiveGrenades(player, 1);
+                _replenishedCount[player.SteamID] = count + 1;
+
+                player.PrintToChat($"✝️ HE手雷已补充！({_replenishedCount[player.SteamID]}/{MAX_REPLENISH_COUNT})");
+                Console.WriteLine($"[圣手榴弹] {player.PlayerName} 的HE手雷已补充 ({_replenishedCount[player.SteamID]}/{MAX_REPLENISH_COUNT})");
+            }
+        });
+    }
+
+    /// <summary>
+    /// 处理实体生成事件 - 增强HE手雷的伤害和范围
     /// 完全复制自 jRandomSkills Holy Hand Grenade.OnEntitySpawned
+    /// 注意：只负责增强手雷属性，补充由 OnGrenadeThrown 处理
     /// </summary>
     public void OnEntitySpawned(CEntityInstance entity)
     {
@@ -123,7 +164,14 @@ public class HolyHandGrenadeSkill : PlayerSkill
             if (player == null || !player.IsValid)
                 return;
 
-            // 注意：主文件已经检查过玩家是否有圣手榴弹技能，这里直接增强即可
+            // 检查玩家是否有圣手榴弹技能
+            var skills = Plugin?.SkillManager.GetPlayerSkills(player);
+            if (skills == null || skills.Count == 0)
+                return;
+
+            var holyHandGrenadeSkill = skills.FirstOrDefault(s => s.Name == "HolyHandGrenade");
+            if (holyHandGrenadeSkill == null)
+                return;
 
             // 增强手雷伤害和范围
             hegrenade.Damage *= DAMAGE_MULTIPLIER;
@@ -131,28 +179,7 @@ public class HolyHandGrenadeSkill : PlayerSkill
 
             Console.WriteLine($"[圣手榴弹] {player.PlayerName} 的HE手雷已增强：伤害×{DAMAGE_MULTIPLIER}，范围×{DAMAGE_RADIUS_MULTIPLIER}");
 
-            // 自动补充1次（最多1次）
-            if (!_grenadeCounters.ContainsKey(player.SteamID))
-                return;
-
-            if (_replenishedCount.TryGetValue(player.SteamID, out var count) && count >= MAX_REPLENISH_COUNT)
-            {
-                Console.WriteLine($"[圣手榴弹] {player.PlayerName} 本回合已补充{count}次，达到上限({MAX_REPLENISH_COUNT}次)，不再补充");
-                return;
-            }
-
-            // 延迟补充（等待手雷投掷完成）
-            Server.NextFrame(() =>
-            {
-                if (player.IsValid && player.PawnIsAlive)
-                {
-                    GiveGrenades(player, 1);
-                    _replenishedCount[player.SteamID] = count + 1;
-
-                    player.PrintToChat($"✝️ HE手雷已补充！({_replenishedCount[player.SteamID]}/{MAX_REPLENISH_COUNT})");
-                    Console.WriteLine($"[圣手榴弹] {player.PlayerName} 的HE手雷已补充 ({_replenishedCount[player.SteamID]}/{MAX_REPLENISH_COUNT})");
-                }
-            });
+            // 注意：补充逻辑已移到 OnHEGrenadeDetonate 方法中
         });
     }
 }

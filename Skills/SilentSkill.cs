@@ -20,6 +20,9 @@ public class SilentSkill : PlayerSkill
     public override string Description => "你的脚步声和跳跃声对其他玩家来说是无声的！";
     public override bool IsActive => false; // 被动技能
 
+    // 与失聪事件互斥（当失聪事件激活时，该技能不会被分配）
+    public override List<string> ExcludedEvents => new() { "Deaf" };
+
     // 脚步声事件哈希列表（与 jRandomSkills 一致）
     public static readonly uint[] FootstepSoundEvents =
     [

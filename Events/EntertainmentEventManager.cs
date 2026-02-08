@@ -13,8 +13,8 @@ public class EntertainmentEventManager
 {
     private readonly MyrtleSkill _plugin;
     private readonly Dictionary<string, EntertainmentEvent> _events = new();
-    private readonly Queue<string> _eventHistory = new(); // 最近3个事件历史
-    private const int MAX_HISTORY = 3; // 只记录最近3个事件
+    private readonly Queue<string> _eventHistory = new(); // 最近8个事件历史
+    private const int MAX_HISTORY = 8; // 只记录最近8个事件
     private readonly Random _random = new();
 
     /// <summary>
@@ -60,7 +60,7 @@ public class EntertainmentEventManager
         RegisterEvent(new ChickenModeEvent());
         RegisterEvent(new TopTierPartyEvent());
         RegisterEvent(new TopTierPartyPlusPlusEvent());
-        RegisterEvent(new StayQuietEvent());
+        // RegisterEvent(new StayQuietEvent());  // 已禁用
         RegisterEvent(new RainyDayEvent());
         RegisterEvent(new ScreamingRabbitEvent());
         RegisterEvent(new HeadshotOnlyEvent());
@@ -82,7 +82,10 @@ public class EntertainmentEventManager
         RegisterEvent(new MoreSkillsEvent());
         RegisterEvent(new SkillsPlusPlusEvent());
         RegisterEvent(new KillerSatelliteEvent());
+        RegisterEvent(new ChooseCarnivalEvent());
         RegisterEvent(new InverseHeadshotEvent());
+        RegisterEvent(new SignalJamEvent());
+        RegisterEvent(new FlyUpEvent());
         // RegisterEvent(new ThirdPersonEvent());  // 暂时禁用
 
         Console.WriteLine("[事件管理器] 已注册 " + _events.Count + " 个娱乐事件");

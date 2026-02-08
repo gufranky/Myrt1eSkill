@@ -28,6 +28,18 @@ public static class ServerSettings
     private static ConVar? _partyModeConVar;
     private static bool _originalPartyModeValue = false;
 
+    // 机器人难度
+    private static ConVar? _botDifficultyConVar;
+    private static int _originalBotDifficultyValue = 1;
+
+    // 机器人加入延迟
+    private static ConVar? _botJoinDelayConVar;
+    private static float _originalBotJoinDelayValue = 0.0f;
+
+    // 机器人等待人类指令
+    private static ConVar? _botDeferToHumanConVar;
+    private static bool _originalBotDeferToHumanValue = true;
+
     /// <summary>
     /// 初始化所有娱乐服务器全局设置
     /// 在插件加载时调用
@@ -39,6 +51,7 @@ public static class ServerSettings
         DisableFallDamage();
         DisableFriendlyFireKick();
         EnablePartyMode();
+        SetupBotSettings();
 
         Console.WriteLine("[服务器设置] ✅ 娱乐服务器全局设置已应用");
         Console.WriteLine("   - sv_cheats: true (作弊模式)");
@@ -46,6 +59,9 @@ public static class ServerSettings
         Console.WriteLine("   - sv_falldamage_scale: 0 (禁用坠落伤害)");
         Console.WriteLine("   - mp_autokick: false (禁用友军伤害踢人)");
         Console.WriteLine("   - sv_party_mode: true (启用派对模式)");
+        Console.WriteLine("   - bot_difficulty: 3 (专家难度)");
+        Console.WriteLine("   - bot_join_delay: 0 (立即加入)");
+        Console.WriteLine("   - bot_defer_to_human_goals: 0 (机器人更主动)");
     }
 
     /// <summary>
@@ -59,6 +75,7 @@ public static class ServerSettings
         RestoreFallDamage();
         RestoreFriendlyFireKick();
         RestorePartyMode();
+        RestoreBotSettings();
 
         Console.WriteLine("[服务器设置] ✅ 娱乐服务器全局设置已恢复");
     }
@@ -298,6 +315,93 @@ public static class ServerSettings
         catch (Exception ex)
         {
             Console.WriteLine($"[服务器设置] ❌ 恢复派对模式出错：{ex.Message}");
+        }
+    }
+
+    #endregion
+
+    #region 机器人设置
+
+    /// <summary>
+    /// 配置机器人参数（专家难度）
+    /// </summary>
+    private static void SetupBotSettings()
+    {
+        try
+        {
+            // 设置机器人难度为专家（3=专家, 0=简单, 1=中等, 2=困难）
+            _botDifficultyConVar = ConVar.Find("bot_difficulty");
+            if (_botDifficultyConVar != null)
+            {
+                _originalBotDifficultyValue = _botDifficultyConVar.GetPrimitiveValue<int>();
+                _botDifficultyConVar.SetValue(3);
+                Console.WriteLine($"[服务器设置] bot_difficulty 已设置为 3 (专家) (原值: {_originalBotDifficultyValue})");
+            }
+            else
+            {
+                Console.WriteLine("[服务器设置] ⚠️ 警告：无法找到 bot_difficulty ConVar");
+            }
+
+            // 设置机器人加入延迟为0（立即加入）
+            _botJoinDelayConVar = ConVar.Find("bot_join_delay");
+            if (_botJoinDelayConVar != null)
+            {
+                _originalBotJoinDelayValue = _botJoinDelayConVar.GetPrimitiveValue<float>();
+                _botJoinDelayConVar.SetValue(0.0f);
+                Console.WriteLine($"[服务器设置] bot_join_delay 已设置为 0 (原值: {_originalBotJoinDelayValue})");
+            }
+            else
+            {
+                Console.WriteLine("[服务器设置] ⚠️ 警告：无法找到 bot_join_delay ConVar");
+            }
+
+            // 禁用机器人等待人类指令（让机器人更主动）
+            _botDeferToHumanConVar = ConVar.Find("bot_defer_to_human_goals");
+            if (_botDeferToHumanConVar != null)
+            {
+                _originalBotDeferToHumanValue = _botDeferToHumanConVar.GetPrimitiveValue<bool>();
+                _botDeferToHumanConVar.SetValue(false);
+                Console.WriteLine($"[服务器设置] bot_defer_to_human_goals 已设置为 false (原值: {_originalBotDeferToHumanValue})");
+            }
+            else
+            {
+                Console.WriteLine("[服务器设置] ⚠️ 警告：无法找到 bot_defer_to_human_goals ConVar");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[服务器设置] ❌ 配置机器人设置出错：{ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 恢复机器人设置
+    /// </summary>
+    private static void RestoreBotSettings()
+    {
+        try
+        {
+            if (_botDifficultyConVar != null)
+            {
+                _botDifficultyConVar.SetValue(_originalBotDifficultyValue);
+                Console.WriteLine($"[服务器设置] bot_difficulty 已恢复为 {_originalBotDifficultyValue}");
+            }
+
+            if (_botJoinDelayConVar != null)
+            {
+                _botJoinDelayConVar.SetValue(_originalBotJoinDelayValue);
+                Console.WriteLine($"[服务器设置] bot_join_delay 已恢复为 {_originalBotJoinDelayValue}");
+            }
+
+            if (_botDeferToHumanConVar != null)
+            {
+                _botDeferToHumanConVar.SetValue(_originalBotDeferToHumanValue);
+                Console.WriteLine($"[服务器设置] bot_defer_to_human_goals 已恢复为 {_originalBotDeferToHumanValue}");
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[服务器设置] ❌ 恢复机器人设置出错：{ex.Message}");
         }
     }
 

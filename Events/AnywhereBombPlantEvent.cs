@@ -22,13 +22,13 @@ public class AnywhereBombPlantEvent : EntertainmentEvent
 
     /// <summary>
     /// 处理下包后事件（在主文件的 OnBombPlanted 中调用）
-    /// 完全复制 jRandomSkills Planter.BombPlanted
+    /// 完全复制 jRandomSkills Planter.BombPlanted 实现
     /// </summary>
     public void HandleBombPlanted(EventBombPlanted @event)
     {
         Console.WriteLine("[任意下包] 炸弹已下包，设置爆炸时间");
 
-        // 完全复制 jRandomSkills 的实现
+        // 完全复制 jRandomSkills 的实现（只设置 C4Blow 时间）
         var plantedBombs = Utilities.FindAllEntitiesByDesignerName<CPlantedC4>("planted_c4");
         var plantedBomb = plantedBombs.FirstOrDefault();
         if (plantedBomb != null)
@@ -37,12 +37,15 @@ public class AnywhereBombPlantEvent : EntertainmentEvent
             {
                 if (plantedBomb.IsValid)
                 {
-                    // 设置爆炸时间（60秒后爆炸）
+                    // 只设置爆炸时间（60秒后爆炸）
                     plantedBomb.C4Blow = (float)Server.EngineTime + 60.0f;
-
                     Console.WriteLine($"[任意下包] 炸弹爆炸时间已设置（EngineTime: {Server.EngineTime}, BlowTime: {plantedBomb.C4Blow}）");
                 }
             });
+        }
+        else
+        {
+            Console.WriteLine("[任意下包] 未找到已下包的炸弹！");
         }
     }
 

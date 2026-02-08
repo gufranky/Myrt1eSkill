@@ -16,7 +16,7 @@ public class SpeedBoostSkill : PlayerSkill
     public override float Cooldown => 0f; // 被动技能无冷却
 
     // 与其他移动技能互斥
-    public override List<string> ExcludedSkills => new() { "HeavyArmor", "Sprint" };
+    public override List<string> ExcludedSkills => new() { "Sprint" };
 
     private readonly Dictionary<int, float> _originalSpeed = new();
 

@@ -22,7 +22,7 @@ public class PilotSkill : PlayerSkill
     // 飞行参数（参考 jRandomSkills Pilot）
     private const float MAXIMUM_FUEL = 150f;          // 最大燃料
     private const float FUEL_CONSUMPTION = 0.64f;     // 每帧消耗（按住E时）
-    private const float REFUELLING = 0.1f;            // 每帧恢复（不按E时）
+    private const float REFUELLING = 0.2f;            // 每帧恢复（不按E时）✅ 已提升至2倍速度
     private const float HORIZONTAL_SPEED = 5.0f;      // 水平飞行速度
     private const float VERTICAL_SPEED = 12.0f;       // 垂直飞行速度
 

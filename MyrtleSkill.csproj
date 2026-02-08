@@ -12,4 +12,8 @@
     <PackageReference Include="CS2TraceRay" Version="1.0.9" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="C:\Users\myrt1e\Downloads\MenuManagerCS2-main\MenuManagerCS2-main\MenuManagerApi\MenuManagerApi.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -14,8 +14,8 @@ public class PlayerSkillManager
     private readonly Dictionary<string, PlayerSkill> _skills = new();
     private readonly Dictionary<int, List<PlayerSkill>> _playerSkills = new(); // 玩家槽位 -> 当前技能列表
     private readonly Dictionary<int, DateTime> _playerCooldowns = new(); // 玩家槽位 -> 冷却结束时间
-    private readonly Dictionary<int, Queue<string>> _playerSkillHistory = new(); // 玩家槽位 -> 最近3个技能
-    private const int MAX_HISTORY = 3; // 只记录最近3个技能
+    private readonly Dictionary<int, Queue<string>> _playerSkillHistory = new(); // 玩家槽位 -> 最近8个技能
+    private const int MAX_HISTORY = 8; // 只记录最近8个技能
     private readonly Random _random = new();
 
     /// <summary>
@@ -66,6 +66,7 @@ public class PlayerSkillManager
         RegisterSkill(new DumbBotSkill());       // 笨笨机器人技能
         RegisterSkill(new DecoyXRaySkill());     // 透视诱饵弹技能
         RegisterSkill(new ToxicSmokeSkill());    // 有毒烟雾弹技能
+        RegisterSkill(new HealingSmokeSkill());  // 治疗烟雾弹技能
         RegisterSkill(new KillerFlashSkill());   // 杀手闪电技能
         RegisterSkill(new SuperFlashSkill());    // 超级闪光技能
         RegisterSkill(new TeamWhipSkill());      // 鞭策队友技能
@@ -81,21 +82,26 @@ public class PlayerSkillManager
         RegisterSkill(new ExplosiveShotSkill()); // 爆炸射击技能
         RegisterSkill(new GlazSkill());        // 格拉兹技能
         RegisterSkill(new FlashJumpSkill());    // 闪光跳跃技能
-        RegisterSkill(new HeavyArmorSkill());   // 重甲战士技能
+        RegisterSkill(new ArmoredSkill());      // 装甲技能
         RegisterSkill(new QuickShotSkill());    // 速射技能
         RegisterSkill(new MeitoSkill());        // 名刀技能
         RegisterSkill(new WallhackSkill());      // 透视技能
         RegisterSkill(new DeafSkill());          // 失聪技能
         RegisterSkill(new BigStomachSkill());    // 大胃袋技能
+        RegisterSkill(new HighRiskHighRewardSkill()); // 高风险，高回报技能
         RegisterSkill(new HologramSkill());      // 全息图技能
         RegisterSkill(new GhostSkill());          // 鬼技能
         RegisterSkill(new KillInvincibilitySkill()); // 杀人无敌技能
+        RegisterSkill(new DeathNoteSkill());     // 死神名册技能
         RegisterSkill(new SilentSkill());        // 沉默技能
+        RegisterSkill(new SilencerSkill());       // 沉默技能（禁用敌人）
         RegisterSkill(new PushSkill());           // 推手技能
+        RegisterSkill(new BlastOffSkill());        // 击飞咯技能
         RegisterSkill(new JackalSkill());         // 豺狼技能
         RegisterSkill(new HolyHandGrenadeSkill()); // 圣手榴弹技能
         RegisterSkill(new FrozenDecoySkill());     // 冷冻诱饵技能
         RegisterSkill(new FalconEyeSkill());       // 猎鹰之眼技能
+        RegisterSkill(new FortniteSkill());        // 堡垒之夜技能
         RegisterSkill(new ReplicatorSkill());      // 复制品技能
         RegisterSkill(new ExplorerSkill());        // 探索者技能
         RegisterSkill(new TeleportAnchorSkill());  // 传送锚点技能
@@ -103,9 +109,17 @@ public class PlayerSkillManager
         RegisterSkill(new PhoenixSkill());         // 凤凰技能
         RegisterSkill(new PilotSkill());           // 飞行员技能
         RegisterSkill(new ThirdEyeSkill());        // 第三只眼技能
+        RegisterSkill(new ChooseOneOfThreeSkill()); // 三选一技能
+        RegisterSkill(new DuplicatorSkill());      // 复制者技能
         RegisterSkill(new FreeCameraSkill());      // 自由视角技能
         RegisterSkill(new WoodManSkill());         // 木头人技能
         RegisterSkill(new ZRYSkill());             // ZRY技能
+        RegisterSkill(new LastStandSkill());        // 残局使者技能
+        RegisterSkill(new GlitchSkill());           // 故障技能
+        RegisterSkill(new MindHackSkill());         // 精神骇入技能
+        RegisterSkill(new ProstheticSkill());       // 假肢技能
+        RegisterSkill(new FocusSkill());            // 专注技能
+        RegisterSkill(new AutoAimSkill());          // 自瞄技能
 
         Console.WriteLine("[技能管理器] 已注册 " + _skills.Count + " 个玩家技能");
     }
@@ -694,6 +708,9 @@ public class PlayerSkillManager
     {
         if (player == null || !player.IsValid || !player.PawnIsAlive)
             return;
+
+        // 清除玩家的开局 HUD（避免与技能菜单冲突）
+        _plugin?.ClearPlayerHUD(player);
 
         // 获取玩家技能列表
         if (!_playerSkills.TryGetValue(player.Slot, out var skills) || skills.Count == 0)

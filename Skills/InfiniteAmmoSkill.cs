@@ -10,14 +10,14 @@ namespace MyrtleSkill.Skills;
 
 /// <summary>
 /// 无限弹药技能 - 被动技能
-/// 你的所有武器都将获得无限弹药
+/// 你的所有枪械都将获得无限弹药（不影响投掷物）
 /// 完全复制自 jRandomSkills Infinite Ammo
 /// </summary>
 public class InfiniteAmmoSkill : PlayerSkill
 {
     public override string Name => "InfiniteAmmo";
     public override string DisplayName => "∞ 无限弹药";
-    public override string Description => "你的所有武器都将获得无限弹药！";
+    public override string Description => "你的所有枪械都将获得无限弹药！（不影响投掷物）";
     public override bool IsActive => false; // 被动技能
 
     // ✅ 跟踪拥有无限弹药技能的玩家（使用槽位而非SteamID，更可靠）
@@ -42,7 +42,7 @@ public class InfiniteAmmoSkill : PlayerSkill
 
         Console.WriteLine($"[无限弹药] {player.PlayerName} 获得了无限弹药技能");
         player.PrintToChat("∞ 你获得了无限弹药技能！");
-        player.PrintToChat("💡 你的所有武器都将获得无限弹药！");
+        player.PrintToChat("💡 你的所有枪械都将获得无限弹药！（不影响投掷物）");
     }
 
     public override void OnRevert(CCSPlayerController player)
@@ -99,31 +99,6 @@ public class InfiniteAmmoSkill : PlayerSkill
 
         // 应用无限弹药
         ApplyInfiniteAmmo(player);
-    }
-
-    /// <summary>
-    /// 处理投掷手雷事件（在主文件的 OnGrenadeThrown 中调用）
-    /// 完全复制自 jRandomSkills InfiniteAmmo.GrenadeThrown
-    /// </summary>
-    public void OnGrenadeThrown(EventGrenadeThrown @event)
-    {
-        var player = @event.Userid;
-        if (player == null || !player.IsValid)
-            return;
-
-        // 检查玩家是否有无限弹药技能
-        var skills = Plugin?.SkillManager.GetPlayerSkills(player);
-        if (skills == null || skills.Count == 0)
-            return;
-
-        var infiniteAmmoSkill = skills.FirstOrDefault(s => s.Name == "InfiniteAmmo");
-        if (infiniteAmmoSkill == null)
-            return;
-
-        // 补充投掷的武器
-        player.GiveNamedItem($"weapon_{@event.Weapon}");
-
-        Console.WriteLine($"[无限弹药] {player.PlayerName} 投掷 {@event.Weapon}，已补充");
     }
 
     /// <summary>

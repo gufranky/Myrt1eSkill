@@ -19,13 +19,16 @@ public class TeleportAnchorSkill : PlayerSkill
     public override string DisplayName => "⚓ 传送锚点";
     public override string Description => "第一次使用创建移动锚点，第二次使用传送到锚点！持续10秒！";
     public override bool IsActive => true; // 主动技能
-    public override float Cooldown => 0.0f; // 由我们手动管理30秒冷却
+    public override float Cooldown => 0.0f; // 由我们手动管理30秒冷却（避免技能管理器干扰）
 
     // 粒子效果路径（使用类似 Jackal 的轨迹效果）
     private const string PARTICLE_NAME = "particles/ui/hud/ui_map_def_utility_trail.vpcf";
 
     // 锚点持续时间（秒）
     private const float ANCHOR_LIFETIME = 10.0f;
+
+    // 手动管理的冷却时间（秒）
+    private const float MANAGED_COOLDOWN = 30.0f;
 
     // 移动速度（单位/秒）
     private const float MOVE_SPEED = 150.0f;
@@ -50,7 +53,7 @@ public class TeleportAnchorSkill : PlayerSkill
         Console.WriteLine($"[传送锚点] {player.PlayerName} 获得了传送锚点技能");
         player.PrintToChat("⚓ 你获得了传送锚点技能！");
         player.PrintToChat("💡 第一次使用创建锚点，第二次使用传送到锚点！");
-        player.PrintToChat($"⏱️ 冷却时间：{Cooldown}秒，锚点持续{ANCHOR_LIFETIME}秒");
+        player.PrintToChat($"⏱️ 冷却时间：{MANAGED_COOLDOWN}秒，锚点持续{ANCHOR_LIFETIME}秒");
     }
 
     public override void OnRevert(CCSPlayerController player)
@@ -73,9 +76,9 @@ public class TeleportAnchorSkill : PlayerSkill
         if (_lastUseTime.TryGetValue(player.SteamID, out var lastTime))
         {
             float elapsedTime = Server.CurrentTime - lastTime;
-            if (elapsedTime < Cooldown)
+            if (elapsedTime < MANAGED_COOLDOWN)
             {
-                float remainingTime = Cooldown - elapsedTime;
+                float remainingTime = MANAGED_COOLDOWN - elapsedTime;
                 player.PrintToCenter($"⏱️ 冷却中！剩余 {remainingTime:F0} 秒");
                 player.PrintToChat($"⚓ 技能冷却中！还需等待 {remainingTime:F0} 秒");
                 return;
