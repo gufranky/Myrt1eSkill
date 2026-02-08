@@ -7,6 +7,7 @@ namespace MyrtleSkill;
 
 /// <summary>
 /// 任意下包事件 - 可以在任意位置下包
+/// 完全复制 jRandomSkills Planter 技能的实现方式
 /// </summary>
 public class AnywhereBombPlantEvent : EntertainmentEvent
 {
@@ -20,112 +21,50 @@ public class AnywhereBombPlantEvent : EntertainmentEvent
     }
 
     /// <summary>
-    /// 处理玩家按键变化（在主文件的 OnPlayerButtonsChanged 中调用）
+    /// 处理下包后事件（在主文件的 OnBombPlanted 中调用）
+    /// 完全复制 jRandomSkills Planter.BombPlanted
     /// </summary>
-    public void HandlePlayerButtonsChanged(CCSPlayerController player, PlayerButtons pressed)
+    public void HandleBombPlanted(EventBombPlanted @event)
     {
-        if (player == null || !player.IsValid)
-            return;
+        Console.WriteLine("[任意下包] 炸弹已下包，设置爆炸时间");
 
-        var pawn = player.PlayerPawn.Get();
-        if (pawn == null || !pawn.IsValid)
-            return;
-
-        // 检测是否按下 Use 键
-        if ((pressed & PlayerButtons.Use) != 0)
+        // 完全复制 jRandomSkills 的实现
+        var plantedBombs = Utilities.FindAllEntitiesByDesignerName<CPlantedC4>("planted_c4");
+        var plantedBomb = plantedBombs.FirstOrDefault();
+        if (plantedBomb != null)
         {
-            var weaponServices = pawn.WeaponServices;
-            if (weaponServices == null)
-                return;
-
-            var activeWeapon = weaponServices.ActiveWeapon.Get();
-            if (activeWeapon == null || !activeWeapon.IsValid)
-                return;
-
-            var weaponBase = activeWeapon.As<CCSWeaponBase>();
-            if (weaponBase == null || weaponBase.VData == null)
-                return;
-
-            // 如果手持 C4，设置为在炸弹区域内（使用 Schema API）
-            if (weaponBase.VData.WeaponType == CSWeaponType.WEAPONTYPE_C4)
+            Server.NextFrame(() =>
             {
-                Schema.SetSchemaValue<bool>(pawn.Handle, "CCSPlayerPawn", "m_bInBombZone", true);
+                if (plantedBomb.IsValid)
+                {
+                    // 设置爆炸时间（60秒后爆炸）
+                    plantedBomb.C4Blow = (float)Server.EngineTime + 60.0f;
 
-                Console.WriteLine($"[任意下包] 玩家 {player.PlayerName} 手持C4，已通过Schema设置InBombZone为true");
-            }
+                    Console.WriteLine($"[任意下包] 炸弹爆炸时间已设置（EngineTime: {Server.EngineTime}, BlowTime: {plantedBomb.C4Blow}）");
+                }
+            });
         }
-    }
-
-    /// <summary>
-    /// 处理取消下包事件（在主文件的 OnBombAbortPlant 中调用）
-    /// 返回 true 表示阻止取消下包
-    /// </summary>
-    public bool HandleBombAbortPlant(CCSPlayerController player)
-    {
-        if (player == null || !player.IsValid)
-            return false;
-
-        var pawn = player.PlayerPawn.Get();
-        if (pawn == null || !pawn.IsValid)
-            return false;
-
-        var weaponServices = pawn.WeaponServices;
-        if (weaponServices == null)
-            return false;
-
-        var activeWeapon = weaponServices.ActiveWeapon.Get();
-        if (activeWeapon == null || !activeWeapon.IsValid)
-            return false;
-
-        var weaponBase = activeWeapon.As<CCSWeaponBase>();
-        if (weaponBase == null || weaponBase.VData == null)
-            return false;
-
-        // 如果手持 C4，强制设置为在区域内，阻止取消下包
-        if (weaponBase.VData.WeaponType == CSWeaponType.WEAPONTYPE_C4)
-        {
-            Schema.SetSchemaValue<bool>(pawn.Handle, "CCSPlayerPawn", "m_bInBombZone", true);
-
-            Console.WriteLine($"[任意下包] 阻止玩家 {player.PlayerName} 的下包被取消");
-            return true; // 阻止取消下包
-        }
-
-        return false;
     }
 
     /// <summary>
     /// 持续检查手持 C4 的玩家（在主文件的 OnServerPostEntityThink 中调用）
-    /// 使用 Schema API 持续设置 InBombZone 为 true
+    /// 完全复制 jRandomSkills Planter.OnTick
     /// </summary>
     public void HandleServerPostEntityThink()
     {
+        // 对所有玩家设置 m_bInBombZone = true
         var players = Utilities.GetPlayers();
         foreach (var player in players)
         {
             if (player == null || !player.IsValid)
                 continue;
 
-            var pawn = player.PlayerPawn.Get();
+            var pawn = player.PlayerPawn.Value;
             if (pawn == null || !pawn.IsValid)
                 continue;
 
-            var weaponServices = pawn.WeaponServices;
-            if (weaponServices == null)
-                continue;
-
-            var activeWeapon = weaponServices.ActiveWeapon.Get();
-            if (activeWeapon == null || !activeWeapon.IsValid)
-                continue;
-
-            var weaponBase = activeWeapon.As<CCSWeaponBase>();
-            if (weaponBase == null || weaponBase.VData == null)
-                continue;
-
-            // 如果手持 C4，持续设置为在炸弹区域内（使用 Schema API）
-            if (weaponBase.VData.WeaponType == CSWeaponType.WEAPONTYPE_C4)
-            {
-                Schema.SetSchemaValue<bool>(pawn.Handle, "CCSPlayerPawn", "m_bInBombZone", true);
-            }
+            // 持续设置为在炸弹区域内（参考 jRandomSkills Planter.OnTick）
+            Schema.SetSchemaValue<bool>(pawn.Handle, "CCSPlayerPawn", "m_bInBombZone", true);
         }
     }
 }

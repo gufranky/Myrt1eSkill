@@ -881,15 +881,6 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         if (player == null || !player.IsValid)
             return HookResult.Continue;
 
-        // 处理 AnywhereBombPlant 事件
-        if (CurrentEvent is AnywhereBombPlantEvent anywhereBombEvent)
-        {
-            if (anywhereBombEvent.HandleBombAbortPlant(player))
-            {
-                return HookResult.Stop;
-            }
-        }
-
         // 处理旧的任意下包功能（向后兼容）
         if (BombPlantManager.HandleBombAbortPlant(player))
         {
@@ -910,11 +901,18 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
                 var bomb = plantedBombs.First();
                 if (bomb.IsValid)
                 {
-                    // 使用 Server.EngineTime 而不是 DateTime.Now.TimeOfDay
-                    bomb.C4Blow = (float)Server.EngineTime + 60.0f;
-                    bomb.TimerLength = 60.0f;
+                    // 使用 NextFrame 延迟设置，确保炸弹实体完全初始化
+                    // 参考 jRandomSkills Planter.BombPlanted 实现
+                    Server.NextFrame(() =>
+                    {
+                        if (bomb.IsValid)
+                        {
+                            bomb.C4Blow = (float)Server.EngineTime + 60.0f;
+                            bomb.TimerLength = 60.0f;
 
-                    Console.WriteLine("[任意下包事件] 炸弹爆炸时间已设置为 60 秒（EngineTime: " + Server.EngineTime + ", BlowTime: " + bomb.C4Blow + ")");
+                            Console.WriteLine("[任意下包事件] 炸弹爆炸时间已设置为 60 秒（EngineTime: " + Server.EngineTime + ", BlowTime: " + bomb.C4Blow + ")");
+                        }
+                    });
                 }
             }
         }
@@ -946,12 +944,6 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
     private void OnPlayerButtonsChanged(CCSPlayerController player, PlayerButtons pressed, PlayerButtons released)
     {
-        // 处理 AnywhereBombPlant 事件
-        if (CurrentEvent is AnywhereBombPlantEvent anywhereBombEvent)
-        {
-            anywhereBombEvent.HandlePlayerButtonsChanged(player, pressed);
-        }
-
         // 处理旧的任意下包功能（向后兼容）
         BombPlantManager.HandlePlayerButtonsChanged(player, pressed);
     }
