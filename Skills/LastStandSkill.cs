@@ -160,9 +160,16 @@ public class LastStandSkill : PlayerSkill
 
             if (enemy.Team == enemyTeam)
             {
+                // 检查是否已经有透视效果（避免重复）
+                if (_glowingEnemies.ContainsKey(enemy.Slot))
+                    continue;
+
                 ApplyGlowToEnemy(enemy);
             }
         }
+
+        // 清理已死亡敌人的透视效果
+        CleanUpDeadEnemiesGlow();
 
         // 注册 CheckTransmit 监听器（如果有敌人被透视）
         if (_glowingEnemies.Count > 0 && Plugin != null)
@@ -281,6 +288,12 @@ public class LastStandSkill : PlayerSkill
         if (_glowingEnemies.Count == 0)
             return;
 
+        // 实时清理已死亡的敌人
+        CleanUpDeadEnemiesGlow();
+
+        if (_glowingEnemies.Count == 0)
+            return;
+
         foreach (var (info, receiver) in infoList)
         {
             if (receiver == null || !receiver.IsValid)
@@ -330,6 +343,47 @@ public class LastStandSkill : PlayerSkill
 
         _glowingEnemies.Clear();
         Console.WriteLine("[残局使者] 已移除所有透视效果");
+    }
+
+    /// <summary>
+    /// 清理已死亡敌人的透视效果
+    /// </summary>
+    private void CleanUpDeadEnemiesGlow()
+    {
+        var toRemove = new List<int>();
+
+        foreach (var (slot, (relayIndex, glowIndex)) in _glowingEnemies)
+        {
+            var enemy = Utilities.GetPlayerFromSlot(slot);
+            if (enemy == null || !enemy.IsValid || !enemy.PawnIsAlive)
+            {
+                // 敌人已死亡，移除透视效果
+                var relay = Utilities.GetEntityFromIndex<CDynamicProp>(relayIndex);
+                var glow = Utilities.GetEntityFromIndex<CDynamicProp>(glowIndex);
+
+                if (relay != null && relay.IsValid)
+                {
+                    relay.AcceptInput("Kill");
+                }
+
+                if (glow != null && glow.IsValid)
+                {
+                    glow.AcceptInput("Kill");
+                }
+
+                toRemove.Add(slot);
+            }
+        }
+
+        foreach (var slot in toRemove)
+        {
+            _glowingEnemies.Remove(slot);
+        }
+
+        if (toRemove.Count > 0)
+        {
+            Console.WriteLine($"[残局使者] 清理了 {toRemove.Count} 个已死亡敌人的透视效果");
+        }
     }
 
     /// <summary>

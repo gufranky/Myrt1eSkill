@@ -24,6 +24,9 @@ public class ThirdEyeSkill : PlayerSkill
     // 第三人称距离
     private const float CAMERA_DISTANCE = 100f;
 
+    // 摄像头模型（使用 CS2 自带的简单模型）
+    private const string CAMERA_MODEL = "models/props/de_inferno/props_fencemetal_128.vmdl";
+
     // 跟踪每个玩家的摄像头状态
     private readonly ConcurrentDictionary<ulong, ThirdEyeCameraInfo> _playerCameras = new();
 
@@ -32,6 +35,15 @@ public class ThirdEyeSkill : PlayerSkill
     {
         public uint OriginalCameraHandle { get; set; }
         public CDynamicProp? Camera { get; set; }
+    }
+
+    /// <summary>
+    /// 预加载模型资源（在地图启动时调用）
+    /// </summary>
+    public static void PrecacheModel()
+    {
+        Server.PrecacheModel(CAMERA_MODEL);
+        Console.WriteLine("[第三只眼] 模型已预加载: " + CAMERA_MODEL);
     }
 
     /// <summary>
@@ -168,8 +180,7 @@ public class ThirdEyeSkill : PlayerSkill
     }
 
     /// <summary>
-    /// 创建摄像头实体
-    /// 严格参照 jRandomSkills ThirdEye.CreateCamera
+    /// 创建摄像头实体（完全复制 jRandomSkills ThirdEye.CreateCamera）
     /// </summary>
     private uint CreateCamera(CCSPlayerController player)
     {
@@ -181,21 +192,22 @@ public class ThirdEyeSkill : PlayerSkill
         if (playerPawn == null)
             return 0;
 
-        Server.NextFrame(() =>
+        // 设置实体属性（参考 ReplicatorSkill 和 FortniteSkill）
+        camera.Collision.SolidType = SolidType_t.SOLID_VPHYSICS;
+        if (camera.CBodyComponent?.SceneNode?.Owner?.Entity != null)
         {
-            if (!camera.IsValid)
-                return;
+            camera.CBodyComponent.SceneNode.Owner.Entity.Flags = (uint)(camera.CBodyComponent.SceneNode.Owner.Entity.Flags & ~(1 << 2));
+        }
 
-            // ✅ 严格参照 jRandomSkills：设置模型
-            camera.SetModel("models/actors/ghost_speaker.vmdl");
+        // 设置一个简单的模型避免显示 error
+        camera.SetModel("models/props/de_inferno/props_fencemetal_128.vmdl");
 
-            // ✅ 严格参照 jRandomSkills：设置渲染颜色
-            camera.Render = Color.FromArgb(0, 255, 255, 255);
+        // ✅ 完全复制 jRandomSkills：设置渲染颜色为透明
+        camera.Render = Color.FromArgb(0, 255, 255, 255);
 
-            // ✅ 严格参照 jRandomSkills：传送并生成
-            camera.Teleport(playerPawn.AbsOrigin, playerPawn.EyeAngles);
-            camera.DispatchSpawn();
-        });
+        // ✅ 完全复制 jRandomSkills：传送并生成
+        camera.Teleport(playerPawn.AbsOrigin, playerPawn.EyeAngles);
+        camera.DispatchSpawn();
 
         // 保存摄像头信息
         _playerCameras.AddOrUpdate(
@@ -252,15 +264,11 @@ public class ThirdEyeSkill : PlayerSkill
                 continue;
             }
 
-            // 计算摄像头位置（玩家背后）
-            var forwardVector = GetForwardVector(playerPawn.EyeAngles);
-            var pos = new Vector(
-                playerPawn.AbsOrigin.X - forwardVector.X * CAMERA_DISTANCE,
-                playerPawn.AbsOrigin.Y - forwardVector.Y * CAMERA_DISTANCE,
-                playerPawn.AbsOrigin.Z + playerPawn.ViewOffset.Z
-            );
+            // 计算摄像头位置（完全复制 jRandomSkills ThirdEye.OnTick）
+            var pos = playerPawn.AbsOrigin - GetForwardVector(playerPawn.EyeAngles) * CAMERA_DISTANCE;
+            pos.Z += playerPawn.ViewOffset.Z;
 
-            // 更新摄像头位置和角度
+            // 更新摄像头位置和角度（完全复制 jRandomSkills）
             if (cameraInfo.Camera.AbsOrigin != null && cameraInfo.Camera.AbsRotation != null)
             {
                 cameraInfo.Camera.Teleport(pos, playerPawn.V_angle);
@@ -269,17 +277,16 @@ public class ThirdEyeSkill : PlayerSkill
     }
 
     /// <summary>
-    /// 计算前方向量
+    /// 计算前方向量（完全复制 jRandomSkills SkillUtils.GetForwardVector）
     /// </summary>
     private static Vector GetForwardVector(QAngle angles)
     {
         float radiansY = angles.Y * (float)Math.PI / 180.0f;
-        float radiansX = angles.X * (float)Math.PI / 180.0f;
 
         return new Vector(
-            (float)(Math.Cos(radiansY) * Math.Cos(radiansX)),
-            (float)(Math.Sin(radiansY) * Math.Cos(radiansX)),
-            (float)(-Math.Sin(radiansX))
+            (float)Math.Cos(radiansY),
+            (float)Math.Sin(radiansY),
+            0
         );
     }
 }

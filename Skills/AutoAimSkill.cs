@@ -1,16 +1,18 @@
 // MyrtleSkill Plugin - GNU GPL v3.0
 // See LICENSE and ATTRIBUTION.md for details
+// Based on jRandomSkills Aimbot skill
 
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
-using CounterStrikeSharp.API.Modules.Entities.Constants;
 using CounterStrikeSharp.API.Modules.Memory;
+using System.Runtime.InteropServices;
 
 namespace MyrtleSkill.Skills;
 
 /// <summary>
 /// 自瞄技能 - 被动技能
 /// 每一颗击中的子弹都算作爆头
+/// 完全复制自 jRandomSkills Aimbot
 /// </summary>
 public class AutoAimSkill : PlayerSkill
 {
@@ -19,15 +21,13 @@ public class AutoAimSkill : PlayerSkill
     public override string Description => "每一颗击中的子弹都算作爆头！";
     public override bool IsActive => false; // 被动技能
 
-    // 跟踪拥有该技能的玩家
-    private readonly HashSet<ulong> _activePlayers = new();
+    // 跟踪命中组的原始值（用于恢复）
+    private static readonly Dictionary<nint, int> _hitGroups = new();
 
     public override void OnApply(CCSPlayerController player)
     {
         if (player == null || !player.IsValid)
             return;
-
-        _activePlayers.Add(player.SteamID);
 
         Console.WriteLine($"[自瞄] {player.PlayerName} 获得了自瞄技能");
 
@@ -40,25 +40,18 @@ public class AutoAimSkill : PlayerSkill
         if (player == null || !player.IsValid)
             return;
 
-        _activePlayers.Remove(player.SteamID);
-
         Console.WriteLine($"[自瞄] {player.PlayerName} 失去了自瞄技能");
     }
 
     /// <summary>
-    /// 处理伤害前事件 - 将命中部位修改为头部
+    /// 处理伤害前事件 - 将命中部位修改为头部（适配 OnPlayerTakeDamagePre 监听器）
     /// </summary>
     public static void OnPlayerTakeDamagePre(CCSPlayerPawn victim, CTakeDamageInfo info, PlayerSkillManager skillManager)
     {
-        if (info == null)
+        if (info == null || info.Attacker == null || !info.Attacker.IsValid)
             return;
 
-        // 获取攻击者
-        var attackerHandle = info.Attacker;
-        if (attackerHandle == null || !attackerHandle.IsValid)
-            return;
-
-        var attackerEntity = attackerHandle.Value;
+        var attackerEntity = info.Attacker.Value;
         if (attackerEntity == null || !attackerEntity.IsValid)
             return;
 
@@ -83,9 +76,42 @@ public class AutoAimSkill : PlayerSkill
         if (!playerController.PawnIsAlive)
             return;
 
-        // 将命中部位修改为头部
-        Schema.SetSchemaValue<int>(info.Handle, "CTakeDamageInfo", "m_nHitgroup", (int)HitGroup_t.HITGROUP_HEAD);
+        try
+        {
+            // 完全复制 jRandomSkills 的内存操作
+            nint hitGroupPointer = Marshal.ReadIntPtr(info.Handle, GameData.GetOffset("CTakeDamageInfo_HitGroup"));
+            if (hitGroupPointer != nint.Zero)
+            {
+                nint hitGroupOffset = Marshal.ReadIntPtr(hitGroupPointer, 16);
+                if (hitGroupOffset != nint.Zero)
+                {
+                    // 保存原始值
+                    int oldValue = Marshal.ReadInt32(hitGroupOffset, 56);
+                    _hitGroups.TryAdd(hitGroupOffset, oldValue);
 
-        Console.WriteLine($"[自瞄] {playerController.PlayerName} 的子弹算作爆头");
+                    // 设置为头部
+                    Marshal.WriteInt32(hitGroupOffset, 56, (int)HitGroup_t.HITGROUP_HEAD);
+
+                    Console.WriteLine($"[自瞄] {playerController.PlayerName} 的子弹算作爆头（原始命中部位：{oldValue}）");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[自瞄] 修改命中部位时出错: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// 恢复所有命中组的原始值（禁用技能时调用）
+    /// </summary>
+    public static void RestoreAllHitGroups()
+    {
+        foreach (var hit in _hitGroups)
+        {
+            Marshal.WriteInt32(hit.Key, 56, hit.Value);
+        }
+        _hitGroups.Clear();
+        Console.WriteLine("[自瞄] 已恢复所有命中组的原始值");
     }
 }

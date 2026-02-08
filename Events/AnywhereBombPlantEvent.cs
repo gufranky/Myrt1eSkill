@@ -18,6 +18,24 @@ public class AnywhereBombPlantEvent : EntertainmentEvent
     public override void OnApply()
     {
         Console.WriteLine("[任意下包] 事件已激活");
+
+        // 显示提示给所有玩家
+        foreach (var player in Utilities.GetPlayers())
+        {
+            if (player.IsValid)
+            {
+                player.PrintToChat("───────────────────");
+                player.PrintToChat("💣 本回合事件：任意下包");
+                player.PrintToChat("📝 你可以在地图任意位置下包！");
+                player.PrintToChat("💡 拿着C4按E键即可下包");
+                player.PrintToChat("───────────────────");
+            }
+        }
+    }
+
+    public override void OnRevert()
+    {
+        Console.WriteLine("[任意下包] 事件已结束");
     }
 
     /// <summary>
@@ -55,6 +73,12 @@ public class AnywhereBombPlantEvent : EntertainmentEvent
     /// </summary>
     public void HandleServerPostEntityThink()
     {
+        // 每60帧输出一次调试日志（避免日志过多）
+        if (Server.TickCount % 60 == 0)
+        {
+            Console.WriteLine("[任意下包调试] HandleServerPostEntityThink 被调用");
+        }
+
         // 对所有玩家设置 m_bInBombZone = true
         var players = Utilities.GetPlayers();
         foreach (var player in players)

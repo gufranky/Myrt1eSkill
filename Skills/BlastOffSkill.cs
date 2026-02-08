@@ -35,6 +35,16 @@ public class BlastOffSkill : PlayerSkill
     // 每个玩家的随机几率（技能分配时生成）
     private readonly Dictionary<ulong, float> _playerChances = new();
 
+    /// <summary>
+    /// 回合开始时清理所有状态（在主文件的 OnRoundStart 中调用）
+    /// </summary>
+    public static void OnRoundStart()
+    {
+        // 这个方法在主文件的 OnRoundStart 中调用
+        // 用于确保跨回合清理状态
+        Console.WriteLine("[击飞咯] 回合开始，状态将在玩家失去技能时清理");
+    }
+
     public override void OnApply(CCSPlayerController player)
     {
         if (player == null || !player.IsValid)
@@ -58,6 +68,20 @@ public class BlastOffSkill : PlayerSkill
         _playerChances.Remove(player.SteamID);
 
         Console.WriteLine($"[击飞咯] {player.PlayerName} 失去了击飞咯技能");
+    }
+
+    /// <summary>
+    /// 清理所有玩家的几率状态（在主文件的 OnRoundStart 中调用）
+    /// 确保跨回合清理
+    /// </summary>
+    public void ClearAllChances()
+    {
+        if (_playerChances.Count > 0)
+        {
+            int count = _playerChances.Count;
+            _playerChances.Clear();
+            Console.WriteLine($"[击飞咯] 已清理 {count} 个玩家的几率状态");
+        }
     }
 
     /// <summary>

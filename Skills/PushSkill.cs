@@ -59,6 +59,20 @@ public class PushSkill : PlayerSkill
     }
 
     /// <summary>
+    /// 清理所有玩家的几率状态（在主文件的 OnRoundStart 中调用）
+    /// 确保跨回合清理
+    /// </summary>
+    public void ClearAllChances()
+    {
+        if (_playerChances.Count > 0)
+        {
+            int count = _playerChances.Count;
+            _playerChances.Clear();
+            Console.WriteLine($"[推手] 已清理 {count} 个玩家的几率状态");
+        }
+    }
+
+    /// <summary>
     /// 处理玩家受伤事件（在主文件的 OnPlayerHurt 中调用）
     /// 完全复制自 jRandomSkills 的 PlayerHurt 实现
     /// </summary>

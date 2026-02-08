@@ -147,6 +147,12 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // ✅ 在地图加载后初始化服务器设置（此时 ConVar 已可用）
         Utils.ServerSettings.InitializeAllSettings();
 
+        // 预加载堡垒之夜技能的模型
+        Skills.FortniteSkill.PrecacheModel();
+
+        // 预加载第三只眼技能的模型
+        Skills.ThirdEyeSkill.PrecacheModel();
+
         // 启动位置记录器（此时全局变量已初始化，可以安全调用）
         PositionRecorder?.Start();
 
@@ -180,6 +186,13 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             Console.WriteLine("[技能系统] 清理所有玩家的上回合技能");
             SkillManager.RemoveAllPlayerSkills();
         }
+
+        // 0.17 清理击飞咯和推手技能的状态（确保跨回合清理）
+        var blastOffSkill = (Skills.BlastOffSkill?)SkillManager.GetSkill("BlastOff");
+        blastOffSkill?.ClearAllChances();
+
+        var pushSkill = (Skills.PushSkill?)SkillManager.GetSkill("Push");
+        pushSkill?.ClearAllChances();
 
         // 0.2 清理第二次机会使用记录
         Skills.SecondChanceSkill.OnRoundStart();
@@ -230,6 +243,9 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 0.75 清理检查扫描使用次数
         Skills.FreeCameraSkill.OnRoundStart();
 
+        // 0.76 清理豺狼轨迹
+        Skills.JackalSkill.OnRoundStart();
+
         // 1. 恢复上一回合事件（不要在这里重置DisableSkillsThisRound标志）
         // DisableSkillsThisRound = false;  // 移除这行，让事件有机会设置它
 
@@ -270,6 +286,8 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             {
                 CurrentEvent = EventManager.SelectRandomEvent();
             }
+
+            Console.WriteLine($"[娱乐事件调试] 选择事件结果: {(CurrentEvent != null ? CurrentEvent.Name : "NULL")}");
 
             if (CurrentEvent != null)
             {
@@ -352,10 +370,12 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             Console.WriteLine("[娱乐事件] 回合结束，保存当前事件: " + CurrentEvent.Name + " 为PreviousEvent");
             PreviousEvent = CurrentEvent;
             CurrentEvent = null;
+            Console.WriteLine($"[娱乐事件调试] 回合结束：CurrentEvent 已设为 null，PreviousEvent = {(PreviousEvent != null ? PreviousEvent.Name : "NULL")}");
         }
         else
         {
             Console.WriteLine("[娱乐事件] 回合结束，但没有当前事件需要保存");
+            Console.WriteLine($"[娱乐事件调试] 回合结束：CurrentEvent 已经是 null，PreviousEvent = {(PreviousEvent != null ? PreviousEvent.Name : "NULL")}");
         }
 
         // 重置技能禁用标志
@@ -434,8 +454,9 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 处理鞭策队友技能（在Pre阶段处理，取消伤害并治疗）
         Skills.TeamWhipSkill.HandleDamagePre(player, info);
 
-        // 处理苦命鸳鸯配对伤害加成
-        if (CurrentEvent is UnluckyCouplesEvent couplesEvent)
+        // 处理苦命鸳鸯配对伤害加成（包括子事件）
+        var couplesEvents = FindEventsOfType<UnluckyCouplesEvent>();
+        foreach (var couplesEvent in couplesEvents)
         {
             float? couplesMultiplier = couplesEvent.HandleDamagePre(player, info);
             if (couplesMultiplier.HasValue)
@@ -444,8 +465,9 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             }
         }
 
-        // 处理反向爆头事件
-        if (CurrentEvent is InverseHeadshotEvent)
+        // 处理反向爆头事件（包括子事件）
+        var inverseEvents = FindEventsOfType<InverseHeadshotEvent>();
+        foreach (var inverseEvent in inverseEvents)
         {
             float? inverseMultiplier = InverseHeadshotEvent.HandleDamagePre(player, info);
             if (inverseMultiplier.HasValue)
@@ -471,14 +493,16 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
     private HookResult OnWeaponFire(EventWeaponFire @event, GameEventInfo info)
     {
-        // 处理 JumpOnShoot 事件
-        if (CurrentEvent is JumpOnShootEvent jumpEvent)
+        // 处理 JumpOnShoot 事件（包括子事件）
+        var jumpEvents = FindEventsOfType<JumpOnShootEvent>();
+        foreach (var jumpEvent in jumpEvents)
         {
             jumpEvent.HandleWeaponFire(@event);
         }
 
-        // 处理 JumpPlusPlus 事件
-        if (CurrentEvent is JumpPlusPlusEvent jumpPlusPlusEvent)
+        // 处理 JumpPlusPlus 事件（包括子事件）
+        var jumpPlusPlusEvents = FindEventsOfType<JumpPlusPlusEvent>();
+        foreach (var jumpPlusPlusEvent in jumpPlusPlusEvents)
         {
             jumpPlusPlusEvent.HandleWeaponFire(@event);
         }
@@ -539,14 +563,16 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
     private HookResult OnPlayerDeath(EventPlayerDeath @event, GameEventInfo info)
     {
-        // 处理 Vampire 事件
-        if (CurrentEvent is VampireEvent vampireEvent)
+        // 处理 Vampire 事件（包括子事件）
+        var vampireEvents = FindEventsOfType<VampireEvent>();
+        foreach (var vampireEvent in vampireEvents)
         {
             vampireEvent.HandlePlayerDeath(@event);
         }
 
-        // 处理 KeepMoving 事件
-        if (CurrentEvent is KeepMovingEvent keepMovingEvent)
+        // 处理 KeepMoving 事件（包括子事件）
+        var keepMovingEvents = FindEventsOfType<KeepMovingEvent>();
+        foreach (var keepMovingEvent in keepMovingEvents)
         {
             keepMovingEvent.HandlePlayerDeath(@event);
         }
@@ -612,20 +638,23 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             Skills.MeitoSkill.HandlePlayerHurt(@event);
         }
 
-        // 处理 Vampire 事件
-        if (CurrentEvent is VampireEvent vampireEvent)
+        // 处理 Vampire 事件（包括子事件）
+        var vampireEvents = FindEventsOfType<VampireEvent>();
+        foreach (var vampireEvent in vampireEvents)
         {
             vampireEvent.HandlePlayerHurt(@event);
         }
 
-        // 处理 SwapOnHit 事件
-        if (CurrentEvent is SwapOnHitEvent swapEvent)
+        // 处理 SwapOnHit 事件（包括子事件）
+        var swapEvents = FindEventsOfType<SwapOnHitEvent>();
+        foreach (var swapEvent in swapEvents)
         {
             swapEvent.HandlePlayerHurt(@event);
         }
 
-        // 处理受伤传送事件
-        if (CurrentEvent is TeleportOnDamageEvent teleportEvent)
+        // 处理受伤传送事件（包括子事件）
+        var teleportEvents = FindEventsOfType<TeleportOnDamageEvent>();
+        foreach (var teleportEvent in teleportEvents)
         {
             teleportEvent.HandlePlayerHurt(@event);
         }
@@ -660,10 +689,19 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         var blastOffSkill = (Skills.BlastOffSkill?)SkillManager.GetSkill("BlastOff");
         blastOffSkill?.HandlePlayerHurt(@event);
 
-        // 处理破产之枪事件（伤害改为扣钱）
-        if (CurrentEvent is BankruptcyWeaponEvent bankruptcyWeapon)
+        // 处理破产之枪事件（伤害改为扣钱，包括子事件）
+        var bankruptcyEvents = FindEventsOfType<BankruptcyWeaponEvent>();
+        foreach (var bankruptcyWeapon in bankruptcyEvents)
         {
             bankruptcyWeapon.HandlePlayerHurt(@event);
+        }
+
+        // 处理剑圣技能（格挡射击）
+        var bladeMasterSkill = skills.FirstOrDefault(s => s.Name == "BladeMaster");
+        if (bladeMasterSkill != null)
+        {
+            var bladeMaster = (Skills.BladeMasterSkill)bladeMasterSkill;
+            bladeMaster.HandlePlayerHurt(@event, SkillManager);
         }
 
         return HookResult.Continue;
@@ -988,13 +1026,119 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
     private HookResult OnBombPlanted(EventBombPlanted @event, GameEventInfo info)
     {
-        // 处理 AnywhereBombPlant 事件
-        if (CurrentEvent is AnywhereBombPlantEvent anywhereBombEvent)
-        {
-            anywhereBombEvent.HandleBombPlanted(@event);
-        }
+        Console.WriteLine($"[任意下包调试] OnBombPlanted 触发！CurrentEvent: {(CurrentEvent != null ? CurrentEvent.Name : "NULL")}");
+
+        // 处理 AnywhereBombPlant 事件（包括子事件）
+        ProcessAnywhereBombPlantEvent(CurrentEvent, @event);
 
         return HookResult.Continue;
+    }
+
+    /// <summary>
+    /// 处理任意下包事件（包括子事件检查）
+    /// </summary>
+    private void ProcessAnywhereBombPlantEvent(EntertainmentEvent? checkEvent, EventBombPlanted bombEvent)
+    {
+        if (checkEvent == null)
+        {
+            Console.WriteLine("[任意下包调试] 事件为 null，跳过处理");
+            return;
+        }
+
+        // 检查是否是任意下包事件
+        if (checkEvent is AnywhereBombPlantEvent anywhereBombEvent)
+        {
+            Console.WriteLine("[任意下包调试] 找到 AnywhereBombPlantEvent，调用 HandleBombPlanted");
+            anywhereBombEvent.HandleBombPlanted(bombEvent);
+            return;
+        }
+
+        // 检查子事件（处理双重狂欢等组合事件）
+        var subEvents = checkEvent.GetSubEvents();
+        if (subEvents.Count > 0)
+        {
+            Console.WriteLine($"[任意下包调试] 检查子事件，共 {subEvents.Count} 个");
+            foreach (var subEvent in subEvents)
+            {
+                ProcessAnywhereBombPlantEvent(subEvent, bombEvent);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 处理任意下包事件Tick（包括子事件检查）
+    /// </summary>
+    private void ProcessAnywhereBombPlantTick(EntertainmentEvent? checkEvent)
+    {
+        if (checkEvent == null)
+            return;
+
+        // 检查是否是任意下包事件
+        if (checkEvent is AnywhereBombPlantEvent anywhereBombEvent)
+        {
+            // 每60帧输出一次调试日志（避免日志过多）
+            if (Server.TickCount % 60 == 0)
+            {
+                Console.WriteLine("[任意下包调试] OnServerPostEntityThink: 找到 AnywhereBombPlantEvent");
+            }
+            anywhereBombEvent.HandleServerPostEntityThink();
+            return;
+        }
+
+        // 检查子事件（处理双重狂欢等组合事件）
+        var subEvents = checkEvent.GetSubEvents();
+        if (subEvents.Count > 0)
+        {
+            foreach (var subEvent in subEvents)
+            {
+                ProcessAnywhereBombPlantTick(subEvent);
+            }
+        }
+    }
+
+    /// <summary>
+    /// 查找指定类型的所有事件（包括子事件）
+    /// </summary>
+    private List<T> FindEventsOfType<T>() where T : EntertainmentEvent
+    {
+        var result = new List<T>();
+
+        if (CurrentEvent == null)
+            return result;
+
+        // 检查当前事件
+        if (CurrentEvent is T currentTyped)
+        {
+            result.Add(currentTyped);
+        }
+
+        // 递归检查子事件
+        FindSubEventsOfType(CurrentEvent, result);
+
+        return result;
+    }
+
+    /// <summary>
+    /// 递归查找子事件中指定类型的事件
+    /// </summary>
+    private void FindSubEventsOfType<T>(EntertainmentEvent? checkEvent, List<T> result) where T : EntertainmentEvent
+    {
+        if (checkEvent == null)
+            return;
+
+        var subEvents = checkEvent.GetSubEvents();
+        if (subEvents.Count > 0)
+        {
+            foreach (var subEvent in subEvents)
+            {
+                if (subEvent is T typedEvent)
+                {
+                    result.Add(typedEvent);
+                }
+                // 递归检查更深层的子事件
+                FindSubEventsOfType(subEvent, result);
+            }
+        }
     }
 
     private HookResult OnItemPickup(EventItemPickup @event, GameEventInfo info)
@@ -1027,11 +1171,8 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
     private void OnServerPostEntityThink()
     {
-        // 处理 AnywhereBombPlant 事件
-        if (CurrentEvent is AnywhereBombPlantEvent anywhereBombEvent)
-        {
-            anywhereBombEvent.HandleServerPostEntityThink();
-        }
+        // 处理 AnywhereBombPlant 事件（包括子事件）
+        ProcessAnywhereBombPlantTick(CurrentEvent);
 
         // 处理旧的任意下包功能（向后兼容）
         BombPlantManager.HandleServerPostEntityThink();
@@ -1064,6 +1205,14 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             {
                 Skills.QuickShotSkill.OnTick(SkillManager);
             }
+
+            // 处理剑圣技能（移动速度修正）
+            var bladeMasterSkill = skills.FirstOrDefault(s => s.Name == "BladeMaster");
+            if (bladeMasterSkill != null)
+            {
+                var bladeMaster = (Skills.BladeMasterSkill)bladeMasterSkill;
+                bladeMaster.OnTick(player);
+            }
         }
 
         // 处理黑暗技能（检查持续时间）
@@ -1074,16 +1223,25 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         var superFlashSkill = (Skills.SuperFlashSkill?)SkillManager.GetSkill("SuperFlash");
         superFlashSkill?.OnTick();
 
-        // 处理永动机事件
-        if (CurrentEvent is KeepMovingEvent keepMovingEvent)
+        // 处理永动机事件（包括子事件）
+        var keepMovingEvents = FindEventsOfType<KeepMovingEvent>();
+        foreach (var keepMovingEvent in keepMovingEvents)
         {
             keepMovingEvent.OnTick();
         }
 
-        // 处理击中交换事件（清理交换冷却）
-        if (CurrentEvent is SwapOnHitEvent swapOnHitEvent)
+        // 处理击中交换事件（清理交换冷却，包括子事件）
+        var swapOnHitEvents = FindEventsOfType<SwapOnHitEvent>();
+        foreach (var swapOnHitEvent in swapOnHitEvents)
         {
             swapOnHitEvent.OnTick();
+        }
+
+        // 处理信号屏蔽事件（持续清除雷达显示，包括子事件）
+        var signalJamEvents = FindEventsOfType<SignalJamEvent>();
+        foreach (var signalJamEvent in signalJamEvents)
+        {
+            signalJamEvent.OnTick();
         }
 
         // 处理鬼技能（清理死亡的玩家）
@@ -1145,10 +1303,6 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         var falconEyeSkill = (Skills.FalconEyeSkill?)SkillManager.GetSkill("FalconEye");
         falconEyeSkill?.OnTick();
 
-        // 处理探索者技能（移动探索者复制品）
-        var explorerSkill = (Skills.ExplorerSkill?)SkillManager.GetSkill("Explorer");
-        explorerSkill?.OnTick();
-
         // 处理传送锚点技能（移动锚点粒子）
         var teleportAnchorSkill = (Skills.TeleportAnchorSkill?)SkillManager.GetSkill("TeleportAnchor");
         teleportAnchorSkill?.OnTick();
@@ -1156,6 +1310,45 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 处理精神骇入技能（检查目标是否存活）
         var mindHackSkill = (Skills.MindHackSkill?)SkillManager.GetSkill("MindHack");
         mindHackSkill?.OnTick();
+
+        // 处理测距仪技能（显示到最近敌人的距离）
+        var rangeFinderSkill = (Skills.RangeFinderSkill?)SkillManager.GetSkill("RangeFinder");
+        if (rangeFinderSkill != null)
+        {
+            foreach (var player in Utilities.GetPlayers())
+            {
+                if (player == null || !player.IsValid || !player.PawnIsAlive)
+                    continue;
+
+                var skills = SkillManager.GetPlayerSkills(player);
+                bool hasRangeFinder = skills?.Any(s => s.Name == "RangeFinder") ?? false;
+
+                if (hasRangeFinder)
+                {
+                    var distance = rangeFinderSkill.GetNearestEnemyDistance(player.SteamID);
+                    if (distance.HasValue && distance.Value < float.MaxValue)
+                    {
+                        // 转换为米（100游戏单位 = 1米）
+                        float distanceInMeters = distance.Value / 100.0f;
+
+                        // 根据距离显示不同的颜色和提示
+                        string color = distanceInMeters <= 5.0f ? "#ff0000" : // 红色（5米内）
+                                      distanceInMeters <= 10.0f ? "#ffaa00" : // 橙色（10米内）
+                                      "#00ff00"; // 绿色（10米外）
+
+                        string message = distanceInMeters <= 5.0f ?
+                            $"📏 最近敌人: <font color='{color}'>{distanceInMeters:F1}m</font> ⚠️ 透视标记！" :
+                            $"📏 最近敌人: <font color='{color}'>{distanceInMeters:F1}m</font>";
+
+                        player.PrintToCenterHtml(message);
+                    }
+                    else
+                    {
+                        player.PrintToCenterHtml("📏 扫描中...");
+                    }
+                }
+            }
+        }
     }
 
     /// <summary>
@@ -1190,8 +1383,8 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             explorerSkill?.OnEntityTakeDamage(hook);
         }
 
-        // 处理堡垒之夜路障受到伤害
-        if (entity.Entity?.Name?.StartsWith("FortniteBarricade_") == true)
+        // 处理堡垒之夜路障受到伤害（使用 jRandomSkills 的命名）
+        if (entity.Entity?.Name?.StartsWith("FortniteWall") == true)
         {
             Skills.FortniteSkill.HandleBarricadeDamage(entity, info);
         }

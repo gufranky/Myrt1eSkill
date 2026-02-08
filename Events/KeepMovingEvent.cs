@@ -11,12 +11,12 @@ public class KeepMovingEvent : EntertainmentEvent
 {
     public override string Name => "KeepMoving";
     public override string DisplayName => "🏃 永动机";
-    public override string Description => "所有玩家必须持续按住 W 键！没按住的话每 0.75 秒扣 10 滴血！";
+    public override string Description => "所有玩家必须持续按住 W 键！没按住的话每 0.75 秒扣 5 滴血！";
 
     // 伤害参数
     private const float DAMAGE_INTERVAL = 0.75f; // 伤害间隔（秒）
-    private const int DAMAGE_AMOUNT = 10;         // 每次伤害量
-    private const float GRACE_PERIOD = 30.0f;     // 宽限期（秒）- 改为30秒
+    private const int DAMAGE_AMOUNT = 5;          // 每次伤害量（从10改为5）
+    private const float GRACE_PERIOD = 40.0f;     // 宽限期（秒，从30改为40）
 
     // 每个玩家的状态跟踪
     private readonly Dictionary<int, PlayerKeepMovingState> _playerStates = new();

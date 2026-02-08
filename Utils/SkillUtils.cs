@@ -82,4 +82,31 @@ public static class SkillUtils
 
         Console.WriteLine($"[SkillUtils] {attacker.PlayerName} 对 {victim.PlayerName} 造成了 {damage} 点伤害");
     }
+
+    /// <summary>
+    /// 直接扣除生命值（复制自 jRandomSkills SkillUtils.TakeHealth）
+    /// 简单的生命值扣除，不会触发伤害事件
+    /// </summary>
+    /// <param name="pawn">玩家Pawn</param>
+    /// <param name="damage">伤害值</param>
+    public static void TakeHealth(CCSPlayerPawn pawn, int damage)
+    {
+        if (pawn == null || !pawn.IsValid || pawn.LifeState != (byte)LifeState_t.LIFE_ALIVE)
+            return;
+
+        int newHealth = (int)(pawn.Health - damage);
+        pawn.Health = newHealth;
+        Utilities.SetStateChanged(pawn, "CBaseEntity", "m_iHealth");
+
+        // 检查是否死亡（复制自 jRandomSkills）
+        if (pawn.Health <= 0)
+        {
+            Server.NextFrame(() =>
+            {
+                pawn?.CommitSuicide(false, true);
+            });
+        }
+
+        Console.WriteLine($"[SkillUtils] TakeHealth: 扣除 {damage} 点生命值，剩余生命: {newHealth}");
+    }
 }

@@ -50,14 +50,10 @@ public class InverseHeadshotEvent : EntertainmentEvent
     /// <summary>
     /// 处理伤害倍数 - 检查命中部位并返回伤害倍数
     /// 四肢有爆头效果（4倍伤害），头部伤害降低
+    /// 注意：调用者应该先通过 FindEventsOfType<InverseHeadshotEvent>() 确认事件存在
     /// </summary>
     public static float? HandleDamagePre(CCSPlayerPawn victim, CTakeDamageInfo info)
     {
-        // 检查是否有反向爆头事件激活
-        var plugin = MyrtleSkill.Instance;
-        if (plugin?.CurrentEvent?.Name != "InverseHeadshot")
-            return null;
-
         // 获取命中部位（使用Schema访问）
         var hitgroupValue = Schema.GetSchemaValue<int>(info.Handle, "CTakeDamageInfo", "m_nHitgroup");
         var hitgroup = (HitGroup_t)hitgroupValue;

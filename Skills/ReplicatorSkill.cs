@@ -8,6 +8,7 @@ using CounterStrikeSharp.API.Modules.Entities.Constants;
 using CounterStrikeSharp.API.Modules.Memory;
 using CounterStrikeSharp.API.Modules.Memory.DynamicFunctions;
 using CounterStrikeSharp.API.Modules.Utils;
+using MyrtleSkill.Utils;
 
 namespace MyrtleSkill.Skills;
 
@@ -36,6 +37,9 @@ public class ReplicatorSkill : PlayerSkill
 
     // 跟踪所有复制品
     private readonly Dictionary<ulong, List<uint>> _playerReplicas = new();
+
+    // 跟踪每个复制体是否已经被击中（每个复制体只能触发一次伤害）
+    private readonly Dictionary<uint, bool> _replicaTriggered = new();
 
     public override void OnApply(CCSPlayerController player)
     {
@@ -75,141 +79,118 @@ public class ReplicatorSkill : PlayerSkill
 
         // 创建复制品
         CreateReplica(player);
-
-        player.PrintToChat("🎭 复制品已创建！");
-        player.PrintToChat($"💡 复制品持续 {REPLICA_LIFETIME} 秒，被击中时会对攻击者造成伤害！");
     }
 
     /// <summary>
-    /// 创建玩家复制品
-    /// 完全复制自 jRandomSkills Replicator.CreateReplica
+    /// 创建玩家复制品（参考 FortniteSkill 的两步创建法）
     /// </summary>
     private void CreateReplica(CCSPlayerController player)
     {
         var playerPawn = player.PlayerPawn.Value;
-        if (playerPawn == null || !playerPawn.IsValid || playerPawn.AbsOrigin == null || playerPawn.AbsRotation == null)
-            return;
-
-        // 创建复制品实体
         var replica = Utilities.CreateEntityByName<CDynamicProp>("prop_dynamic_override");
-        if (replica == null || !replica.IsValid)
+        if (replica == null || playerPawn == null || !playerPawn.IsValid || playerPawn.AbsOrigin == null || playerPawn.AbsRotation == null)
             return;
 
-        // 计算生成位置（玩家前方）
-        Vector pos = playerPawn.AbsOrigin + GetForwardVector(playerPawn.AbsRotation) * SPAWN_DISTANCE;
+        float distance = 40;
+        Vector pos = playerPawn.AbsOrigin + GetForwardVector(playerPawn.AbsRotation) * distance;
 
-        // 如果玩家在蹲下，调整高度
         if (((PlayerFlags)playerPawn.Flags).HasFlag(PlayerFlags.FL_DUCKING))
             pos.Z -= 19;
 
-        // 设置复制品属性
+        // 设置实体属性（在生成前）
         replica.Flags = playerPawn.Flags;
         replica.Flags |= (uint)Flags_t.FL_DUCKING;
         replica.Collision.SolidType = SolidType_t.SOLID_VPHYSICS;
         replica.CBodyComponent!.SceneNode!.Owner!.Entity!.Flags = (uint)(replica.CBodyComponent!.SceneNode!.Owner!.Entity!.Flags & ~(1 << 2));
 
-        // 设置模型（使用玩家的模型）
-        replica.SetModel(playerPawn.CBodyComponent!.SceneNode!.GetSkeletonInstance().ModelState.ModelName);
+        // 设置名称（用于识别）
+        replica.Entity!.Name = replica.Globalname = $"Replica_{Server.TickCount}_{(player.Team == CsTeam.CounterTerrorist ? "CT" : "TT")}";
 
-        // 设置实体名称（用于识别队伍）
-        string teamSuffix = player.Team == CsTeam.CounterTerrorist ? "CT" : "TT";
-        replica.Entity!.Name = replica.Globalname = $"Replica_{Server.TickCount}_{teamSuffix}";
-
-        // 传送到位置并生成
-        replica.Teleport(pos, playerPawn.AbsRotation, null);
+        // 第一步：先生成实体
         replica.DispatchSpawn();
 
-        // 记录复制品
-        if (!_playerReplicas.ContainsKey(player.SteamID))
-            _playerReplicas[player.SteamID] = new List<uint>();
+        // 标记为未触发（每个复制体只能造成一次伤害）
+        _replicaTriggered[replica.Index] = false;
 
-        _playerReplicas[player.SteamID].Add(replica.EntityHandle.Raw);
-
-        Console.WriteLine($"[复制品] {player.PlayerName} 创建了复制品，位置: ({pos.X}, {pos.Y}, {pos.Z})");
-
-        // 15秒后自动销毁
-        if (Plugin != null)
+        // 第二步：在下一帧设置模型和位置（参考 FortniteSkill）
+        Server.NextFrame(() =>
         {
-            Plugin.AddTimer(REPLICA_LIFETIME, () =>
+            if (!replica.IsValid)
+                return;
+
+            try
             {
-                if (replica != null && replica.IsValid)
-                {
-                    replica.AcceptInput("Kill");
-                    _playerReplicas[player.SteamID]?.Remove(replica.EntityHandle.Raw);
-                    Console.WriteLine($"[复制品] {player.PlayerName} 的复制品已过期销毁");
-                }
-            });
-        }
+                // 获取玩家模型
+                string playerModel = playerPawn!.CBodyComponent!.SceneNode!.GetSkeletonInstance().ModelState.ModelName;
+
+                // 设置模型
+                replica.SetModel(playerModel);
+
+                // 设置位置和旋转
+                replica.Teleport(pos, playerPawn.AbsRotation, null);
+
+                Console.WriteLine($"[复制品] 为 {player.PlayerName} 创建了复制品");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[复制品] 创建复制品时出错: {ex.Message}");
+                replica.AcceptInput("Kill");
+            }
+        });
     }
 
     /// <summary>
     /// 处理复制品受到伤害事件
-    /// 完全复制自 jRandomSkills Replicator.OnTakeDamage
+    /// 完全复制 jRandomSkills Replicator.OnTakeDamage - 唯一修改是保存 Globalname 避免崩溃
     /// </summary>
-    public void OnEntityTakeDamage(DynamicHook hook)
+    public void OnEntityTakeDamage(DynamicHook h)
     {
-        // 获取伤害参数
-        var entity = hook.GetParam<CEntityInstance>(0);
-        var damageInfo = hook.GetParam<CTakeDamageInfo>(1);
+        CEntityInstance param = h.GetParam<CEntityInstance>(0);
+        CTakeDamageInfo param2 = h.GetParam<CTakeDamageInfo>(1);
 
-        if (entity == null || entity.Entity == null || damageInfo == null)
+        if (param == null || param.Entity == null || param2 == null || param2.Attacker == null || param2.Attacker.Value == null)
             return;
 
-        if (damageInfo.Attacker == null || damageInfo.Attacker.Value == null)
-            return;
+        if (string.IsNullOrEmpty(param.Entity.Name)) return;
+        if (!param.Entity.Name.StartsWith("Replica_")) return;
 
-        // 检查是否是复制品
-        if (string.IsNullOrEmpty(entity.Entity.Name))
-            return;
+        var replica = param.As<CPhysicsPropMultiplayer>();
+        if (replica == null || !replica.IsValid) return;
 
-        if (!entity.Entity.Name.StartsWith("Replica_"))
-            return;
+        // 调试：输出每次调用
+        Console.WriteLine($"[复制品] OnEntityTakeDamage 被调用，实体索引: {replica.Index}, Flag状态: {(_replicaTriggered.TryGetValue(replica.Index, out bool flag) ? flag : false)}");
 
-        var replica = entity.As<CPhysicsPropMultiplayer>();
-        if (replica == null || !replica.IsValid)
+        // 检查该复制体是否已经被击中过（每个复制体只能触发一次伤害）
+        if (_replicaTriggered.TryGetValue(replica.Index, out bool triggered) && triggered)
+        {
+            Console.WriteLine($"[复制品] 复制体 {replica.Index} 已经触发过，跳过");
             return;
+        }
 
-        // 播放破碎声音并销毁复制品
+        // 关键修改：在 Kill 之前保存 Globalname（避免崩溃）
+        string replicaGlobalName = replica.Globalname ?? "";
+
+        // 立即标记为已触发（必须在 Kill 之前！）
+        _replicaTriggered[replica.Index] = true;
+
+        Console.WriteLine($"[复制品] 设置复制体 {replica.Index} Flag = true");
+
         replica.EmitSound("GlassBottle.BulletImpact", volume: 1f);
         replica.AcceptInput("Kill");
 
-        // 从玩家列表中移除
-        foreach (var kvp in _playerReplicas)
-        {
-            kvp.Value.Remove(replica.EntityHandle.Raw);
-        }
-
-        // 获取攻击者
-        CCSPlayerPawn attackerPawn = new(damageInfo.Attacker.Value.Handle);
+        CCSPlayerPawn attackerPawn = new(param2.Attacker.Value.Handle);
         if (attackerPawn.DesignerName != "player")
             return;
 
-        // 判断攻击者队伍
         var attackerTeam = attackerPawn.TeamNum;
-        var replicaTeam = replica.Globalname.EndsWith("CT") ? 3 : 2;
+        // 使用保存的 Globalname
+        var replicaTeam = replicaGlobalName.EndsWith("CT") ? 3 : 2;
 
-        // 对攻击者造成伤害（队友击中10伤害，敌人击中20伤害）
-        int damage = attackerTeam != replicaTeam ? ENEMY_TEAM_DAMAGE : YOUR_TEAM_DAMAGE;
+        Console.WriteLine($"[复制品] 准备调用 TakeHealth，攻击者队伍: {attackerTeam}, 复制体队伍: {replicaTeam}");
 
-        // 扣除血量
-        attackerPawn.Health -= damage;
+        SkillUtils.TakeHealth(attackerPawn, attackerTeam != replicaTeam ? ENEMY_TEAM_DAMAGE : YOUR_TEAM_DAMAGE);
 
-        // 检查是否死亡
-        if (attackerPawn.Health <= 0)
-        {
-            attackerPawn.CommitSuicide(false, true);
-        }
-
-        Utilities.SetStateChanged(attackerPawn, "CBaseEntity", "m_iHealth");
-
-        Console.WriteLine($"[复制品] 攻击者击中复制品，受到 {damage} 点伤害");
-
-        // 通知攻击者
-        var attacker = Utilities.GetPlayers().FirstOrDefault(p => p?.PlayerPawn?.Value?.Index == attackerPawn.Index);
-        if (attacker != null && attacker.IsValid)
-        {
-            attacker.PrintToCenter($"🎭 击中复制品！受到 {damage} 点伤害！");
-        }
+        Console.WriteLine($"[复制品] 复制体 {replica.Index} 被击中，造成 {(attackerTeam != replicaTeam ? ENEMY_TEAM_DAMAGE : YOUR_TEAM_DAMAGE)} 点伤害");
     }
 
     /// <summary>
@@ -227,6 +208,8 @@ public class ReplicatorSkill : PlayerSkill
             {
                 entity.AcceptInput("Kill");
             }
+            // 清理 flag
+            _replicaTriggered.Remove(replicaHandle);
         }
 
         _playerReplicas.Remove(player.SteamID);
