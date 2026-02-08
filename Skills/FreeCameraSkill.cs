@@ -1,6 +1,6 @@
 // MyrtleSkill Plugin - GNU GPL v3.0
 // See LICENSE and ATTRIBUTION.md for details
-// Based on free camera concept
+// Based on free camera concept and Falcon Eye skill
 
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
@@ -13,21 +13,25 @@ using System.Drawing;
 namespace MyrtleSkill.Skills;
 
 /// <summary>
-/// 检查扫描技能 - 点击激活，WASD控制摄像头移动，5秒后自动退出并标记敌人
+/// 检查扫描技能 - 主动技能，俯视视角，WASD移动，空格/Shift调整高度，5秒后标记敌人
 /// </summary>
 public class FreeCameraSkill : PlayerSkill
 {
     public override string Name => "FreeCamera";
     public override string DisplayName => "🔍 检查扫描";
-    public override string Description => "输入 !useskill 或按E激活检查扫描！WASD控制摄像头移动，5秒后自动退出并标记敌人！";
+    public override string Description => "输入 !useskill 或按E激活检查扫描！俯视视角，WASD移动，空格/Shift调高度，5秒后标记敌人！";
     public override bool IsActive => true; // 主动技能
     public override float Cooldown => 9999.0f; // 每局只能用一次（9999秒冷却）
 
     // 摄像头移动速度
-    private const float CAMERA_SPEED = 200.0f;  // 每秒移动速度
+    private const float CAMERA_SPEED = 300.0f;  // 每秒移动速度
+    private const float VERTICAL_SPEED = 200.0f; // 垂直移动速度
 
     // 自由视角持续时间（秒）
     private const float FREE_CAMERA_DURATION = 5.0f;
+
+    // 摄像头高度（类似猎鹰之眼）
+    private const float CAMERA_HEIGHT = 1000.0f;
 
     // 视野检测参数
     private const float MAX_VIEW_DISTANCE = 2000.0f;  // 最大视野距离
@@ -46,7 +50,6 @@ public class FreeCameraSkill : PlayerSkill
         public uint OriginalCameraHandle { get; set; }
         public CDynamicProp? Camera { get; set; }
         public Vector Position { get; set; } = new Vector(0, 0, 0);
-        public QAngle Angle { get; set; } = new QAngle(0, 0, 0);
         public bool IsActive { get; set; }
         public float StartTime { get; set; }  // 开始时间
     }
@@ -57,7 +60,7 @@ public class FreeCameraSkill : PlayerSkill
 
         player.PrintToChat("🔍 你获得了检查扫描技能！");
         player.PrintToChat("💡 输入 !useskill 激活检查扫描！");
-        player.PrintToChat("🎮 WASD移动摄像头，鼠标控制视角");
+        player.PrintToChat("🎮 俯视视角，WASD水平移动，空格上升，Shift下降");
         player.PrintToChat("⚠️ 玩家本体不会移动！5秒后自动退出并标记敌人！");
         player.PrintToChat("⏱️ 每局只能使用一次！");
     }
@@ -90,7 +93,7 @@ public class FreeCameraSkill : PlayerSkill
     }
 
     /// <summary>
-    /// 进入自由视角模式
+    /// 进入自由视角模式（俯视角度）
     /// </summary>
     private void EnterFreeCamera(CCSPlayerController player)
     {
@@ -109,19 +112,23 @@ public class FreeCameraSkill : PlayerSkill
             camera.RenderMode = RenderMode_t.kRenderNone; // 完全不渲染
             camera.Render = Color.FromArgb(0, 255, 255, 255); // 完全透明
 
-            // 初始位置：玩家当前位置
+            // 初始位置：玩家正上方
             Vector initialPos;
-            QAngle initialAngle;
-            if (playerPawn.AbsOrigin != null && playerPawn.EyeAngles != null)
+            if (playerPawn.AbsOrigin != null)
             {
-                initialPos = new Vector(playerPawn.AbsOrigin.X, playerPawn.AbsOrigin.Y, playerPawn.AbsOrigin.Z);
-                initialAngle = new QAngle(playerPawn.EyeAngles.X, playerPawn.EyeAngles.Y, playerPawn.EyeAngles.Z);
+                initialPos = new Vector(
+                    playerPawn.AbsOrigin.X,
+                    playerPawn.AbsOrigin.Y,
+                    playerPawn.AbsOrigin.Z + CAMERA_HEIGHT
+                );
             }
             else
             {
-                initialPos = new Vector(0, 0, 0);
-                initialAngle = new QAngle(0, 0, 0);
+                initialPos = new Vector(0, 0, CAMERA_HEIGHT);
             }
+
+            // 俯视角度：向下90度
+            QAngle initialAngle = new QAngle(90, 0, 0);
 
             camera.Teleport(initialPos, initialAngle);
             camera.DispatchSpawn();
@@ -137,8 +144,13 @@ public class FreeCameraSkill : PlayerSkill
             {
                 OriginalCameraHandle = playerPawn.CameraServices.ViewEntity.Raw,
                 Camera = camera,
-                Position = playerPawn.AbsOrigin != null ? new Vector(playerPawn.AbsOrigin.X, playerPawn.AbsOrigin.Y, playerPawn.AbsOrigin.Z) : new Vector(0, 0, 0),
-                Angle = playerPawn.EyeAngles != null ? new QAngle(playerPawn.EyeAngles.X, playerPawn.EyeAngles.Y, playerPawn.EyeAngles.Z) : new QAngle(0, 0, 0),
+                Position = playerPawn.AbsOrigin != null
+                    ? new Vector(
+                        playerPawn.AbsOrigin.X,
+                        playerPawn.AbsOrigin.Y,
+                        playerPawn.AbsOrigin.Z + CAMERA_HEIGHT
+                    )
+                    : new Vector(0, 0, CAMERA_HEIGHT),
                 IsActive = true,
                 StartTime = startTime
             },
@@ -167,8 +179,9 @@ public class FreeCameraSkill : PlayerSkill
             Plugin.RegisterListener<Listeners.OnTick>(OnTick);
         }
 
-        player.PrintToCenter($"🔍 检查扫描 {FREE_CAMERA_DURATION}秒！WASD移动");
+        player.PrintToCenter($"🔍 检查扫描 {FREE_CAMERA_DURATION}秒！俯视视角");
         player.PrintToChat($"🔍 检查扫描已激活！{FREE_CAMERA_DURATION}秒后自动退出并标记敌人！");
+        player.PrintToChat("💡 WASD: 水平移动 | 空格: 上升 | Shift: 下降");
     }
 
     /// <summary>
@@ -197,7 +210,7 @@ public class FreeCameraSkill : PlayerSkill
         cameraInfo.IsActive = false;
 
         // 检测视野内的敌人并施加透视效果
-        var visibleEnemies = GetVisibleEnemies(cameraInfo.Position, cameraInfo.Angle, player);
+        var visibleEnemies = GetVisibleEnemies(cameraInfo.Position, player);
         if (visibleEnemies.Count > 0)
         {
             player.PrintToCenter($"🔍 扫描完成！标记 {visibleEnemies.Count} 个敌人！");
@@ -237,7 +250,7 @@ public class FreeCameraSkill : PlayerSkill
     }
 
     /// <summary>
-    /// 每帧更新 - 移动摄像头
+    /// 每帧更新 - 移动摄像头（俯视固定角度）
     /// </summary>
     public void OnTick()
     {
@@ -294,93 +307,62 @@ public class FreeCameraSkill : PlayerSkill
             // 获取玩家按键
             var buttons = player.Buttons;
 
-            // 计算移动方向
+            // 计算水平移动方向（俯视视角下的平面移动）
             Vector moveDirection = new Vector(0, 0, 0);
 
-            // W 前进
+            // W 前进（在俯视视角下是向"北方"移动）
             if (buttons.HasFlag(PlayerButtons.Forward))
             {
-                var forward = GetForwardVector(cameraInfo.Angle);
-                moveDirection.X += forward.X;
-                moveDirection.Y += forward.Y;
-                moveDirection.Z += forward.Z;
+                moveDirection.Y += 1.0f;
             }
 
             // S 后退
             if (buttons.HasFlag(PlayerButtons.Back))
             {
-                var forward = GetForwardVector(cameraInfo.Angle);
-                moveDirection.X -= forward.X;
-                moveDirection.Y -= forward.Y;
-                moveDirection.Z -= forward.Z;
+                moveDirection.Y -= 1.0f;
             }
 
             // A 左移
             if (buttons.HasFlag(PlayerButtons.Moveleft))
             {
-                var right = GetRightVector(cameraInfo.Angle);
-                moveDirection.X += right.X;
-                moveDirection.Y += right.Y;
-                moveDirection.Z += right.Z;
+                moveDirection.X -= 1.0f;
             }
 
             // D 右移
             if (buttons.HasFlag(PlayerButtons.Moveright))
             {
-                var left = GetLeftVector(cameraInfo.Angle);
-                moveDirection.X += left.X;
-                moveDirection.Y += left.Y;
-                moveDirection.Z += left.Z;
+                moveDirection.X += 1.0f;
+            }
+
+            // 空格上升
+            if (buttons.HasFlag(PlayerButtons.Jump))
+            {
+                moveDirection.Z += 1.0f;
+            }
+
+            // Shift 下降（使用 Duck 表示蹲下/下降）
+            if (buttons.HasFlag(PlayerButtons.Duck))
+            {
+                moveDirection.Z -= 1.0f;
             }
 
             // 如果有移动，更新摄像头位置
             if (moveDirection.X != 0 || moveDirection.Y != 0 || moveDirection.Z != 0)
             {
-                // 归一化移动方向
-                float length = (float)Math.Sqrt(moveDirection.X * moveDirection.X + moveDirection.Y * moveDirection.Y + moveDirection.Z * moveDirection.Z);
-                if (length > 0.001f)
-                {
-                    moveDirection.X /= length;
-                    moveDirection.Y /= length;
-                    moveDirection.Z /= length;
-                }
+                // 归一化移动方向（分别处理水平和垂直）
+                float horizontalSpeed = CAMERA_SPEED * deltaTime;
+                float verticalSpeed = VERTICAL_SPEED * deltaTime;
 
-                // 计算新位置
-                float speed = CAMERA_SPEED * deltaTime;
-                cameraInfo.Position.X += moveDirection.X * speed;
-                cameraInfo.Position.Y += moveDirection.Y * speed;
-                cameraInfo.Position.Z += moveDirection.Z * speed;
+                cameraInfo.Position.X += moveDirection.X * horizontalSpeed;
+                cameraInfo.Position.Y += moveDirection.Y * horizontalSpeed;
+                cameraInfo.Position.Z += moveDirection.Z * verticalSpeed;
             }
 
-            // 更新摄像头角度（跟随玩家实际视角输入）
-            // 当 ViewEntity 被设置时，EyeAngles 不会更新，需要使用 Schema API
-            try
-            {
-                // 尝试获取玩家的视角角度（m_angEyeAngles 或 m_plViewAngle）
-                var viewAngle = CounterStrikeSharp.API.Modules.Memory.Schema.GetSchemaValue<QAngle>(
-                    playerPawn.Handle,
-                    "CCSPlayerPawn",
-                    "m_angEyeAngles"
-                );
-                cameraInfo.Angle.X = viewAngle.X;
-                cameraInfo.Angle.Y = viewAngle.Y;
-                cameraInfo.Angle.Z = viewAngle.Z;
-            }
-            catch
-            {
-                // 如果失败，使用 AbsRotation 作为后备
-                if (playerPawn.AbsRotation != null)
-                {
-                    cameraInfo.Angle.X = playerPawn.AbsRotation.X;
-                    cameraInfo.Angle.Y = playerPawn.AbsRotation.Y;
-                    cameraInfo.Angle.Z = playerPawn.AbsRotation.Z;
-                }
-            }
-
-            // 更新摄像头位置和角度
+            // 更新摄像头位置和角度（固定俯视角度90度）
+            QAngle cameraAngle = new QAngle(90, 0, 0); // 俯视角度
             if (cameraInfo.Camera.AbsOrigin != null && cameraInfo.Camera.AbsRotation != null)
             {
-                cameraInfo.Camera.Teleport(cameraInfo.Position, cameraInfo.Angle);
+                cameraInfo.Camera.Teleport(cameraInfo.Position, cameraAngle);
             }
 
             // 阻止玩家实体移动
@@ -392,53 +374,10 @@ public class FreeCameraSkill : PlayerSkill
     }
 
     /// <summary>
-    /// 计算前方向量
-    /// </summary>
-    private static Vector GetForwardVector(QAngle angles)
-    {
-        float radiansY = angles.Y * (float)Math.PI / 180.0f;
-        float radiansX = angles.X * (float)Math.PI / 180.0f;
-
-        return new Vector(
-            (float)(Math.Cos(radiansY) * Math.Cos(radiansX)),
-            (float)(Math.Sin(radiansY) * Math.Cos(radiansX)),
-            (float)(-Math.Sin(radiansX))
-        );
-    }
-
-    /// <summary>
-    /// 计算左方向量
-    /// </summary>
-    private static Vector GetLeftVector(QAngle angles)
-    {
-        float radiansY = (angles.Y - 90) * (float)Math.PI / 180.0f;
-
-        return new Vector(
-            (float)Math.Cos(radiansY),
-            (float)Math.Sin(radiansY),
-            0
-        );
-    }
-
-    /// <summary>
-    /// 计算右方向量
-    /// </summary>
-    private static Vector GetRightVector(QAngle angles)
-    {
-        float radiansY = (angles.Y + 90) * (float)Math.PI / 180.0f;
-
-        return new Vector(
-            (float)Math.Cos(radiansY),
-            (float)Math.Sin(radiansY),
-            0
-        );
-    }
-
-    /// <summary>
     /// 检测玩家是否在摄像头视野内
     /// 使用 TraceRay 检查障碍物 + 角度计算
     /// </summary>
-    private bool IsPlayerInView(Vector cameraPos, QAngle cameraAngle, CCSPlayerController targetPlayer)
+    private bool IsPlayerInView(Vector cameraPos, CCSPlayerController targetPlayer)
     {
         var targetPawn = targetPlayer.PlayerPawn.Value;
         if (targetPawn == null || !targetPawn.IsValid || targetPawn.AbsOrigin == null)
@@ -458,8 +397,9 @@ public class FreeCameraSkill : PlayerSkill
         if (distance > MAX_VIEW_DISTANCE)
             return false;
 
-        // 计算摄像头前方向量
-        Vector cameraForward = GetForwardVector(cameraAngle);
+        // 计算摄像头前方向量（俯视向下）
+        // 俯视90度时的前方向量是 (0, 0, -1)
+        Vector cameraForward = new Vector(0, 0, -1);
 
         // 计算到玩家的方向（归一化）
         Vector toPlayerDir = new(
@@ -487,16 +427,15 @@ public class FreeCameraSkill : PlayerSkill
     /// </summary>
     private unsafe bool IsObstacleBetween(Vector startPos, Vector endPos, CCSPlayerController player)
     {
-        // 稍微抬高起点和终点，避免地面检测
-        Vector eyePos = new(startPos.X, startPos.Y, startPos.Z + 25.0f);
-        Vector targetPos = new(endPos.X, endPos.Y, endPos.Z + 25.0f);
+        // 稍微抬高终点，避免地面检测
+        Vector targetPos = new(endPos.X, endPos.Y, endPos.Z + 64.0f);
 
         // 获取碰撞掩码
         ulong mask = player.PlayerPawn.Value?.Collision.CollisionAttribute.InteractsWith ?? 0;
         ulong contents = player.PlayerPawn.Value?.Collision.CollisionGroup ?? 0;
 
         // 发射射线
-        CGameTrace trace = TraceRay.TraceShape(eyePos, targetPos, mask, contents, player);
+        CGameTrace trace = TraceRay.TraceShape(startPos, targetPos, mask, contents, player);
 
         // 如果击中了物体，说明有障碍物
         return trace.DidHit();
@@ -505,7 +444,7 @@ public class FreeCameraSkill : PlayerSkill
     /// <summary>
     /// 获取所有在摄像头视野内的敌人
     /// </summary>
-    private List<CCSPlayerController> GetVisibleEnemies(Vector cameraPos, QAngle cameraAngle, CCSPlayerController observer)
+    private List<CCSPlayerController> GetVisibleEnemies(Vector cameraPos, CCSPlayerController observer)
     {
         var visibleEnemies = new List<CCSPlayerController>();
 
@@ -523,7 +462,7 @@ public class FreeCameraSkill : PlayerSkill
                 continue;
 
             // 检查玩家是否在视野内
-            if (IsPlayerInView(cameraPos, cameraAngle, player))
+            if (IsPlayerInView(cameraPos, player))
             {
                 visibleEnemies.Add(player);
             }
@@ -626,7 +565,7 @@ public class FreeCameraSkill : PlayerSkill
         modelGlow.DispatchSpawn();
         modelGlow.AcceptInput("FollowEntity", modelRelay, modelGlow, "!activator");
 
-        // 设置颜色（根据队伍）- 使用GlowColorOverride而不是Render
+        // 设置颜色（根据队伍）
         Color glowColor = team == CsTeam.Terrorist ? Color.FromArgb(255, 165, 0) : Color.FromArgb(135, 206, 235);
         modelGlow.Glow.GlowColorOverride = glowColor;
         modelGlow.Spawnflags = 256u;
