@@ -352,12 +352,29 @@ public class FreeCameraSkill : PlayerSkill
                 cameraInfo.Position.Z += moveDirection.Z * speed;
             }
 
-            // 更新摄像头角度（跟随玩家视角）
-            if (playerPawn.EyeAngles != null)
+            // 更新摄像头角度（跟随玩家实际视角输入）
+            // 当 ViewEntity 被设置时，EyeAngles 不会更新，需要使用 Schema API
+            try
             {
-                cameraInfo.Angle.X = playerPawn.EyeAngles.X;
-                cameraInfo.Angle.Y = playerPawn.EyeAngles.Y;
-                cameraInfo.Angle.Z = playerPawn.EyeAngles.Z;
+                // 尝试获取玩家的视角角度（m_angEyeAngles 或 m_plViewAngle）
+                var viewAngle = CounterStrikeSharp.API.Modules.Memory.Schema.GetSchemaValue<QAngle>(
+                    playerPawn.Handle,
+                    "CCSPlayerPawn",
+                    "m_angEyeAngles"
+                );
+                cameraInfo.Angle.X = viewAngle.X;
+                cameraInfo.Angle.Y = viewAngle.Y;
+                cameraInfo.Angle.Z = viewAngle.Z;
+            }
+            catch
+            {
+                // 如果失败，使用 AbsRotation 作为后备
+                if (playerPawn.AbsRotation != null)
+                {
+                    cameraInfo.Angle.X = playerPawn.AbsRotation.X;
+                    cameraInfo.Angle.Y = playerPawn.AbsRotation.Y;
+                    cameraInfo.Angle.Z = playerPawn.AbsRotation.Z;
+                }
             }
 
             // 更新摄像头位置和角度
