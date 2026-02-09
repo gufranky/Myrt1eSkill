@@ -4,6 +4,7 @@ using CounterStrikeSharp.API.Modules.Cvars;
 using CounterStrikeSharp.API.Modules.Entities.Constants;
 using CounterStrikeSharp.API.Modules.Utils;
 using MyrtleSkill.ThirdParty;
+using MyrtleSkill.Utils;
 
 namespace MyrtleSkill;
 
@@ -240,51 +241,47 @@ public class StrangersEvent : EntertainmentEvent
 
         foreach (var player in players)
         {
-            // 为每个玩家获取一个随机位置
-            Vector? randomPosition = NavMesh.GetRandomPosition(maxAttempts: 20);
-            if (randomPosition == null)
+            // 为每个玩家尝试获取安全的随机位置
+            bool foundSafePosition = false;
+            Vector? randomPosition = null;
+            int maxAttempts = 10;
+
+            for (int attempt = 0; attempt < maxAttempts; attempt++)
             {
-                Console.WriteLine($"[不认识的人] 警告：无法为 {player.PlayerName} 找到随机位置！");
+                // 获取一个随机位置
+                var pos = NavMesh.GetRandomPosition(maxAttempts: 20);
+                if (pos == null)
+                {
+                    Console.WriteLine($"[不认识的人] 警告：无法为 {player.PlayerName} 找到随机位置！");
+                    continue;
+                }
+
+                randomPosition = pos;
+
+                // 检查位置是否安全
+                if (SkillUtils.IsPositionSafe(pos, player))
+                {
+                    foundSafePosition = true;
+                    break;
+                }
+
+                Console.WriteLine($"[不认识的人] 尝试 {attempt + 1}/{maxAttempts}: 位置不安全，重新选择");
+            }
+
+            if (!foundSafePosition || randomPosition == null)
+            {
+                Console.WriteLine($"[不认识的人] {player.PlayerName} 无法找到安全传送位置");
+                player.PrintToChat("⚠️ 无法找到安全传送位置！");
                 continue;
             }
 
-            // 传送玩家
-            TeleportPlayer(player, randomPosition);
-            Console.WriteLine($"[不认识的人] {player.PlayerName} 已传送到随机位置");
+            // 执行传送（randomPosition 已经确认不为 null）
+            var pawn = player.PlayerPawn.Value;
+            if (pawn != null && pawn.IsValid)
+            {
+                pawn.Teleport(randomPosition, pawn.AbsRotation, new Vector(0, 0, 0));
+                Console.WriteLine($"[不认识的人] {player.PlayerName} 已传送到随机位置");
+            }
         }
-    }
-
-    /// <summary>
-    /// 传送玩家到指定位置，并处理碰撞组防止卡墙
-    /// </summary>
-    private void TeleportPlayer(CCSPlayerController player, Vector position)
-    {
-        if (player == null || !player.IsValid)
-            return;
-
-        var pawn = player.PlayerPawn.Value;
-        if (pawn == null || !pawn.IsValid)
-            return;
-
-        // 执行传送
-        pawn.Teleport(position, pawn.AbsRotation, new Vector(0, 0, 0));
-
-        // 临时设置为穿透模式，防止卡在墙里或其他玩家身上
-        pawn.Collision.CollisionGroup = (byte)CollisionGroup.COLLISION_GROUP_DISSOLVING;
-        pawn.Collision.CollisionAttribute.CollisionGroup = (byte)CollisionGroup.COLLISION_GROUP_DISSOLVING;
-        Utilities.SetStateChanged(pawn, "CCollisionProperty", "m_CollisionGroup");
-        Utilities.SetStateChanged(pawn, "VPhysicsCollisionAttribute_t", "m_nCollisionGroup");
-
-        // 下一帧恢复正常碰撞
-        Server.NextFrame(() =>
-        {
-            if (pawn == null || !pawn.IsValid || pawn.LifeState != (byte)LifeState_t.LIFE_ALIVE)
-                return;
-
-            pawn.Collision.CollisionGroup = (byte)CollisionGroup.COLLISION_GROUP_PLAYER;
-            pawn.Collision.CollisionAttribute.CollisionGroup = (byte)CollisionGroup.COLLISION_GROUP_PLAYER;
-            Utilities.SetStateChanged(pawn, "CCollisionProperty", "m_CollisionGroup");
-            Utilities.SetStateChanged(pawn, "VPhysicsCollisionAttribute_t", "m_nCollisionGroup");
-        });
     }
 }

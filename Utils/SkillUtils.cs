@@ -2,6 +2,7 @@ using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Entities.Constants;
 using CounterStrikeSharp.API.Modules.Memory;
+using CounterStrikeSharp.API.Modules.Utils;
 using System.Runtime.InteropServices;
 
 namespace MyrtleSkill.Utils;
@@ -108,5 +109,44 @@ public static class SkillUtils
         }
 
         Console.WriteLine($"[SkillUtils] TakeHealth: 扣除 {damage} 点生命值，剩余生命: {newHealth}");
+    }
+
+    /// <summary>
+    /// 检查位置是否与其他玩家重合（碰撞检测）
+    /// </summary>
+    /// <param name="position">要检查的位置</param>
+    /// <param name="excludePlayer">要排除的玩家（通常是自己）</param>
+    /// <param name="distanceThreshold">距离阈值（默认50单位）</param>
+    /// <returns>如果位置安全（没有玩家重合）返回 true，否则返回 false</returns>
+    public static bool IsPositionSafe(Vector position, CCSPlayerController? excludePlayer = null, float distanceThreshold = 50.0f)
+    {
+        foreach (var player in Utilities.GetPlayers())
+        {
+            // 排除无效玩家和指定玩家
+            if (!player.IsValid || !player.PawnIsAlive)
+                continue;
+
+            if (excludePlayer != null && player.SteamID == excludePlayer.SteamID)
+                continue;
+
+            var pawn = player.PlayerPawn.Value;
+            if (pawn == null || !pawn.IsValid || pawn.AbsOrigin == null)
+                continue;
+
+            // 计算距离
+            float dx = position.X - pawn.AbsOrigin.X;
+            float dy = position.Y - pawn.AbsOrigin.Y;
+            float dz = position.Z - pawn.AbsOrigin.Z;
+            float distance = (float)Math.Sqrt(dx * dx + dy * dy + dz * dz);
+
+            // 如果距离小于阈值，说明位置不安全
+            if (distance < distanceThreshold)
+            {
+                Console.WriteLine($"[SkillUtils] 位置不安全：与玩家 {player.PlayerName} 距离 {distance:F1} 单位");
+                return false;
+            }
+        }
+
+        return true;
     }
 }

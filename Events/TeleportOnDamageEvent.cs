@@ -3,6 +3,7 @@ using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Entities.Constants;
 using CounterStrikeSharp.API.Modules.Utils;
 using MyrtleSkill.Features;
+using MyrtleSkill.Utils;
 using System.Collections.Generic;
 
 namespace MyrtleSkill;
@@ -71,20 +72,46 @@ public class TeleportOnDamageEvent : EntertainmentEvent
             return;
         }
 
-        // 从所有位置中随机选择一个
+        // 从所有位置中随机选择一个（带碰撞检测重试）
         var random = new Random();
-        int randomIndex = random.Next(allPositions.Count);
-        var (selectedPosition, ownerName) = allPositions[randomIndex];
+        var teleportPosition = default(CounterStrikeSharp.API.Modules.Utils.Vector);
+        var ownerName = "";
+        var selectedPosition = default(Features.PositionEntry);
+        bool foundSafePosition = false;
+        int maxAttempts = Math.Min(10, allPositions.Count);
 
-        // 创建位置向量
-        var teleportPosition = new CounterStrikeSharp.API.Modules.Utils.Vector(
-            selectedPosition.Position.X,
-            selectedPosition.Position.Y,
-            selectedPosition.Position.Z
-        );
+        for (int attempt = 0; attempt < maxAttempts; attempt++)
+        {
+            // 随机选择一个位置
+            int randomIndex = random.Next(allPositions.Count);
+            (selectedPosition, ownerName) = allPositions[randomIndex];
 
-        // 传送玩家
-        TeleportPlayer(controller, teleportPosition);
+            // 创建位置向量
+            teleportPosition = new CounterStrikeSharp.API.Modules.Utils.Vector(
+                selectedPosition.Position.X,
+                selectedPosition.Position.Y,
+                selectedPosition.Position.Z
+            );
+
+            // 检查位置是否安全
+            if (SkillUtils.IsPositionSafe(teleportPosition, controller))
+            {
+                foundSafePosition = true;
+                break;
+            }
+
+            Console.WriteLine($"[受伤传送] 尝试 {attempt + 1}/{maxAttempts}: 位置不安全，重新选择");
+        }
+
+        if (!foundSafePosition)
+        {
+            Console.WriteLine($"[受伤传送] {controller.PlayerName} 无法找到安全传送位置");
+            controller.PrintToChat("⚠️ 无法找到安全传送位置！");
+            return;
+        }
+
+        // 执行传送（使用之前定义的 pawn）
+        pawn.Teleport(teleportPosition, pawn.AbsRotation, new CounterStrikeSharp.API.Modules.Utils.Vector(0, 0, 0));
 
         // 计算时间差
         float timeAgo = Server.CurrentTime - selectedPosition.Timestamp;
@@ -94,39 +121,5 @@ public class TeleportOnDamageEvent : EntertainmentEvent
         controller.PrintToChat($"📍 位置来自: {ownerName} | {timeAgo:F0}秒前");
 
         Console.WriteLine($"[受伤传送] {controller.PlayerName} 被传送到 {ownerName} {timeAgo:F0} 秒前的位置");
-    }
-
-    /// <summary>
-    /// 传送玩家到指定位置，并处理碰撞组防止卡墙
-    /// </summary>
-    private void TeleportPlayer(CCSPlayerController player, CounterStrikeSharp.API.Modules.Utils.Vector position)
-    {
-        if (player == null || !player.IsValid)
-            return;
-
-        var pawn = player.PlayerPawn.Value;
-        if (pawn == null || !pawn.IsValid)
-            return;
-
-        // 执行传送
-        pawn.Teleport(position, pawn.AbsRotation, new CounterStrikeSharp.API.Modules.Utils.Vector(0, 0, 0));
-
-        // 临时设置为穿透模式，防止卡在墙里或其他玩家身上
-        pawn.Collision.CollisionGroup = (byte)CollisionGroup.COLLISION_GROUP_DISSOLVING;
-        pawn.Collision.CollisionAttribute.CollisionGroup = (byte)CollisionGroup.COLLISION_GROUP_DISSOLVING;
-        Utilities.SetStateChanged(pawn, "CCollisionProperty", "m_CollisionGroup");
-        Utilities.SetStateChanged(pawn, "VPhysicsCollisionAttribute_t", "m_nCollisionGroup");
-
-        // 下一帧恢复正常碰撞
-        Server.NextFrame(() =>
-        {
-            if (pawn == null || !pawn.IsValid || pawn.LifeState != (byte)LifeState_t.LIFE_ALIVE)
-                return;
-
-            pawn.Collision.CollisionGroup = (byte)CollisionGroup.COLLISION_GROUP_PLAYER;
-            pawn.Collision.CollisionAttribute.CollisionGroup = (byte)CollisionGroup.COLLISION_GROUP_PLAYER;
-            Utilities.SetStateChanged(pawn, "CCollisionProperty", "m_CollisionGroup");
-            Utilities.SetStateChanged(pawn, "VPhysicsCollisionAttribute_t", "m_nCollisionGroup");
-        });
     }
 }

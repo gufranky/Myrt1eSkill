@@ -7,10 +7,55 @@ Myrtle Skill Plugin 是一个 Counter-Strike 2 (CS2) 娱乐插件，为服务器
 ## 版本信息
 
 - **插件名称**: Myrtle Skill Plugin
-- **当前版本**: v2.2.0
+- **当前版本**: v2.8.0
 - **CS2Sharp API 版本**: 1.0.362
-- **事件数量**: 40 个
-- **技能数量**: 26 个
+- **事件数量**: 48 个
+- **技能数量**: 65 个
+
+## ⚠️ 重要提示
+
+**本插件目前仍在积极调试中，可能存在以下问题：**
+
+- 🔧 部分技能或事件可能无法正常工作
+- ⚠️ 极小概率下可能导致游戏崩溃
+- 🐛 可能存在未发现的 bug
+
+**建议：**
+- 📋 建议在测试服务器上先行测试
+- 💾 定期保存游戏进度
+- 🐛 如发现问题，欢迎提交 Issue 反馈
+
+---
+
+## 前置依赖
+
+### 必需依赖
+
+- **.NET 8.0 Runtime**
+- **CounterStrikeSharp.API v1.0.362**
+
+### 可选依赖
+
+以下依赖不是必需的，但某些技能需要这些依赖才能正常工作：
+
+#### CS2TraceRay
+
+- **功能**: 提供射线检测能力
+- **所需技能**:
+  - 检查扫描 (FreeCamera) - 用于视野检测
+- **下载**: https://github.com/Source2ZE/CS2TraceRay
+
+#### MenuManagerCS2
+
+- **功能**: 提供 WASD 菜单系统
+- **所需技能**:
+  - 三选一 (ChooseOneOfThree)
+  - 死神名册 (DeathNote)
+  - 复制者 (Duplicator)
+  - 故障 (Glitch)
+- **下载**: https://github.com/nf-rol/MenuManagerCS2
+
+> 💡 **提示**: 如果不安装这些依赖，相关技能将无法正常工作，但不会影响其他功能。
 
 ## 功能概述
 
@@ -18,13 +63,13 @@ Myrtle Skill Plugin 是一个 Counter-Strike 2 (CS2) 娱乐插件，为服务器
 
 每回合随机选择一个全局事件，影响所有玩家。
 
-**当前事件数量**: 36 个（包括 NoEvent 和 NoSkill）
+**当前事件数量**: 48 个（包括 NoEvent 和 NoSkill）
 
 ### 2. 玩家技能系统
 
 每个玩家在回合开始时随机获得一个个人技能，可以是主动或被动效果。
 
-**当前技能数量**: 24 个
+**当前技能数量**: 65 个
 
 ### 3. 开局福利系统
 
@@ -90,6 +135,16 @@ Myrtle Skill Plugin 是一个 Counter-Strike 2 (CS2) 娱乐插件，为服务器
 | UnluckyCouples       | 💑 苦命鸳鸯     | 玩家两两配对！配对玩家互相可见且伤害增加！单数玩家将被忽略！     |
 | Vampire              | 吸血鬼          | 造成伤害时吸取等量生命值！                                       |
 | Xray                 | 👁️ 全员透视   | 所有玩家可以透过墙壁看到彼此！敌我位置一览无余！                 |
+| BankruptcyWeapon     | 💸 武器破产     | 所有主副武器价格翻10倍！买不起好枪了！                          |
+| ChooseCarnival       | 🎪 狂欢节选择   | 每位玩家从3个随机事件中选择1个！                                |
+| FlyUp                | 🚀 飞行模式     | 所有玩家可以飞行！按空格上升！                                  |
+| Foggy                | 🌫️ 迷雾模式     | 地图上覆盖厚厚一层雾！能见度极低！                              |
+| InfiniteBulletMode   | 🔥 无限子弹     | 无限子弹！无需换弹！持续火力！                                  |
+| KillerSatellite      | 🛰️ 杀手卫星   | 所有人获得杀手闪电和名刀！致命闪光与名刀御守！                   |
+| MoreSkills           | ⚔️ 多重技能     | 每位玩家获得2个技能！双倍快乐！                                 |
+| SignalJam            | 📡 信号干扰     | 雷达失效！所有人小地图不显示敌人位置！                          |
+| SkillsPlusPlus       | ⚔️⚔️ 三重技能   | 每位玩家获得3个技能！终极混乱！                                 |
+| ThirdPerson          | 👁️ 第三人称     | 所有人强制第三人称视角！                                       |
 
 ### 事件权重配置
 
@@ -151,6 +206,46 @@ Myrtle Skill Plugin 是一个 Counter-Strike 2 (CS2) 娱乐插件，为服务器
 | BigStomach     | 🍖 大胃袋         | 获得技能时随机增加200~500点生命值！可超过血量上限！        | 被动 | 无       |
 | Muhammad      | 💀 穆罕默德       | 你死后会爆炸，杀死附近的玩家！                     | 被动 | 无       |
 | Wallhack       | 👁️ 透视技能       | 可以透过墙壁看到敌人！                             | 被动 | 无       |
+| AutoAim        | 🎯 自瞄          | 每一颗击中的子弹都算作爆头！                         | 被动 | 无       |
+| Armored        | 🛡️ 装甲          | 获得随机伤害减免倍率（0.55 - 0.8x）！                 | 被动 | 无       |
+| BladeMaster    | ⚔️ 剑圣          | 手持刀具时躯干95%/腿部80%格挡射击！移速+15%！          | 被动 | 无       |
+| BlastOff       | 🚀 起飞          | 受到伤害时自动跳跃并飞到空中！                       | 被动 | 无       |
+| ChooseOneOfThree | 🎰 三选一       | 随机抽取3个技能，选择一个获得！需要MenuManagerCS2        | 主动 | 9999秒   |
+| DeathNote      | 💀 死神名册      | 选择一名玩家，你和他一起死亡！需要MenuManagerCS2       | 主动 | 9999秒   |
+| Duplicator     | 📋 复制者        | 选择一个敌人，复制他的技能！需要MenuManagerCS2          | 主动 | 9999秒   |
+| Explorer       | 🔭 探索者        | 创建探索者实体，敌人击中会被致盲2.5秒！                | 主动 | 15秒     |
+| FalconEye      | 🦅 猎鹰之眼      | 点击激活鸟瞰视角摄像头，从上方俯瞰战场！                | 主动 | 0秒      |
+| Focus          | 🎯 专注          | 射击时无后座力！                                   | 被动 | 无       |
+| Fortnite       | 🏗️ 堡垒之夜      | 创建可破坏的路障！                                 | 主动 | 2秒      |
+| FrozenDecoy    | ❄️ 冷冻诱饵      | 你的诱饵弹会冻结附近所有玩家！开局1颗（投掷后补充1次）！    | 被动 | 无       |
+| FreeCamera     | 🔍 检查扫描      | 俯视视角，WASD移动，10秒后扫描透视5秒！需要CS2TraceRay   | 主动 | 20秒     |
+| Ghost          | 👻 鬼            | 完全隐形！受到伤害或造成伤害会永久显形！                | 被动 | 无       |
+| Glitch         | 📡 故障          | 选择一名敌人，禁用其雷达15秒！需要MenuManagerCS2        | 主动 | 30秒     |
+| HealingSmoke   | 💚 治疗烟雾弹    | 开局1个治疗烟雾弹，持续治疗队友！投掷后补充1次！         | 被动 | 无       |
+| HighRiskHighReward | 🎲 高风险高回报 | 开局只有20点血！击杀敌人后血量增加到500！              | 被动 | 无       |
+| HolyHandGrenade | ✝️ 圣手榴弹     | 你的HE手雷造成2.5倍伤害和范围！开局1颗（投掷后补充1次）！   | 被动 | 无       |
+| Hologram       | 🎭 全息投影      | 创建一个你的全息投影！敌人击中会受到伤害！              | 主动 | 9999秒   |
+| InfiniteAmmo   | 🔫 无限弹药      | 无限备弹！自动补充！无需换弹！                        | 被动 | 无       |
+| Jackal         | 🐺 豺狼          | 显示最近击杀你的敌人的位置！                          | 主动 | 60秒     |
+| KillInvincibility | ⚔️ 杀戮无敌     | 击杀敌人后获得5秒无敌时间！                          | 被动 | 无       |
+| LastStand      | 💪 最后抵抗      | 最后存活的玩家获得双倍伤害和移动速度！                  | 被动 | 无       |
+| MasterThief    | 🎭 顶级小偷      | 传送至敌方出生点！神不知鬼不觉！                      | 主动 | 15秒     |
+| MindHack       | 🧠 心灵黑客      | 反转敌人的控制方向！持续10秒！                        | 主动 | 30秒     |
+| Phoenix        | 🔥 凤凰涅槃      | 死亡后以100血量复活！每回合限用一次！                  | 被动 | 无       |
+| Pilot          | ✈️ 飞行员        | 按E键飞行！按空格上升！                              | 主动 | 0秒      |
+| Prosthetic     🦿 义肢        | 手臂被击中不会掉落武器！                            | 被动 | 无       |
+| Push           | 💪 推击          | 射击敌人有25%几率将其击退！                          | 被动 | 无       |
+| RangeFinder    | 📏 测距仪        | 显示到最近敌人的距离！                              | 主动 | 9999秒   |
+| Replicator     | 🎭 复制者        | 创建一个你的复制体！敌人击中会受到伤害！                | 主动 | 10秒     |
+| SecondChance   | 🔄 第二次机会    | 死亡后以50血量复活！每回合限用一次！                   | 被动 | 无       |
+| Silent         | 🤫 无声          | 移动和射击不会发出声音！                            | 被动 | 无       |
+| Silencer       | 🔇 消音器        | 射击时不会在雷达上显示！                            | 被动 | 无       |
+| SuperFlash     | ⚡ 超级闪光      | 你的闪光弹致盲时间翻倍！获得1颗闪光弹！投掷后最多补充2次！   | 被动 | 无       |
+| TeleportAnchor | ⚓ 传送锚点      | 设置传送锚点，可以随时传送回去！                      | 主动 | 5秒      |
+| ThirdEye       | 👁️ 第三只眼      | 可以看到墙后的敌人！                                | 主动 | 9999秒   |
+| TimeRecall     | ⏪ 时间回溯      | 使用后回到5秒前的位置、视角和血量状态！                 | 主动 | 15秒     |
+| WoodMan        | 🪵 木头人        | 受到伤害减少50%，但移动速度降低30%！                   | 被动 | 无       |
+| ZRY            | 🔫 ZRY          | 你的子弹可以穿透墙壁！                              | 被动 | 无       |
 
 ### 技能类型说明
 
@@ -244,31 +339,206 @@ Myrtle Skill Plugin 是一个 Counter-Strike 2 (CS2) 娱乐插件，为服务器
 
 **配置文件位置**: `/addons/counterstrikesharp/addons/MyrtleSkill/config.json`
 
-**配置结构**:
+### 配置文件结构
 
 ```json
 {
   "EventWeights": {
     "NoEvent": 100,
+    "NoSkill": 100,
     "LowGravity": 10,
-    // ... 其他事件权重
+    "LowGravityPlusPlus": 10,
+    "HighSpeed": 10,
+    "Vampire": 10,
+    "TeleportOnDamage": 10,
+    "JumpOnShoot": 10,
+    "JumpPlusPlus": 10,
+    "AnywhereBombPlant": 10,
+    "MiniSize": 10,
+    "Juggernaut": 10,
+    "InfiniteAmmo": 10,
+    "SwapOnHit": 10,
+    "SmallAndDeadly": 10,
+    "Blitzkrieg": 10,
+    "DecoyTeleport": 10,
+    "Xray": 10,
+    "SuperpowerXray": 10,
+    "ChickenMode": 10,
+    "TopTierParty": 5,
+    "TopTierPartyPlusPlus": 2,
+    "StayQuiet": 10,
+    "RainyDay": 10,
+    "ScreamingRabbit": 10,
+    "HeadshotOnly": 10,
+    "OneShot": 10,
+    "DeadlyGrenades": 10,
+    "UnluckyCouples": 10,
+    "Strangers": 10,
+    "AutoBhop": 10,
+    "SlowMotion": 10,
+    "KeepMoving": 10,
+    "SoccerMode": 10,
+    "SuperRecoil": 10,
+    "Bankruptcy": 10,
+    "Deaf": 10,
+    "KillerSatellite": 10,
+    "InverseHeadshot": 10,
+    "TeleportOnDamage": 10,
+    "BankruptcyWeapon": 10,
+    "ChooseCarnival": 10,
+    "FlyUp": 10,
+    "Foggy": 10,
+    "InfiniteBulletMode": 10,
+    "MoreSkills": 10,
+    "SignalJam": 10,
+    "SkillsPlusPlus": 10,
+    "ThirdPerson": 10
   },
   "SkillWeights": {
     "Teleport": 10,
     "SpeedBoost": 10,
-    "HighJump": 10
+    "HighJump": 10,
+    "Ninja": 10,
+    "BotSummon": 10,
+    "DumbBot": 10,
+    "DecoyXRay": 10,
+    "ToxicSmoke": 10
+    // ... 更多技能
   },
   "Notes": "权重越高，事件/技能被选中的概率越大。设置为0可禁用某个事件/技能。"
 }
 ```
 
+### 配置项说明
+
+#### EventWeights（事件权重）
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| EventWeights | Dictionary&lt;string, int&gt; | 事件权重字典，键为事件内部名称，值为权重 |
+| NoEvent | int | 正常回合的权重（默认100） |
+| NoSkill | int | 无技能回合的权重（默认100） |
+| 其他事件 | int | 各事件的权重（默认10或5） |
+
+#### SkillWeights（技能权重）
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| SkillWeights | Dictionary&lt;string, int&gt; | 技能权重字典，键为技能内部名称，值为权重 |
+| 所有技能 | int | 各技能的权重（默认10） |
+
+#### Notes（说明）
+
+| 参数 | 类型 | 说明 |
+|------|------|------|
+| Notes | string | 配置文件说明文字 |
+
+### 权重系统工作原理
+
+1. **权重计算**：系统会统计所有事件的权重总和
+2. **概率计算**：单个事件的被选中概率 = 该事件权重 / 权重总和
+3. **权重为0**：禁用该事件/技能，不会被选中
+
+**示例**：
+```
+总权重 = 100 (NoEvent) + 100 (NoSkill) + 10×46 (其他事件) = 660
+NoEvent 概率 = 100/660 ≈ 15.15%
+KeepMoving 概率 = 10/660 ≈ 1.52%
+TopTierParty 概率 = 5/660 ≈ 0.76%
+```
+
 ### 修改权重
 
-1. 编辑配置文件
-2. 修改对应事件/技能的权重值
-3. 重启服务器或重载插件
+#### 方法一：直接编辑配置文件
 
-**权重为0** = 禁用该事件/技能
+1. 打开 `config.json` 文件
+2. 修改对应事件/技能的权重值
+3. 保存文件
+4. 重启服务器或使用重载命令
+
+#### 方法二：使用控制台命令
+
+```bash
+# 查看当前权重
+css_event_weights        # 查看所有事件权重
+css_skill_weights         # 查看所有技能权重
+
+# 修改权重
+css_event_weight LowGravity 20       # 将低重力事件权重改为20
+css_skill_weight Teleport 5           # 将传送技能权重改为5
+
+# 禁用事件/技能
+css_event_weight TopTierParty 0      # 禁用顶级狂欢事件
+css_skill_weight BigStomach 0         # 禁用大胃袋技能
+```
+
+### 常见配置场景
+
+#### 场景1：提高平静回合概率
+
+```json
+{
+  "EventWeights": {
+    "NoEvent": 200,
+    "NoSkill": 200
+  }
+}
+```
+
+#### 场景2：禁用特定事件
+
+```json
+{
+  "EventWeights": {
+    "TopTierPartyPlusPlus": 0,
+    "KeepMoving": 0
+  }
+}
+```
+
+#### 场景3：让某些事件更常见
+
+```json
+{
+  "EventWeights": {
+    "LowGravity": 30,
+    "InfiniteAmmo": 20,
+    "HeadshotOnly": 15
+  }
+}
+```
+
+#### 场景4：平衡技能分配
+
+```json
+{
+  "SkillWeights": {
+    "Teleport": 5,
+    "SpeedBoost": 5,
+    "Meito": 3,
+    "BigStomach": 5
+  }
+}
+```
+
+### 配置文件注意事项
+
+1. **JSON 格式**：确保配置文件是有效的 JSON 格式
+2. **数值范围**：权重建议使用 0-100 的整数
+3. **大小写敏感**：事件/技能名称必须与代码中定义的完全一致
+4. **重载时机**：
+   - 修改配置文件后需要重启服务器
+   - 使用控制台命令修改的权重会在下回合生效
+5. **默认值**：如果不设置某个事件/技能的权重，将使用代码中的默认值
+
+### 验证配置
+
+```bash
+# 检查配置是否生效
+css_event_status       # 查看当前事件
+css_skill_status       # 查看当前技能
+css_event_weights      # 验证权重是否正确
+```
 
 ---
 

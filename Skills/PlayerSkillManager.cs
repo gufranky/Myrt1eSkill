@@ -122,6 +122,7 @@ public class PlayerSkillManager
         RegisterSkill(new AutoAimSkill());          // 自瞄技能
         RegisterSkill(new BladeMasterSkill());      // 剑圣技能
         RegisterSkill(new RangeFinderSkill());      // 测距仪技能
+        RegisterSkill(new TimeRecallSkill());       // 时间回溯技能
 
         Console.WriteLine("[技能管理器] 已注册 " + _skills.Count + " 个玩家技能");
     }

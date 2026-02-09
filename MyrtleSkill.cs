@@ -467,9 +467,11 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
         // 处理反向爆头事件（包括子事件）
         var inverseEvents = FindEventsOfType<InverseHeadshotEvent>();
-        foreach (var inverseEvent in inverseEvents)
+        if (inverseEvents.Count > 0)
         {
-            float? inverseMultiplier = InverseHeadshotEvent.HandleDamagePre(player, info);
+            // 只需要处理一次，因为所有实例返回相同的倍数
+            var inverseEvent = inverseEvents[0];
+            float? inverseMultiplier = inverseEvent.HandleDamagePre(player, info);
             if (inverseMultiplier.HasValue)
             {
                 totalMultiplier *= inverseMultiplier.Value;
@@ -654,9 +656,10 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
 
         // 处理受伤传送事件（包括子事件）
         var teleportEvents = FindEventsOfType<TeleportOnDamageEvent>();
-        foreach (var teleportEvent in teleportEvents)
+        if (teleportEvents.Count > 0)
         {
-            teleportEvent.HandlePlayerHurt(@event);
+            // 只处理一次即可，因为所有实例的行为相同
+            teleportEvents[0].HandlePlayerHurt(@event);
         }
 
         // 处理第二次机会技能

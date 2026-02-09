@@ -2,6 +2,7 @@ using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Entities.Constants;
 using CounterStrikeSharp.API.Modules.Utils;
+using MyrtleSkill.Utils;
 
 namespace MyrtleSkill.Skills;
 
@@ -69,10 +70,42 @@ public class TeleportSkill : PlayerSkill
             return;
         }
 
-        // 随机选择一个位置
+        // 随机选择一个位置（带碰撞检测重试）
         var random = new Random();
-        int randomIndex = random.Next(allPositions.Count);
-        var (selectedPosition, ownerName) = allPositions[randomIndex];
+        var targetPosition = default(CounterStrikeSharp.API.Modules.Utils.Vector);
+        var ownerName = "";
+        var selectedPosition = default(Features.PositionEntry);
+        bool foundSafePosition = false;
+        int maxAttempts = Math.Min(10, allPositions.Count);
+
+        for (int attempt = 0; attempt < maxAttempts; attempt++)
+        {
+            // 随机选择一个位置
+            int randomIndex = random.Next(allPositions.Count);
+            (selectedPosition, ownerName) = allPositions[randomIndex];
+
+            targetPosition = new CounterStrikeSharp.API.Modules.Utils.Vector(
+                selectedPosition.Position.X,
+                selectedPosition.Position.Y,
+                selectedPosition.Position.Z
+            );
+
+            // 检查位置是否安全
+            if (SkillUtils.IsPositionSafe(targetPosition, player))
+            {
+                foundSafePosition = true;
+                break;
+            }
+
+            Console.WriteLine($"[瞬间移动] 尝试 {attempt + 1}/{maxAttempts}: 位置不安全，重新选择");
+        }
+
+        if (!foundSafePosition)
+        {
+            player.PrintToChat("💫 无法找到安全传送位置！");
+            Console.WriteLine($"[瞬间移动] {player.PlayerName} 传送失败");
+            return;
+        }
 
         // 计算时间差
         float timeAgo = Server.CurrentTime - selectedPosition.Timestamp;
@@ -82,48 +115,15 @@ public class TeleportSkill : PlayerSkill
                 ? $"{(int)(timeAgo / 60)}分钟前"
                 : $"{(int)(timeAgo / 3600)}小时前";
 
-        var targetPosition = new CounterStrikeSharp.API.Modules.Utils.Vector(
-            selectedPosition.Position.X,
-            selectedPosition.Position.Y,
-            selectedPosition.Position.Z
-        );
-
         Console.WriteLine($"[瞬间移动] {player.PlayerName} 传送到 {ownerName} 的位置 ({timeDesc})");
 
-        // 传送玩家
-        TeleportPlayer(player, pawn, targetPosition);
+        // 执行传送
+        pawn.Teleport(targetPosition, pawn.AbsRotation, new Vector(0, 0, 0));
 
         // 显示效果
         player.PrintToCenter("🌀 瞬间移动！");
         player.PrintToChat($"🌀 已传送到 {ownerName} {timeDesc} 的位置！");
 
         Console.WriteLine($"[瞬间移动] {player.PlayerName} 成功使用传送技能");
-    }
-
-    /// <summary>
-    /// 传送玩家到指定位置
-    /// </summary>
-    private void TeleportPlayer(CCSPlayerController player, CCSPlayerPawn pawn, Vector position)
-    {
-        // 传送玩家
-        pawn.Teleport(position, pawn.AbsRotation, new Vector(0, 0, 0));
-
-        // 临时设置为穿透模式，防止卡在墙里
-        pawn.Collision.CollisionGroup = (byte)CollisionGroup.COLLISION_GROUP_DISSOLVING;
-        pawn.Collision.CollisionAttribute.CollisionGroup = (byte)CollisionGroup.COLLISION_GROUP_DISSOLVING;
-        Utilities.SetStateChanged(pawn, "CCollisionProperty", "m_CollisionGroup");
-        Utilities.SetStateChanged(pawn, "VPhysicsCollisionAttribute_t", "m_nCollisionGroup");
-
-        // 下一帧恢复正常碰撞
-        Server.NextFrame(() =>
-        {
-            if (pawn == null || !pawn.IsValid || pawn.LifeState != (byte)LifeState_t.LIFE_ALIVE)
-                return;
-
-            pawn.Collision.CollisionGroup = (byte)CollisionGroup.COLLISION_GROUP_PLAYER;
-            pawn.Collision.CollisionAttribute.CollisionGroup = (byte)CollisionGroup.COLLISION_GROUP_PLAYER;
-            Utilities.SetStateChanged(pawn, "CCollisionProperty", "m_CollisionGroup");
-            Utilities.SetStateChanged(pawn, "VPhysicsCollisionAttribute_t", "m_nCollisionGroup");
-        });
     }
 }
