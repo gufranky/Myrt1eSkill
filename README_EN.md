@@ -10,7 +10,7 @@ Myrtle Skill Plugin is a Counter-Strike 2 (CS2) entertainment plugin that adds r
 - **Current Version**: v2.10.0
 - **CS2Sharp API Version**: 1.0.362
 - **Number of Events**: 48
-- **Number of Skills**: 66
+- **Number of Skills**: 67
 
 ## ⚠️ Important Notice
 
@@ -245,6 +245,7 @@ Default weight distribution (configurable):
 | ThirdEye             | 👁️ Third Eye           | See enemies behind walls!                                  | Active | 9999s     |
 | TimeRecall           | ⏪ Time Recall          | Return to position, view, and HP from 5 seconds ago!       | Active | 15s       |
 | TimeController       | ⏰ Time Controller      | Control game speed! Cycle through 0.75x, 1x, 1.5x! Affects all players! | Active | 0.1s      |
+| AdaptiveDisguise     | 🎭 Adaptive Disguise    | Disguise as a random enemy player! Revert when hurt!       | Active | 30s       |
 | WoodMan              | 🪵 Wood Man             | -50% damage taken, but -30% movement speed!                 | Passive | None      |
 | ZRY                  | 🔫 ZRY                  | Your bullets penetrate walls!                              | Passive | None      |
 

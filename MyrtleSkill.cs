@@ -707,6 +707,10 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
             bladeMaster.HandlePlayerHurt(@event, SkillManager);
         }
 
+        // 处理自适应伪装技能（受伤后解除伪装）
+        var adaptiveDisguiseSkill = (Skills.AdaptiveDisguiseSkill?)SkillManager.GetSkill("AdaptiveDisguise");
+        adaptiveDisguiseSkill?.OnPlayerHurt(@event);
+
         return HookResult.Continue;
     }
 

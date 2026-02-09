@@ -124,6 +124,7 @@ public class PlayerSkillManager
         RegisterSkill(new RangeFinderSkill());      // 测距仪技能
         RegisterSkill(new TimeRecallSkill());       // 时间回溯技能
         RegisterSkill(new TimeControllerSkill());   // 时间控制者技能
+        RegisterSkill(new AdaptiveDisguiseSkill()); // 自适应伪装技能
 
         Console.WriteLine("[技能管理器] 已注册 " + _skills.Count + " 个玩家技能");
     }
