@@ -39,12 +39,23 @@ public class FortniteSkill : PlayerSkill
     // 静态构造函数
     static FortniteSkill()
     {
-        Console.WriteLine("[堡垒之夜] 预加载模型: " + BARRICADE_MODEL);
+        Console.WriteLine("[堡垒之夜] 初始化技能");
     }
 
     /// <summary>
-    /// 预加载模型资源（在 Load 时调用）
+    /// 注册模型到资源清单（在插件 Load 时调用）
     /// </summary>
+    public static void RegisterModel()
+    {
+        // 将模型添加到资源清单，确保在服务器启动时预加载
+        MyrtleSkill.Instance?.AddToManifest(BARRICADE_MODEL);
+        Console.WriteLine("[堡垒之夜] 已添加模型到资源清单: " + BARRICADE_MODEL);
+    }
+
+    /// <summary>
+    /// 预加载模型资源（已弃用 - 使用 ResourceManifest 系统）
+    /// </summary>
+    [Obsolete("使用 ResourceManifest 系统代替")]
     public static void PrecacheModel()
     {
         Server.PrecacheModel(BARRICADE_MODEL);

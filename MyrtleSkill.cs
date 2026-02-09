@@ -64,6 +64,9 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
     private Dictionary<ulong, DateTime> _playerHudExpired = new();
     private const float HUD_DISPLAY_DURATION = 20.0f; // HUD 显示时长（秒）
 
+    // 模型资源清单（用于预加载自定义模型）
+    private readonly HashSet<string> _manifestResources = new();
+
     // 静态实例（供技能访问）
     public static MyrtleSkill? Instance { get; private set; }
 
@@ -96,8 +99,12 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // 设置技能静态引用（用于技能内部访问插件）
         Skills.TeamWhipSkill.MyrtleSkillPlugin = this;
 
+        // 注册模型到资源清单（必须在 OnServerPrecacheResources 之前）
+        Skills.FortniteSkill.RegisterModel();
+
         // 注册事件处理器
         RegisterListener<Listeners.OnMapStart>(OnMapStart);
+        RegisterListener<Listeners.OnServerPrecacheResources>(OnServerPrecacheResources);
         RegisterEventHandler<EventRoundStart>(OnRoundStart, HookMode.Post);
         RegisterEventHandler<EventRoundEnd>(OnRoundEnd, HookMode.Post);
         RegisterListener<Listeners.OnPlayerTakeDamagePre>(OnPlayerTakeDamagePre);
@@ -147,10 +154,7 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         // ✅ 在地图加载后初始化服务器设置（此时 ConVar 已可用）
         Utils.ServerSettings.InitializeAllSettings();
 
-        // 预加载堡垒之夜技能的模型
-        Skills.FortniteSkill.PrecacheModel();
-
-        // 预加载第三只眼技能的模型
+        // 预加载第三只眼技能的模型（保持兼容性）
         Skills.ThirdEyeSkill.PrecacheModel();
 
         // 启动位置记录器（此时全局变量已初始化，可以安全调用）
@@ -160,6 +164,31 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
         PositionRecorder?.ClearAllHistory();
         Console.WriteLine($"[位置记录器] 地图切换到 {mapName}，已清理所有位置记录");
         return;
+    }
+
+    /// <summary>
+    /// 添加模型到资源清单（在服务器启动时预加载）
+    /// </summary>
+    public void AddToManifest(string resourcePath)
+    {
+        if (!_manifestResources.Contains(resourcePath))
+        {
+            _manifestResources.Add(resourcePath);
+            Console.WriteLine($"[资源清单] 添加模型: {resourcePath}");
+        }
+    }
+
+    /// <summary>
+    /// 服务器预加载资源时处理清单
+    /// </summary>
+    private void OnServerPrecacheResources(ResourceManifest manifest)
+    {
+        foreach (var resource in _manifestResources)
+        {
+            manifest.AddResource(resource);
+            Console.WriteLine($"[资源清单] 预加载: {resource}");
+        }
+        Console.WriteLine($"[资源清单] 已预加载 {_manifestResources.Count} 个资源");
     }
 
     private HookResult OnRoundStart(EventRoundStart @event, GameEventInfo info)
