@@ -13,10 +13,18 @@
   </ItemGroup>
 
   <ItemGroup>
-    <!-- GitHub Actions 构建时使用 NuGet 包 -->
-    <PackageReference Include="CS2MenuManager" Version="1.0.30" Condition="'$(GITHUB_ACTIONS)' == 'true'" />
-    <!-- 本地构建时使用项目引用 -->
-    <ProjectReference Include="C:\Users\myrt1e\Downloads\MenuManagerCS2-main\MenuManagerCS2-main\MenuManagerApi\MenuManagerApi.csproj" Condition="'$(GITHUB_ACTIONS)' != 'true'" />
+    <!-- 引用第三方 MenuManagerCS2 API 项目 -->
+    <ProjectReference Include="ThirdParty\MenuManagerCS2\MenuManagerApi\MenuManagerApi.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 排除不需要编译的 MenuManager 项目 -->
+    <Compile Remove="ThirdParty\MenuManagerCS2\MenuManagerCore\**" />
+    <Compile Remove="ThirdParty\MenuManagerCS2\MenuManagerTest\**" />
+    <EmbeddedResource Remove="ThirdParty\MenuManagerCS2\MenuManagerCore\**" />
+    <EmbeddedResource Remove="ThirdParty\MenuManagerCS2\MenuManagerTest\**" />
+    <None Remove="ThirdParty\MenuManagerCS2\MenuManagerCore\**" />
+    <None Remove="ThirdParty\MenuManagerCS2\MenuManagerTest\**" />
   </ItemGroup>
 
 </Project>
