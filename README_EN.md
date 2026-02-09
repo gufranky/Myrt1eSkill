@@ -10,7 +10,7 @@ Myrtle Skill Plugin is a Counter-Strike 2 (CS2) entertainment plugin that adds r
 - **Current Version**: v2.10.0
 - **CS2Sharp API Version**: 1.0.362
 - **Number of Events**: 48
-- **Number of Skills**: 67
+- **Number of Skills**: 66 (Last Stand temporarily disabled)
 
 ## ⚠️ Important Notice
 
