@@ -1236,10 +1236,12 @@ public class MyrtleSkill : BasePlugin, IPluginConfig<EventWeightsConfig>
                 radarHack.OnTick(player);
             }
 
+            // 处理速射技能（完全复制 jRandomSkills）
             var quickShotSkill = skills.FirstOrDefault(s => s.Name == "QuickShot");
             if (quickShotSkill != null)
             {
-                Skills.QuickShotSkill.OnTick(SkillManager);
+                var quickShot = (Skills.QuickShotSkill)quickShotSkill;
+                quickShot.OnTick();
             }
 
             // 处理剑圣技能（移动速度修正）
