@@ -81,8 +81,14 @@ public class LastStandSkill : PlayerSkill
     /// </summary>
     public void OnPlayerDeath(EventPlayerDeath @event)
     {
-        // 每次有人死亡后，检查所有玩家的残局使者状态
-        CheckAllPlayersLastStand();
+        // 获取正在死亡的玩家
+        var dyingPlayer = @event.Userid;
+
+        // 延迟一帧再检查，确保死亡状态已更新
+        Server.NextFrame(() =>
+        {
+            CheckAllPlayersLastStand();
+        });
     }
 
     /// <summary>
