@@ -114,7 +114,7 @@ public class PlayerSkillManager
         RegisterSkill(new FreeCameraSkill());      // 自由视角技能
         RegisterSkill(new WoodManSkill());         // 木头人技能
         RegisterSkill(new ZRYSkill());             // ZRY技能
-        // RegisterSkill(new LastStandSkill());   // 残局使者技能（暂时禁用，会导致崩溃）
+        RegisterSkill(new LastStandSkill());        // 残局使者技能（简化版，使用 radar reveal）
         RegisterSkill(new GlitchSkill());           // 故障技能
         RegisterSkill(new MindHackSkill());         // 精神骇入技能
         RegisterSkill(new ProstheticSkill());       // 假肢技能

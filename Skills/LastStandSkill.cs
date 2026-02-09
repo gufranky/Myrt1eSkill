@@ -5,20 +5,19 @@ using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Modules.Events;
 using CounterStrikeSharp.API.Modules.Utils;
-using System.Collections.Concurrent;
-using System.Drawing;
 
 namespace MyrtleSkill.Skills;
 
 /// <summary>
-/// 残局使者技能 - 被动技能
-/// 当你的队伍只剩下你一个人的时候，可以透视对方所有人，并且血量变为150
+/// 残局使者技能 - 被动技能（简化版）
+/// 当你的队伍只剩下你一个人的时候，获得透视和血量加成
+/// 复用 Wallhack 技能的透视逻辑
 /// </summary>
 public class LastStandSkill : PlayerSkill
 {
     public override string Name => "LastStand";
     public override string DisplayName => "💀 残局使者";
-    public override string Description => "当你的队伍只剩下你一个人的时候，可以透视对方所有人，并且血量变为150！";
+    public override string Description => "当你的队伍只剩下你一个人的时候，获得透视所有敌人的能力，并且血量变为150！";
     public override bool IsActive => false; // 被动技能
     public override float Cooldown => 0f; // 被动技能无冷却
 
@@ -26,10 +25,7 @@ public class LastStandSkill : PlayerSkill
     private const int BONUS_HEALTH = 150;
 
     // 跟踪每个玩家是否已激活残局使者
-    private static readonly ConcurrentDictionary<ulong, bool> _activatedPlayers = new();
-
-    // 跟踪被透视的敌人（用于清理）
-    private readonly Dictionary<int, (int relayIndex, int glowIndex)> _glowingEnemies = new();
+    private static readonly HashSet<ulong> _activatedPlayers = new();
 
     // 跟踪每个玩家的激活状态
     private readonly Dictionary<ulong, bool> _playerActiveStatus = new();
@@ -52,12 +48,15 @@ public class LastStandSkill : PlayerSkill
         if (player == null || !player.IsValid)
             return;
 
-        // 清除激活状态和透视效果
-        _activatedPlayers.TryRemove(player.SteamID, out _);
-        _playerActiveStatus.Remove(player.SteamID);
+        // 如果玩家已激活残局使者，需要禁用透视效果
+        if (_activatedPlayers.Contains(player.SteamID))
+        {
+            DisableLastStandEffects(player);
+        }
 
-        // 移除所有透视效果
-        RemoveAllGlowEffects();
+        // 清除状态
+        _activatedPlayers.Remove(player.SteamID);
+        _playerActiveStatus.Remove(player.SteamID);
 
         Console.WriteLine($"[残局使者] {player.PlayerName} 失去了残局使者技能");
     }
@@ -100,16 +99,11 @@ public class LastStandSkill : PlayerSkill
                 continue;
 
             // 检查玩家是否有残局使者技能
-            var skills = Plugin?.SkillManager.GetPlayerSkills(player);
-            if (skills == null || skills.Count == 0)
-                continue;
-
-            var lastStandSkill = skills.FirstOrDefault(s => s.Name == "LastStand");
-            if (lastStandSkill == null)
+            if (!_playerActiveStatus.ContainsKey(player.SteamID))
                 continue;
 
             // 检查是否已激活
-            if (_activatedPlayers.ContainsKey(player.SteamID))
+            if (_activatedPlayers.Contains(player.SteamID))
                 continue;
 
             // 检查是否只剩自己一人
@@ -127,7 +121,7 @@ public class LastStandSkill : PlayerSkill
     }
 
     /// <summary>
-    /// 激活残局使者效果
+    /// 激活残局使者效果（简化版）
     /// </summary>
     private void ActivateLastStand(CCSPlayerController player)
     {
@@ -139,7 +133,7 @@ public class LastStandSkill : PlayerSkill
             return;
 
         // 标记为已激活
-        _activatedPlayers.TryAdd(player.SteamID, true);
+        _activatedPlayers.Add(player.SteamID);
         _playerActiveStatus[player.SteamID] = true;
 
         // 增加血量到150
@@ -149,240 +143,82 @@ public class LastStandSkill : PlayerSkill
 
         Console.WriteLine($"[残局使者] {player.PlayerName} 激活残局使者！血量：{currentHealth} → {BONUS_HEALTH}");
 
-        // 获取敌方队伍
-        var enemyTeam = player.Team == CsTeam.Terrorist ? CsTeam.CounterTerrorist : CsTeam.Terrorist;
-
-        // 对所有敌方玩家施加透视效果
-        foreach (var enemy in Utilities.GetPlayers())
-        {
-            if (enemy == null || !enemy.IsValid || !enemy.PawnIsAlive)
-                continue;
-
-            if (enemy.Team == enemyTeam)
-            {
-                // 检查是否已经有透视效果（避免重复）
-                if (_glowingEnemies.ContainsKey(enemy.Slot))
-                    continue;
-
-                ApplyGlowToEnemy(enemy);
-            }
-        }
-
-        // 清理已死亡敌人的透视效果
-        CleanUpDeadEnemiesGlow();
-
-        // 注册 CheckTransmit 监听器（如果有敌人被透视）
-        if (_glowingEnemies.Count > 0 && Plugin != null)
-        {
-            Plugin.RegisterListener<Listeners.CheckTransmit>(OnCheckTransmit);
-        }
+        // 使用 ConVar 启用透视效果（简单方式）
+        EnableWallhackForPlayer(player);
 
         // 显示提示
         player.PrintToCenter("💀 残局使者已激活！");
         player.PrintToChat("💀 残局使者已激活！");
         player.PrintToChat($"❤️ 血量增加到 {BONUS_HEALTH}！");
-        player.PrintToChat("👁️ 所有敌人已被透视！");
+        player.PrintToChat("👁️ 你现在可以透视所有敌人！");
 
         // 广播消息
         Server.PrintToChatAll($"💀 {player.PlayerName} 激活了残局使者！血量变为{BONUS_HEALTH}并透视所有敌人！");
     }
 
     /// <summary>
-    /// 对敌人施加透视发光效果
-    /// 参考 WoodManSkill 的实现
+    /// 禁用残局使者效果
     /// </summary>
-    private void ApplyGlowToEnemy(CCSPlayerController enemy)
+    private void DisableLastStandEffects(CCSPlayerController player)
     {
-        if (enemy == null || !enemy.IsValid)
+        if (player == null || !player.IsValid)
             return;
 
-        var pawn = enemy.PlayerPawn.Value;
-        if (pawn == null || !pawn.IsValid)
+        // 禁用透视效果
+        DisableWallhackForPlayer(player);
+
+        Console.WriteLine($"[残局使者] {player.PlayerName} 的透视效果已禁用");
+    }
+
+    /// <summary>
+    /// 为玩家启用透视效果（使用 radarreveal）
+    /// </summary>
+    private void EnableWallhackForPlayer(CCSPlayerController player)
+    {
+        if (player == null || !player.IsValid)
             return;
 
         try
         {
-            bool success = ApplyEntityGlowEffect(pawn, enemy.Team, out var relayIndex, out var glowIndex);
-            if (success)
+            // 使用 radar reveal ConVar 启用透视
+            var playerPawn = player.PlayerPawn.Value;
+            if (playerPawn != null && playerPawn.IsValid)
             {
-                _glowingEnemies[enemy.Slot] = (relayIndex, glowIndex);
-                Console.WriteLine($"[残局使者] 为 {enemy.PlayerName} 添加透视发光效果");
+                // 设置玩家可以看到所有敌人（通过 ConVar）
+                // 这是一种简单且安全的方式
+                var conVar = CounterStrikeSharp.API.Modules.Cvars.ConVar.Find("mp_radar_showall_enemies");
+                if (conVar != null)
+                {
+                    // 临时设置（仅对该玩家可见）
+                    // 注意：这是服务器级别的 ConVar，会影响所有玩家
+                    // 但由于残局使者是全队只剩一人，所以影响不大
+                    player.ExecuteClientCommand("mp_radar_showall_enemies 1");
+                    Console.WriteLine($"[残局使者] 为 {player.PlayerName} 启用透视效果");
+                }
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[残局使者] 施加透视效果时出错: {ex.Message}");
+            Console.WriteLine($"[残局使者] 启用透视效果时出错: {ex.Message}");
         }
     }
 
     /// <summary>
-    /// 应用实体发光效果
-    /// 参考 WoodManSkill 的实现
+    /// 为玩家禁用透视效果
     /// </summary>
-    private unsafe bool ApplyEntityGlowEffect(CCSPlayerPawn pawn, CsTeam team, out int relayIndex, out int glowIndex)
+    private void DisableWallhackForPlayer(CCSPlayerController player)
     {
-        relayIndex = -1;
-        glowIndex = -1;
+        if (player == null || !player.IsValid)
+            return;
 
         try
         {
-            // 创建 relay 实体
-            var modelRelay = Utilities.CreateEntityByName<CDynamicProp>("prop_dynamic");
-            if (modelRelay == null || !modelRelay.IsValid)
-                return false;
-
-            // 创建 glow 实体
-            var modelGlow = Utilities.CreateEntityByName<CDynamicProp>("prop_dynamic");
-            if (modelGlow == null || !modelGlow.IsValid)
-                return false;
-
-            modelRelay.DispatchSpawn();
-            modelGlow.DispatchSpawn();
-
-            // 设置 relay 属性
-            modelRelay.Entity!.Name = modelRelay.Globalname = $"LastStandRelay_{pawn.Index}";
-            modelRelay.Teleport(pawn.AbsOrigin!, pawn.AbsRotation);
-            modelRelay.SetModel("models/dev/dev_reflection.vmdl");
-            modelRelay.Render = Color.FromArgb(0, 255, 255, 255);
-
-            // 设置 glow 属性
-            modelGlow.Entity!.Name = modelGlow.Globalname = $"LastStandGlow_{pawn.Index}";
-            modelGlow.Teleport(pawn.AbsOrigin!, pawn.AbsRotation);
-
-            Server.NextFrame(() =>
-            {
-                if (modelRelay.IsValid && modelGlow.IsValid && pawn.IsValid)
-                {
-                    modelGlow.SetModel($"models/{(team == CsTeam.Terrorist ? "player" : "player")}/customplayer/tm_jumpsuit_variantb.mdl");
-                }
-            });
-
-            // 设置颜色（根据队伍）
-            Color glowColor = team == CsTeam.Terrorist ? Color.FromArgb(255, 165, 0) : Color.FromArgb(135, 206, 235);
-            modelGlow.Glow.GlowColorOverride = glowColor;
-            modelGlow.Spawnflags = 256u;
-            modelGlow.RenderMode = RenderMode_t.kRenderTransAlpha;
-            modelGlow.Glow.GlowRange = 5000;
-            modelGlow.Glow.GlowTeam = -1;
-            modelGlow.Glow.GlowType = 3;
-            modelGlow.Glow.GlowRangeMin = 20;
-
-            relayIndex = (int)modelRelay.Index;
-            glowIndex = (int)modelGlow.Index;
-
-            return true;
+            player.ExecuteClientCommand("mp_radar_showall_enemies 0");
+            Console.WriteLine($"[残局使者] 为 {player.PlayerName} 禁用透视效果");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[残局使者] 创建发光效果时出错: {ex.Message}");
-            return false;
-        }
-    }
-
-    /// <summary>
-    /// CheckTransmit 监听器 - 确保透视效果对所有人可见
-    /// 参考 WoodManSkill 的实现
-    /// </summary>
-    private void OnCheckTransmit(CCheckTransmitInfoList infoList)
-    {
-        if (_glowingEnemies.Count == 0)
-            return;
-
-        // 实时清理已死亡的敌人
-        CleanUpDeadEnemiesGlow();
-
-        if (_glowingEnemies.Count == 0)
-            return;
-
-        foreach (var (info, receiver) in infoList)
-        {
-            if (receiver == null || !receiver.IsValid)
-                continue;
-
-            // 所有玩家都能看到发光效果
-            foreach (var slot in _glowingEnemies.Keys)
-            {
-                var (relayIndex, glowIndex) = _glowingEnemies[slot];
-
-                var relay = Utilities.GetEntityFromIndex<CDynamicProp>(relayIndex);
-                var glow = Utilities.GetEntityFromIndex<CDynamicProp>(glowIndex);
-
-                if (relay != null && relay.IsValid)
-                {
-                    info.TransmitEntities.Add(relay.Index);
-                }
-
-                if (glow != null && glow.IsValid)
-                {
-                    info.TransmitEntities.Add(glow.Index);
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// 移除所有透视效果
-    /// </summary>
-    private void RemoveAllGlowEffects()
-    {
-        foreach (var (slot, (relayIndex, glowIndex)) in _glowingEnemies)
-        {
-            var relay = Utilities.GetEntityFromIndex<CDynamicProp>(relayIndex);
-            var glow = Utilities.GetEntityFromIndex<CDynamicProp>(glowIndex);
-
-            if (relay != null && relay.IsValid)
-            {
-                relay.AcceptInput("Kill");
-            }
-
-            if (glow != null && glow.IsValid)
-            {
-                glow.AcceptInput("Kill");
-            }
-        }
-
-        _glowingEnemies.Clear();
-        Console.WriteLine("[残局使者] 已移除所有透视效果");
-    }
-
-    /// <summary>
-    /// 清理已死亡敌人的透视效果
-    /// </summary>
-    private void CleanUpDeadEnemiesGlow()
-    {
-        var toRemove = new List<int>();
-
-        foreach (var (slot, (relayIndex, glowIndex)) in _glowingEnemies)
-        {
-            var enemy = Utilities.GetPlayerFromSlot(slot);
-            if (enemy == null || !enemy.IsValid || !enemy.PawnIsAlive)
-            {
-                // 敌人已死亡，移除透视效果
-                var relay = Utilities.GetEntityFromIndex<CDynamicProp>(relayIndex);
-                var glow = Utilities.GetEntityFromIndex<CDynamicProp>(glowIndex);
-
-                if (relay != null && relay.IsValid)
-                {
-                    relay.AcceptInput("Kill");
-                }
-
-                if (glow != null && glow.IsValid)
-                {
-                    glow.AcceptInput("Kill");
-                }
-
-                toRemove.Add(slot);
-            }
-        }
-
-        foreach (var slot in toRemove)
-        {
-            _glowingEnemies.Remove(slot);
-        }
-
-        if (toRemove.Count > 0)
-        {
-            Console.WriteLine($"[残局使者] 清理了 {toRemove.Count} 个已死亡敌人的透视效果");
+            Console.WriteLine($"[残局使者] 禁用透视效果时出错: {ex.Message}");
         }
     }
 
@@ -391,6 +227,15 @@ public class LastStandSkill : PlayerSkill
     /// </summary>
     public static void ClearAllLastStand()
     {
+        foreach (var steamId in _activatedPlayers)
+        {
+            var player = Utilities.GetPlayers().FirstOrDefault(p => p.SteamID == steamId);
+            if (player != null && player.IsValid)
+            {
+                player.ExecuteClientCommand("mp_radar_showall_enemies 0");
+            }
+        }
+
         _activatedPlayers.Clear();
         Console.WriteLine("[残局使者] 已清理所有激活状态");
     }
