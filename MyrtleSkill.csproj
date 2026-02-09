@@ -13,7 +13,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="C:\Users\myrt1e\Downloads\MenuManagerCS2-main\MenuManagerCS2-main\MenuManagerApi\MenuManagerApi.csproj" />
+    <!-- GitHub Actions 构建时使用 NuGet 包 -->
+    <PackageReference Include="CS2MenuManager" Version="1.0.30" Condition="'$(GITHUB_ACTIONS)' == 'true'" />
+    <!-- 本地构建时使用项目引用 -->
+    <ProjectReference Include="C:\Users\myrt1e\Downloads\MenuManagerCS2-main\MenuManagerCS2-main\MenuManagerApi\MenuManagerApi.csproj" Condition="'$(GITHUB_ACTIONS)' != 'true'" />
   </ItemGroup>
 
 </Project>

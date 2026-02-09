@@ -154,18 +154,32 @@ public class UnluckyCouplesEvent : EntertainmentEvent
     /// </summary>
     private void MatchPlayersAndApplyEffects()
     {
-        // 获取所有存活的玩家
-        var alivePlayers = Utilities.GetPlayers()
-            .Where(p => p.IsValid && p.PawnIsAlive)
+        // 获取所有存活的玩家（分别按队伍）
+        var terroristPlayers = Utilities.GetPlayers()
+            .Where(p => p.IsValid && p.PawnIsAlive && p.Team == CsTeam.Terrorist)
+            .ToList();
+
+        var ctPlayers = Utilities.GetPlayers()
+            .Where(p => p.IsValid && p.PawnIsAlive && p.Team == CsTeam.CounterTerrorist)
             .ToList();
 
         // 如果是单数，忽略最后一名玩家
-        if (alivePlayers.Count % 2 != 0)
+        CCSPlayerController? ignoredPlayer = null;
+        if (terroristPlayers.Count % 2 != 0)
         {
-            var ignoredPlayer = alivePlayers.Last();
-            Console.WriteLine($"[苦命鸳鸯] 玩家数量为单数 ({alivePlayers.Count})，忽略玩家: {ignoredPlayer.PlayerName}");
-            alivePlayers.RemoveAt(alivePlayers.Count - 1);
+            ignoredPlayer = terroristPlayers.Last();
+            Console.WriteLine($"[苦命鸳鸯] T队玩家数量为单数 ({terroristPlayers.Count})，忽略玩家: {ignoredPlayer.PlayerName}");
+            terroristPlayers.RemoveAt(terroristPlayers.Count - 1);
         }
+        if (ctPlayers.Count % 2 != 0)
+        {
+            ignoredPlayer = ctPlayers.Last();
+            Console.WriteLine($"[苦命鸳鸯] CT队玩家数量为单数 ({ctPlayers.Count})，忽略玩家: {ignoredPlayer.PlayerName}");
+            ctPlayers.RemoveAt(ctPlayers.Count - 1);
+        }
+
+        // 合并两个队伍的玩家
+        var alivePlayers = terroristPlayers.Concat(ctPlayers).ToList();
 
         // 随机打乱玩家顺序
         var random = new Random();
@@ -175,16 +189,23 @@ public class UnluckyCouplesEvent : EntertainmentEvent
             (alivePlayers[i], alivePlayers[j]) = (alivePlayers[j], alivePlayers[i]);
         }
 
-        // 两两配对
+        // 两两配对（确保配对的是不同队伍的敌人）
         for (int i = 0; i < alivePlayers.Count; i += 2)
         {
             var player1 = alivePlayers[i];
             var player2 = alivePlayers[i + 1];
 
+            // 确保配对的是敌人（不同队伍）
+            if (player1.Team == player2.Team)
+            {
+                Console.WriteLine($"[苦命鸳鸯] 警告：尝试配对同队玩家 {player1.PlayerName} <-> {player2.PlayerName}，跳过此次配对");
+                continue;
+            }
+
             _pairs[player1.Slot] = player2.Slot;
             _pairs[player2.Slot] = player1.Slot;
 
-            Console.WriteLine($"[苦命鸳鸯] 配对: {player1.PlayerName} <-> {player2.PlayerName}");
+            Console.WriteLine($"[苦命鸳鸯] 配对: {player1.PlayerName} ({player1.Team}) <-> {player2.PlayerName} ({player2.Team})");
 
             // 为双方添加发光效果（只对配对玩家可见）
             ApplyGlowToPlayer(player1);

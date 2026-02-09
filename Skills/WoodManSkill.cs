@@ -1,8 +1,10 @@
 // MyrtleSkill Plugin - GNU GPL v3.0
 // See LICENSE and ATTRIBUTION.md for details
+// Based on jRandomSkills Woodman skill
 
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
+using CounterStrikeSharp.API.Modules.Entities.Constants;
 using CounterStrikeSharp.API.Modules.Utils;
 using System.Collections.Concurrent;
 using System.Drawing;
@@ -10,7 +12,8 @@ using System.Drawing;
 namespace MyrtleSkill.Skills;
 
 /// <summary>
-/// 木头人技能 - 让对方玩家保持不动，否则被透视
+/// 木头人技能 - 主动技能
+/// 让对方玩家保持不动，否则被透视
 /// </summary>
 public class WoodManSkill : PlayerSkill
 {
@@ -19,9 +22,6 @@ public class WoodManSkill : PlayerSkill
     public override string Description => "输入 !useskill 激活！对方玩家有3秒倒数准备时间，之后3秒内移动将被透视3秒！每局可使用2次！";
     public override bool IsActive => true; // 主动技能
     public override float Cooldown => 0.0f; // 0秒冷却
-
-    // 与透视事件互斥
-    public override List<string> ExcludedEvents => new() { "Xray", "SuperpowerXray" };
 
     // 每局可使用次数
     private const int MAX_USES_PER_ROUND = 2;
@@ -35,41 +35,40 @@ public class WoodManSkill : PlayerSkill
     // 透视持续时间（秒）
     private const float GLOW_DURATION = 3.0f;
 
-    // 跟踪每回合已使用次数
-    private static readonly ConcurrentDictionary<string, int> _usageCount = new();
+    // 移动检测阈值（移动超过此距离被视为移动）
+    private const float MOVEMENT_THRESHOLD = 10.0f;
 
-    // 跟踪被检测的玩家及其初始位置
+    // 跟踪每局使用次数（静态，允许在回合开始时重置）
+    private static readonly ConcurrentDictionary<ulong, int> _usageCount = new();
+
+    // 跟踪当前检测的玩家信息
     private readonly ConcurrentDictionary<int, WoodManPlayerInfo> _detectedPlayers = new();
 
-    // 跟踪发光效果的敌人
-    private readonly Dictionary<int, (int relayIndex, int glowIndex)> _glowingEnemies = new();
-
-    // 玩家信息
-    private class WoodManPlayerInfo
-    {
-        public CCSPlayerController? Player { get; set; }
-        public Vector InitialPosition { get; set; } = new Vector(0, 0, 0);
-        public float DetectionStartTime { get; set; }
-        public bool IsMoving { get; set; }
-    }
+    // 跟踪被透视的玩家（用于清理）
+    private readonly Dictionary<int, (int relayIndex, int glowIndex)> _glowingPlayers = new();
 
     public override void OnApply(CCSPlayerController player)
     {
-        var key = player.SteamID.ToString();
-        _usageCount[key] = 0;
+        if (player == null || !player.IsValid)
+            return;
+
+        // 初始化使用次数
+        _usageCount.TryAdd(player.SteamID, 0);
 
         Console.WriteLine($"[木头人] {player.PlayerName} 获得了木头人技能");
 
         player.PrintToChat("🪵 你获得了木头人技能！");
-        player.PrintToChat("💡 输入 !useskill 激活！");
-        player.PrintToChat("⏱️ 对方玩家有3秒倒数，之后3秒内移动将被透视！");
-        player.PrintToChat("⏰ 每局可使用2次，无冷却！");
+        player.PrintToChat("💡 输入 !useskill 或按键激活！");
+        player.PrintToChat($"🎯 每局可使用{MAX_USES_PER_ROUND}次！");
+        player.PrintToChat("⚠️ 对方玩家3秒倒数准备时间，之后3秒内移动将被透视！");
     }
 
     public override void OnRevert(CCSPlayerController player)
     {
-        var key = player.SteamID.ToString();
-        _usageCount.TryRemove(key, out _);
+        if (player == null || !player.IsValid)
+            return;
+
+        _usageCount.TryRemove(player.SteamID, out _);
 
         Console.WriteLine($"[木头人] {player.PlayerName} 失去了木头人技能");
     }
@@ -79,77 +78,30 @@ public class WoodManSkill : PlayerSkill
         if (player == null || !player.IsValid || !player.PawnIsAlive)
             return;
 
-        var key = player.SteamID.ToString();
-
-        // 获取当前使用次数
-        int currentCount = _usageCount.TryGetValue(key, out var count) ? count : 0;
-
-        // 检查是否超过使用次数限制
-        if (currentCount >= MAX_USES_PER_ROUND)
+        // 检查使用次数
+        if (!_usageCount.TryGetValue(player.SteamID, out int count) || count >= MAX_USES_PER_ROUND)
         {
-            player.PrintToCenter($"❌ 本回合已使用{MAX_USES_PER_ROUND}次木头人技能！");
-            player.PrintToChat($"❌ 本回合已使用{MAX_USES_PER_ROUND}次木头人技能！");
+            player.PrintToChat($"❌ 本回合已使用{MAX_USES_PER_ROUND}次！");
             return;
         }
 
-        Console.WriteLine($"[木头人] {player.PlayerName} 使用了木头人技能（第{currentCount + 1}次）");
+        var playerPawn = player.PlayerPawn.Value;
+        if (playerPawn == null || !playerPawn.IsValid || playerPawn.AbsOrigin == null)
+            return;
 
         // 增加使用次数
-        _usageCount[key] = currentCount + 1;
+        _usageCount.AddOrUpdate(player.SteamID, 1, (key, old) => old + 1);
+
+        Console.WriteLine($"[木头人] {player.PlayerName} 使用了木头人技能（本回合第{_usageCount[player.SteamID]}次）");
 
         // 获取敌方队伍
         var enemyTeam = player.Team == CsTeam.Terrorist ? CsTeam.CounterTerrorist : CsTeam.Terrorist;
 
-        // 给所有敌方玩家显示倒数
-        foreach (var enemy in Utilities.GetPlayers())
-        {
-            if (enemy == null || !enemy.IsValid || !enemy.PawnIsAlive)
-                continue;
+        // 开始检测移动
+        StartDetection(player, enemyTeam);
 
-            if (enemy.Team == enemyTeam)
-            {
-                // 显示倒数提示
-                ShowCountdown(enemy, COUNTDOWN_TIME);
-            }
-        }
-
-        player.PrintToCenter($"🪵 木头人已激活！剩余次数：{MAX_USES_PER_ROUND - currentCount - 1}");
-        player.PrintToChat($"🪵 木头人已激活！{COUNTDOWN_TIME}秒后开始检测移动！");
-
-        // 显示全局提示
-        Server.PrintToChatAll($"🪵 {player.PlayerName} 使用了木头人技能！{COUNTDOWN_TIME}秒后检测移动！");
-
-        // 倒数结束后开始检测
-        Plugin?.AddTimer(COUNTDOWN_TIME, () =>
-        {
-            StartDetection(player, enemyTeam);
-        });
-    }
-
-    /// <summary>
-    /// 显示倒数
-    /// </summary>
-    private void ShowCountdown(CCSPlayerController player, float duration)
-    {
-        for (int i = (int)duration; i > 0; i--)
-        {
-            // 捕获循环变量的副本，避免闭包问题
-            int countdown = i;
-
-            Plugin?.AddTimer(duration - i, () =>
-            {
-                if (player != null && player.IsValid && player.PawnIsAlive)
-                {
-                    // 使用HUD显示（简化HTML，移除可能不支持的样式类）
-                    string htmlContent = $"<div style='background-color: rgba(255, 165, 0, 0.8); border: 3px solid #FFFF00; border-radius: 8px; padding: 20px 40px;'>"
-                        + $"<font style='font-size: 24px; color: #FFFFFF; font-weight: bold;'>{countdown} 秒后开始检测移动！</font><br>"
-                        + $"<font style='font-size: 18px; color: #FFFF00;'>保持不动！</font>"
-                        + $"</div>";
-
-                    player.PrintToCenterHtml(htmlContent);
-                }
-            });
-        }
+        player.PrintToCenter("🪵 木头人技能已激活！");
+        player.PrintToChat($"🪵 已使用{count + 1}/{MAX_USES_PER_ROUND}次！");
     }
 
     /// <summary>
@@ -193,17 +145,14 @@ public class WoodManSkill : PlayerSkill
             var player = kvp.Value.Player;
             if (player != null && player.IsValid)
             {
-                string htmlContent = $"<div style='background-color: rgba(255, 0, 0, 0.8); border: 3px solid #FF0000; border-radius: 8px; padding: 20px 40px;'>"
-                    + $"<font style='font-size: 24px; color: #FFFFFF; font-weight: bold;'>保持不动！</font><br>"
-                    + $"<font style='font-size: 18px; color: #FFFF00;'>3秒内移动将被透视！</font>"
-                    + $"</div>";
-
-                player.PrintToCenterHtml(htmlContent);
                 player.PrintToChat("🪵 木头人技能生效！3秒内移动将被透视！");
             }
         }
 
         Server.PrintToChatAll($"🪵 木头人开始检测移动！{DETECTION_TIME}秒内移动将被透视！");
+
+        // 开始显示倒计时HUD
+        ShowCountdownHUD(COUNTDOWN_TIME + DETECTION_TIME);
 
         // 注册 OnTick 监听
         if (Plugin != null)
@@ -212,7 +161,7 @@ public class WoodManSkill : PlayerSkill
         }
 
         // 检测时间结束后移除监听并清理
-        Plugin?.AddTimer(DETECTION_TIME, () =>
+        Plugin?.AddTimer(COUNTDOWN_TIME + DETECTION_TIME, () =>
         {
             Plugin?.RemoveListener<Listeners.OnTick>(OnDetectionTick);
             RemoveGlowEffects();
@@ -231,6 +180,83 @@ public class WoodManSkill : PlayerSkill
 
             _detectedPlayers.Clear();
         });
+    }
+
+    /// <summary>
+    /// 显示倒计时HUD（类似开局HUD）
+    /// </summary>
+    private void ShowCountdownHUD(float duration)
+    {
+        // 获取被检测的所有玩家
+        var playersToNotify = _detectedPlayers.Values.Select(p => p.Player).Where(p => p != null && p.IsValid).ToList();
+
+        if (playersToNotify.Count == 0)
+            return;
+
+        float updateInterval = 0.1f; // 每0.1秒更新一次
+
+        // 创建倒计时更新动作
+        Action<float> updateHUD = null;
+        updateHUD = (float elapsedTime) =>
+        {
+            float remainingTime = Math.Max(0, duration - elapsedTime);
+
+            if (remainingTime <= 0)
+                return;
+
+            // 显示倒计时HUD
+            foreach (var player in playersToNotify)
+            {
+                if (!player.IsValid)
+                    continue;
+
+                // 根据剩余时间改变颜色和文字
+                string color;
+                string warningText;
+                if (remainingTime <= DETECTION_TIME)
+                {
+                    // 倒数阶段
+                    if (remainingTime > DETECTION_TIME * 0.66f)
+                    {
+                        color = "#FFFF00"; // 黄色
+                        warningText = "⏱️ 保持不动！";
+                    }
+                    else if (remainingTime > DETECTION_TIME * 0.33f)
+                    {
+                        color = "#FF6600"; // 橙红色
+                        warningText = "⚠️ 最后警告！";
+                    }
+                    else
+                    {
+                        color = "#FF0000"; // 红色
+                        warningText = "⚠️ 别动！";
+                    }
+                }
+                else
+                {
+                    // 检测阶段
+                    color = "#FF0000"; // 红色
+                    warningText = "👁️ 检测中！";
+                }
+
+                string htmlContent = $"<div style='background-color: rgba(0, 0, 0, 0.85); border: 4px solid {color}; border-radius: 12px; padding: 25px 50px; margin: 15px;'>"
+                    + $"<font style='font-size: 42px; color: {color}; font-weight: bold;'>{warningText}</font><br><br>"
+                    + $"<font style='font-size: 32px; color: #FFFFFF; font-weight: bold;'>{remainingTime:F1} 秒</font><br><br>"
+                    + $"<font style='font-size: 22px; color: #FF6666;'>移动将被透视！</font>"
+                    + $"</div>";
+
+                player.PrintToCenterHtml(htmlContent);
+            }
+
+            // 继续下一次更新
+            if (remainingTime > updateInterval)
+            {
+                Plugin?.AddTimer(updateInterval, () => updateHUD(elapsedTime + updateInterval));
+            }
+        };
+
+        // 立即开始第一次更新
+        updateHUD(0);
     }
 
     /// <summary>
@@ -259,76 +285,59 @@ public class WoodManSkill : PlayerSkill
             if (isMoving && !info.IsMoving)
             {
                 info.IsMoving = true;
-
-                // 施加透视效果
-                ApplyGlowToEnemy(info.Player);
-
-                // 提示玩家
-                string htmlContent = $"<div style='background-color: rgba(255, 0, 0, 0.8); border: 3px solid #FF0000; border-radius: 8px; padding: 20px 40px;'>"
-                    + $"<font style='font-size: 24px; color: #FFFFFF; font-weight: bold;'>你移动了！</font><br>"
-                    + $"<font style='font-size: 18px; color: #FFFF00;'>被透视{GLOW_DURATION}秒！</font>"
-                    + $"</div>";
-
-                info.Player.PrintToCenterHtml(htmlContent);
-                info.Player.PrintToChat("🪵 你移动了！被透视3秒！");
-
-                Console.WriteLine($"[木头人] {info.Player.PlayerName} 移动了，施加透视");
+                ApplyGlowToPlayer(info.Player);
             }
         }
     }
 
     /// <summary>
-    /// 检测玩家是否移动
+    /// 检查玩家是否移动
     /// </summary>
-    private bool IsPlayerMoving(Vector initialPos, Vector currentPos)
+    private bool IsPlayerMoving(Vector initialPosition, Vector currentPosition)
     {
-        // 计算位置变化
-        float deltaX = Math.Abs(currentPos.X - initialPos.X);
-        float deltaY = Math.Abs(currentPos.Y - initialPos.Y);
-        float deltaZ = Math.Abs(currentPos.Z - initialPos.Z);
+        // 计算移动距离（忽略高度变化）
+        float deltaX = currentPosition.X - initialPosition.X;
+        float deltaY = currentPosition.Y - initialPosition.Y;
+        float distance = (float)Math.Sqrt(deltaX * deltaX + deltaY * deltaY);
 
-        // 移动阈值（5单位）
-        const float MOVE_THRESHOLD = 5.0f;
-
-        return (deltaX + deltaY + deltaZ) > MOVE_THRESHOLD;
+        return distance > MOVEMENT_THRESHOLD;
     }
 
     /// <summary>
-    /// 对敌人施加透视发光效果
-    /// 参考 DecoyXRaySkill 的实现
+    /// 对玩家施加透视效果
     /// </summary>
-    private void ApplyGlowToEnemy(CCSPlayerController enemy)
+    private void ApplyGlowToPlayer(CCSPlayerController player)
     {
-        if (enemy == null || !enemy.IsValid)
+        if (player == null || !player.IsValid)
             return;
 
-        var pawn = enemy.PlayerPawn.Value;
+        var pawn = player.PlayerPawn.Value;
         if (pawn == null || !pawn.IsValid)
             return;
 
         try
         {
-            bool success = ApplyEntityGlowEffect(pawn, enemy.Team, out var relayIndex, out var glowIndex);
+            bool success = ApplyEntityGlowEffect(pawn, player.Team, out var relayIndex, out var glowIndex);
             if (success)
             {
-                _glowingEnemies[enemy.Slot] = (relayIndex, glowIndex);
-                Console.WriteLine($"[木头人] 为 {enemy.PlayerName} 添加透视发光效果");
+                _glowingPlayers[player.Slot] = (relayIndex, glowIndex);
+                Console.WriteLine($"[木头人] 为 {player.PlayerName} 添加透视发光效果");
 
-                // 注册 CheckTransmit 监听器
-                if (Plugin != null && _glowingEnemies.Count == 1)
+                // GLOW_DURATION秒后移除透视
+                Plugin?.AddTimer(GLOW_DURATION, () =>
                 {
-                    Plugin.RegisterListener<Listeners.CheckTransmit>(OnCheckTransmit);
-                }
+                    RemoveGlowFromPlayer(player);
+                });
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[木头人] 添加发光效果时出错: {ex.Message}");
+            Console.WriteLine($"[木头人] 施加透视效果时出错: {ex.Message}");
         }
     }
 
     /// <summary>
-    /// 应用实体发光效果（复制自 DecoyXRaySkill）
+    /// 应用实体发光效果（复制自 XrayEvent）
     /// </summary>
     private bool ApplyEntityGlowEffect(CBaseEntity entity, CsTeam team, out int relayIndex, out int glowIndex)
     {
@@ -387,9 +396,20 @@ public class WoodManSkill : PlayerSkill
         modelGlow.DispatchSpawn();
         modelGlow.AcceptInput("FollowEntity", modelRelay, modelGlow, "!activator");
 
-        // 设置颜色（根据队伍）- 使用GlowColorOverride而不是Render
-        Color glowColor = team == CsTeam.Terrorist ? Color.FromArgb(255, 165, 0) : Color.FromArgb(135, 206, 235);
-        modelGlow.Glow.GlowColorOverride = glowColor;
+        // 根据队伍设置发光颜色
+        switch (team)
+        {
+            case CsTeam.Terrorist:
+                modelGlow.Glow.GlowColorOverride = Color.FromArgb(255, 165, 0); // 橙色
+                break;
+            case CsTeam.CounterTerrorist:
+                modelGlow.Glow.GlowColorOverride = Color.FromArgb(135, 206, 235); // 天蓝色
+                break;
+            default:
+                modelGlow.Glow.GlowColorOverride = Color.FromArgb(255, 255, 255); // 白色
+                break;
+        }
+
         modelGlow.Spawnflags = 256u;
         modelGlow.RenderMode = RenderMode_t.kRenderTransAlpha;
         modelGlow.Glow.GlowRange = 5000;
@@ -404,11 +424,39 @@ public class WoodManSkill : PlayerSkill
     }
 
     /// <summary>
-    /// 移除所有发光效果
+    /// 从玩家移除透视效果
+    /// </summary>
+    private void RemoveGlowFromPlayer(CCSPlayerController player)
+    {
+        if (player == null || !_glowingPlayers.ContainsKey(player.Slot))
+            return;
+
+        var (relayIndex, glowIndex) = _glowingPlayers[player.Slot];
+
+        var relay = Utilities.GetEntityFromIndex<CDynamicProp>(relayIndex);
+        var glow = Utilities.GetEntityFromIndex<CDynamicProp>(glowIndex);
+
+        if (relay != null && relay.IsValid)
+        {
+            relay.AcceptInput("Kill");
+        }
+
+        if (glow != null && glow.IsValid)
+        {
+            glow.AcceptInput("Kill");
+        }
+
+        _glowingPlayers.Remove(player.Slot);
+
+        Console.WriteLine($"[木头人] {player.PlayerName} 的透视效果已移除");
+    }
+
+    /// <summary>
+    /// 移除所有透视效果
     /// </summary>
     private void RemoveGlowEffects()
     {
-        foreach (var (slot, (relayIndex, glowIndex)) in _glowingEnemies)
+        foreach (var (slot, (relayIndex, glowIndex)) in _glowingPlayers)
         {
             var relay = Utilities.GetEntityFromIndex<CDynamicProp>(relayIndex);
             var glow = Utilities.GetEntityFromIndex<CDynamicProp>(glowIndex);
@@ -424,45 +472,8 @@ public class WoodManSkill : PlayerSkill
             }
         }
 
-        _glowingEnemies.Clear();
-        Console.WriteLine("[木头人] 已移除所有发光效果");
-
-        // 移除 CheckTransmit 监听器
-        Plugin?.RemoveListener<Listeners.CheckTransmit>(OnCheckTransmit);
-    }
-
-    /// <summary>
-    /// 检查传输时控制发光效果的可见性
-    /// </summary>
-    private void OnCheckTransmit(CCheckTransmitInfoList infoList)
-    {
-        if (_glowingEnemies.Count == 0)
-            return;
-
-        foreach (var (info, receiver) in infoList)
-        {
-            if (receiver == null || !receiver.IsValid)
-                continue;
-
-            // 所有玩家都能看到发光效果
-            foreach (var slot in _glowingEnemies.Keys)
-            {
-                var (relayIndex, glowIndex) = _glowingEnemies[slot];
-
-                var relay = Utilities.GetEntityFromIndex<CDynamicProp>(relayIndex);
-                var glow = Utilities.GetEntityFromIndex<CDynamicProp>(glowIndex);
-
-                if (relay != null && relay.IsValid)
-                {
-                    info.TransmitEntities.Add(relay.Index);
-                }
-
-                if (glow != null && glow.IsValid)
-                {
-                    info.TransmitEntities.Add(glow.Index);
-                }
-            }
-        }
+        _glowingPlayers.Clear();
+        Console.WriteLine("[木头人] 已移除所有透视效果");
     }
 
     /// <summary>
@@ -472,5 +483,16 @@ public class WoodManSkill : PlayerSkill
     {
         _usageCount.Clear();
         Console.WriteLine("[木头人] 新回合开始，清空使用记录");
+    }
+
+    /// <summary>
+    /// 木头人玩家信息
+    /// </summary>
+    private class WoodManPlayerInfo
+    {
+        public CCSPlayerController? Player { get; set; }
+        public Vector InitialPosition { get; set; }
+        public float DetectionStartTime { get; set; }
+        public bool IsMoving { get; set; }
     }
 }
