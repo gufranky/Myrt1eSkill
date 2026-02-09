@@ -100,7 +100,7 @@ public class FortniteSkill : PlayerSkill
         // 计算位置和角度（完全复制 jRandomSkills）
         float distance = 50;
         Vector pos = playerPawn.AbsOrigin + GetForwardVector(playerPawn.AbsRotation) * distance;
-        QAngle angle = new QAngle(playerPawn.AbsRotation.X, playerPawn.AbsRotation.Y + 90, playerPawn.AbsRotation.Z);
+        QAngle angle = new QAngle(playerPawn.AbsRotation.X, playerPawn.V_angle.Y + 90, playerPawn.AbsRotation.Z);
 
         // 设置路障属性（完全复制 jRandomSkills）
         box.Entity!.Name = box.Globalname = $"FortniteWall_{Server.TickCount}";
