@@ -7,7 +7,7 @@ Myrtle Skill Plugin 是一个 Counter-Strike 2 (CS2) 娱乐插件，为服务器
 ## 版本信息
 
 - **插件名称**: Myrtle Skill Plugin
-- **当前版本**: v2.8.0
+- **当前版本**: v2.9.0
 - **CS2Sharp API 版本**: 1.0.362
 - **事件数量**: 48 个
 - **技能数量**: 65 个
