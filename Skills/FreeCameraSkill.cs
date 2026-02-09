@@ -23,6 +23,9 @@ public class FreeCameraSkill : PlayerSkill
     public override bool IsActive => true; // 主动技能
     public override float Cooldown => 20.0f; // 20秒内置冷却
 
+    // 与透视事件互斥
+    public override List<string> ExcludedEvents => new() { "Xray", "SuperpowerXray" };
+
     // 摄像头移动速度
     private const float CAMERA_SPEED = 450.0f;   // 每秒移动速度（1.5倍：300 * 1.5）
     private const float VERTICAL_SPEED = 300.0f; // 垂直移动速度（1.5倍：200 * 1.5）

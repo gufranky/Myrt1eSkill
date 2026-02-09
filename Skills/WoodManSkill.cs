@@ -20,6 +20,9 @@ public class WoodManSkill : PlayerSkill
     public override bool IsActive => true; // 主动技能
     public override float Cooldown => 0.0f; // 0秒冷却
 
+    // 与透视事件互斥
+    public override List<string> ExcludedEvents => new() { "Xray", "SuperpowerXray" };
+
     // 每局可使用次数
     private const int MAX_USES_PER_ROUND = 2;
 
